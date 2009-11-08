@@ -123,7 +123,10 @@ real_to_prot:
 	/* load the GDT register */
 	xorw	%ax, %ax
 	movw	%ax, %ds
-	DATA32	ADDR32	lgdt	gdtdesc
+
+	/* DATA32 ADDR32 lgdt  gdtdesc  */
+	.byte	0x67, 0x66, 0xf, 0x1, 0x15
+	.long	gdtdesc
 
 	/* turn on protected mode */
 	movl	%cr0, %eax
@@ -131,7 +134,10 @@ real_to_prot:
 	movl	%eax, %cr0
 
 	/* jump to relocation, flush prefetch queue, and reload %cs */
-	DATA32	ljmp	$GRUB_MEMORY_MACHINE_PROT_MODE_CSEG, $protcseg
+	/* DATA32 ljmp  $GRUB_MEMORY_MACHINE_PROT_MODE_CSEG, $protcseg  */
+	.byte	0x66, 0xea
+	.long	protcseg
+	.short	GRUB_MEMORY_MACHINE_PROT_MODE_CSEG
 
 	.code32
 protcseg:
@@ -200,7 +206,10 @@ tmpcseg:
 	movl	%eax, %cr0
 
 	/* flush prefetch queue, reload %cs */
-	DATA32	ljmp	$0, $realcseg
+	/* DATA32 ljmp  $0, $realcseg  */
+	.byte	0x66, 0xea
+	.long	realcseg
+	.short	0
 
 realcseg:
 	/* we are in real mode now
@@ -219,6 +228,7 @@ realcseg:
 	sti
 
 	/* return on new stack! */
-	DATA32	ret
+	/* DATA32 ret  */
+	.byte	0x66, 0xc3
 
 	.code32

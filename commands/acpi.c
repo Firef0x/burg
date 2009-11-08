@@ -35,6 +35,10 @@
 #include <grub/efi/api.h>
 #endif
 
+GRUB_EXPORT(grub_byte_checksum);
+GRUB_EXPORT(grub_acpi_get_rsdpv1);
+GRUB_EXPORT(grub_acpi_get_rsdpv2);
+
 static const struct grub_arg_option options[] = {
   {"exclude", 'x', 0,
    "Don't load host tables specified by comma-separated list",

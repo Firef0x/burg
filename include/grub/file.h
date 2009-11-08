@@ -49,13 +49,13 @@ struct grub_file
 typedef struct grub_file *grub_file_t;
 
 /* Get a device name from NAME.  */
-char *EXPORT_FUNC(grub_file_get_device_name) (const char *name);
+char *grub_file_get_device_name (const char *name);
 
-grub_file_t EXPORT_FUNC(grub_file_open) (const char *name);
-grub_ssize_t EXPORT_FUNC(grub_file_read) (grub_file_t file, void *buf,
-					  grub_size_t len);
-grub_off_t EXPORT_FUNC(grub_file_seek) (grub_file_t file, grub_off_t offset);
-grub_err_t EXPORT_FUNC(grub_file_close) (grub_file_t file);
+grub_file_t grub_file_open (const char *name);
+grub_ssize_t grub_file_read (grub_file_t file, void *buf,
+			     grub_size_t len);
+grub_off_t grub_file_seek (grub_file_t file, grub_off_t offset);
+grub_err_t grub_file_close (grub_file_t file);
 
 static inline grub_off_t
 grub_file_size (const grub_file_t file)

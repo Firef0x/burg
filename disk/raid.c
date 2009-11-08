@@ -24,6 +24,12 @@
 #include <grub/misc.h>
 #include <grub/raid.h>
 
+GRUB_EXPORT(grub_raid5_recover_func);
+GRUB_EXPORT(grub_raid6_recover_func);
+GRUB_EXPORT(grub_raid_block_xor);
+GRUB_EXPORT(grub_raid_register);
+GRUB_EXPORT(grub_raid_unregister);
+
 /* Linked list of RAID arrays. */
 static struct grub_raid_array *array_list;
 grub_raid5_recover_func_t grub_raid5_recover_func;

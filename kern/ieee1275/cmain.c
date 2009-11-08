@@ -23,6 +23,12 @@
 #include <grub/machine/kernel.h>
 #include <grub/ieee1275/ieee1275.h>
 
+GRUB_EXPORT(grub_ieee1275_chosen);
+GRUB_EXPORT(grub_ieee1275_mmu);
+GRUB_EXPORT(grub_ieee1275_entry_fn);
+GRUB_EXPORT(grub_ieee1275_test_flag);
+GRUB_EXPORT(grub_ieee1275_set_flag);
+
 int (*grub_ieee1275_entry_fn) (void *);
 
 grub_ieee1275_phandle_t grub_ieee1275_chosen;
@@ -59,6 +65,7 @@ grub_ieee1275_find_options (void)
   char tmp[32];
   int is_smartfirmware = 0;
   int is_olpc = 0;
+  int is_openbios = 0;
 
   grub_ieee1275_finddevice ("/", &root);
   grub_ieee1275_finddevice ("/options", &options);
@@ -78,6 +85,11 @@ grub_ieee1275_find_options (void)
 				   tmp,	sizeof (tmp), 0);
   if (rc >= 0 && !grub_strcmp (tmp, "OLPC"))
     is_olpc = 1;
+
+  rc = grub_ieee1275_get_property (root, "name",
+				   tmp,	sizeof (tmp), 0);
+  if (rc >= 0 && grub_strstr (tmp, "OpenBIOS"))
+    is_openbios = 1;
 
   if (is_smartfirmware)
     {
@@ -146,6 +158,13 @@ grub_ieee1275_find_options (void)
 	  grub_ieee1275_set_flag (GRUB_IEEE1275_FLAG_FORCE_CLAIM);
 	  grub_ieee1275_set_flag (GRUB_IEEE1275_FLAG_NO_ANSI);
 	}
+    }
+
+  if (is_openbios)
+    {
+      grub_ieee1275_set_flag (GRUB_IEEE1275_FLAG_BROKEN_OUTPUT);
+      grub_ieee1275_set_flag (GRUB_IEEE1275_FLAG_CANNOT_INTERPRET);
+      grub_ieee1275_set_flag (GRUB_IEEE1275_FLAG_FORCE_CLAIM);
     }
 }
 

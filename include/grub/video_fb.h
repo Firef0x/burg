@@ -28,7 +28,28 @@
 
 struct grub_video_fbblit_info;
 
-struct grub_video_fbrender_target;
+struct grub_video_fbrender_target
+{
+  /* Copy of the screen's mode info structure, except that width, height and
+     mode_type has been re-adjusted to requested render target settings.  */
+  struct grub_video_mode_info mode_info;
+
+  struct
+  {
+    unsigned int x;
+    unsigned int y;
+    unsigned int width;
+    unsigned int height;
+  } viewport;
+
+  /* Indicates whether the data has been allocated by us and must be freed
+     when render target is destroyed.  */
+  int is_allocated;
+
+  /* Pointer to data.  Can either be in video card memory or in local host's
+     memory.  */
+  grub_uint8_t *data;
+};
 
 #define GRUB_VIDEO_FBSTD_NUMCOLORS 16
 extern struct grub_video_palette_data grub_video_fbstd_colors[GRUB_VIDEO_FBSTD_NUMCOLORS];

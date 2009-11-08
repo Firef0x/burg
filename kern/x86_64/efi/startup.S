@@ -23,9 +23,9 @@
 
         .file   "startup.S"
         .text
-        .globl  start, _start
+        .globl  start, _start, grub_code_start
         .code64
-
+grub_code_start:
 start:
 _start:
 	jmp codestart

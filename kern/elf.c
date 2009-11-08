@@ -25,6 +25,13 @@
 #include <grub/misc.h>
 #include <grub/mm.h>
 
+GRUB_EXPORT(grub_elf32_load);
+GRUB_EXPORT(grub_elf64_load);
+GRUB_EXPORT(grub_elf_close);
+GRUB_EXPORT(grub_elf_file);
+GRUB_EXPORT(grub_elf_is_elf32);
+GRUB_EXPORT(grub_elf_is_elf64);
+
 /* Check if EHDR is a valid ELF header.  */
 static grub_err_t
 grub_elf_check_header (grub_elf_t elf)

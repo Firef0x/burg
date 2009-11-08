@@ -8,26 +8,6 @@ COMMON_LDFLAGS += -nostdlib
 # Used by various components.  These rules need to precede them.
 script/sh/lexer.c_DEPENDENCIES = grub_script.tab.h
 
-# Images.
-
-MOSTLYCLEANFILES += symlist.c kernel_syms.lst
-DEFSYMFILES += kernel_syms.lst
-
-kernel_img_HEADERS = boot.h cache.h device.h disk.h dl.h elf.h elfload.h \
-	env.h err.h file.h fs.h kernel.h misc.h mm.h net.h parser.h reader.h \
-	symbol.h term.h time.h types.h powerpc/libgcc.h loader.h partition.h \
-	msdos_partition.h ieee1275/ieee1275.h machine/kernel.h handler.h list.h \
-	command.h
-
-symlist.c: $(addprefix include/grub/,$(kernel_img_HEADERS)) config.h gensymlist.sh
-	/bin/sh gensymlist.sh $(filter %.h,$^) > $@ || (rm -f $@; exit 1)
-
-kernel_syms.lst: $(addprefix include/grub/,$(kernel_img_HEADERS)) config.h genkernsyms.sh
-	/bin/sh genkernsyms.sh $(filter %.h,$^) > $@ || (rm -f $@; exit 1)
-
-# Programs
-pkglib_PROGRAMS = kernel.img
-
 # Utilities.
 sbin_UTILITIES = grub-mkdevicemap
 ifeq ($(enable_grub_emu), yes)
@@ -48,7 +28,7 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c 	\
 	lib/envblk.c commands/loadenv.c					\
 	commands/gptsync.c commands/probe.c commands/xnu_uuid.c		\
 	commands/password.c commands/keystatus.c			\
-	disk/loopback.c							\
+	disk/loopback.c menu/tree.c menu/uitree.c			\
 	\
 	fs/affs.c fs/cpio.c fs/fat.c fs/ext2.c fs/hfs.c			\
 	fs/hfsplus.c fs/iso9660.c fs/udf.c fs/jfs.c fs/minix.c		\
@@ -84,24 +64,6 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c 	\
 
 grub_emu_LDFLAGS = $(LIBCURSES)
 
-kernel_img_SOURCES = kern/powerpc/ieee1275/startup.S kern/ieee1275/cmain.c \
-	kern/ieee1275/ieee1275.c kern/main.c kern/device.c 		\
-	kern/disk.c kern/dl.c kern/err.c kern/file.c kern/fs.c 		\
-	kern/misc.c kern/mm.c kern/reader.c kern/term.c 	\
-	kern/rescue_parser.c kern/rescue_reader.c \
-	kern/list.c kern/handler.c kern/command.c kern/corecmd.c	\
-	kern/ieee1275/init.c 						\
-	kern/ieee1275/mmap.c						\
-	term/ieee1275/ofconsole.c 		\
-	kern/ieee1275/openfw.c disk/ieee1275/ofdisk.c 		\
-	kern/parser.c kern/partition.c kern/env.c kern/$(target_cpu)/dl.c 	\
-	kern/generic/millisleep.c kern/time.c                            \
-	symlist.c kern/$(target_cpu)/cache.S
-kernel_img_CFLAGS = $(COMMON_CFLAGS)
-kernel_img_ASFLAGS = $(COMMON_ASFLAGS)
-kernel_img_LDFLAGS = $(COMMON_LDFLAGS) -static-libgcc -lgcc \
-	-Wl,-N,-S,-Ttext,0x200000,-Bstatic
-
 # Scripts.
 sbin_SCRIPTS = grub-install
 bin_SCRIPTS = grub-mkrescue
@@ -113,13 +75,33 @@ grub_install_SOURCES = util/ieee1275/grub-install.in
 grub_mkrescue_SOURCES = util/powerpc/ieee1275/grub-mkrescue.in
 
 # Modules.
-pkglib_MODULES = halt.mod \
+pkglib_MODULES = kernel.mod halt.mod \
 	linux.mod \
 	reboot.mod \
 	suspend.mod \
         multiboot.mod \
 	memdisk.mod \
-	lsmmap.mod
+	lsmmap.mod ofw_fb.mod
+
+# For kernel.mod.
+kernel_mod_SOURCES = kern/powerpc/ieee1275/startup.S kern/ieee1275/cmain.c \
+	kern/ieee1275/ieee1275.c kern/main.c kern/device.c 		\
+	kern/disk.c kern/dl.c kern/err.c kern/file.c kern/fs.c 		\
+	kern/misc.c kern/mm.c kern/reader.c kern/term.c 	\
+	kern/rescue_parser.c kern/rescue_reader.c \
+	kern/list.c kern/handler.c kern/command.c kern/corecmd.c	\
+	kern/ieee1275/init.c 						\
+	kern/ieee1275/mmap.c						\
+	term/ieee1275/ofconsole.c 		\
+	kern/ieee1275/openfw.c disk/ieee1275/ofdisk.c 		\
+	kern/parser.c kern/partition.c kern/env.c 	\
+	kern/generic/millisleep.c kern/time.c                            \
+	kern/$(target_cpu)/cache.S kern/$(target_cpu)/libgcc.c
+kernel_mod_CFLAGS = $(COMMON_CFLAGS)
+kernel_mod_ASFLAGS = $(COMMON_ASFLAGS)
+
+#kernel_img_LDFLAGS = $(COMMON_LDFLAGS) -static-libgcc -lgcc \
+#	-Wl,-N,-S,-Ttext,0x200000,-Bstatic
 
 # For boot.mod.
 pkglib_MODULES += boot.mod 
@@ -163,5 +145,10 @@ memdisk_mod_LDFLAGS = $(COMMON_LDFLAGS)
 lsmmap_mod_SOURCES = commands/lsmmap.c
 lsmmap_mod_CFLAGS = $(COMMON_CFLAGS)
 lsmmap_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For ofw_fb.mod
+ofw_fb_mod_SOURCES = video/ieee1275/ofw_fb.c
+ofw_fb_mod_CFLAGS = $(COMMON_CFLAGS)
+ofw_fb_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 include $(srcdir)/conf/common.mk

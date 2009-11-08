@@ -23,7 +23,8 @@
 
 	.text
 	.code32
-	.globl _start
+	.globl _start, grub_code_start
+grub_code_start:
 _start:
 	jmp	codestart
 
@@ -53,7 +54,7 @@ codestart:
 
 	/* ... which allows us to access `grub_kernel_image_size'
 	   before relocation.  */
-	movl	(grub_kernel_image_size - _start)(%esi), %ecx
+	movl	(GRUB_KERNEL_MACHINE_CORE_ENTRY_ADDR + 4)(%esi), %ecx
 
 
 	movl	$_start, %edi
@@ -63,25 +64,13 @@ codestart:
 	ljmp	$GRUB_MEMORY_MACHINE_PROT_MODE_CSEG, $1f
 1:
 
-#ifdef APPLE_CC
 	/* clean out the bss */
-	bss_start_abs = ABS (bss_start)
-	bss_end_abs = ABS (bss_end)
-
-	movl    bss_start_abs, %edi
+	movl	$grub_bss_start, %edi
 
 	/* compute the bss length */
-	movl	bss_end_abs, %ecx
+	movl	$grub_bss_end, %ecx
 	subl	%edi, %ecx
-#else
-	/* clean out the bss */
-	movl	$BSS_START_SYMBOL, %edi
 
-	/* compute the bss length */
-	movl	$END_SYMBOL, %ecx
-	subl	%edi, %ecx
-#endif
-			
 	/* clean out */
 	xorl	%eax, %eax
 	cld

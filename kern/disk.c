@@ -25,6 +25,21 @@
 #include <grub/time.h>
 #include <grub/file.h>
 
+GRUB_EXPORT(grub_disk_dev_register);
+GRUB_EXPORT(grub_disk_dev_unregister);
+GRUB_EXPORT(grub_disk_dev_iterate);
+
+GRUB_EXPORT(grub_disk_open);
+GRUB_EXPORT(grub_disk_close);
+GRUB_EXPORT(grub_disk_read);
+GRUB_EXPORT(grub_disk_write);
+
+GRUB_EXPORT(grub_disk_get_size);
+GRUB_EXPORT(grub_disk_firmware_fini);
+GRUB_EXPORT(grub_disk_firmware_is_tainted);
+
+GRUB_EXPORT(grub_disk_ata_pass_through);
+
 #define	GRUB_CACHE_TIMEOUT	2
 
 /* The last time the disk was used.  */

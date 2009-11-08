@@ -25,6 +25,10 @@
 #include <grub/command.h>
 #include <grub/dl.h>
 
+GRUB_EXPORT(grub_mmap_register);
+GRUB_EXPORT(grub_mmap_unregister);
+GRUB_EXPORT(grub_mmap_iterate);
+
 #ifndef GRUB_MMAP_REGISTER_BY_FIRMWARE
 
 struct grub_mmap_region *grub_mmap_overlays = 0;

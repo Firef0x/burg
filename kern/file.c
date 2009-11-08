@@ -24,6 +24,12 @@
 #include <grub/fs.h>
 #include <grub/device.h>
 
+GRUB_EXPORT(grub_file_get_device_name);
+GRUB_EXPORT(grub_file_open);
+GRUB_EXPORT(grub_file_read);
+GRUB_EXPORT(grub_file_seek);
+GRUB_EXPORT(grub_file_close);
+
 /* Get the device part of the filename NAME. It is enclosed by parentheses.  */
 char *
 grub_file_get_device_name (const char *name)

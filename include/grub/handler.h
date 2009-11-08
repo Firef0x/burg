@@ -41,14 +41,14 @@ struct grub_handler_class
 };
 typedef struct grub_handler_class *grub_handler_class_t;
 
-extern grub_handler_class_t EXPORT_VAR(grub_handler_class_list);
+extern grub_handler_class_t grub_handler_class_list;
 
-void EXPORT_FUNC(grub_handler_register) (grub_handler_class_t class,
-					 grub_handler_t handler);
-void EXPORT_FUNC(grub_handler_unregister) (grub_handler_class_t class,
-					   grub_handler_t handler);
-grub_err_t EXPORT_FUNC(grub_handler_set_current) (grub_handler_class_t class,
-						  grub_handler_t handler);
+void grub_handler_register (grub_handler_class_t class,
+			    grub_handler_t handler);
+void grub_handler_unregister (grub_handler_class_t class,
+			      grub_handler_t handler);
+grub_err_t grub_handler_set_current (grub_handler_class_t class,
+				     grub_handler_t handler);
 
 #define GRUB_AS_HANDLER(ptr) \
   ((GRUB_FIELD_MATCH (ptr, grub_handler_t, next) && \

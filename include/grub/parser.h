@@ -56,14 +56,12 @@ struct grub_parser_state_transition
 };
 
 /* Determines the state following STATE, determined by C.  */
-grub_parser_state_t
-EXPORT_FUNC (grub_parser_cmdline_state) (grub_parser_state_t state,
-					 char c, char *result);
+grub_parser_state_t grub_parser_cmdline_state (grub_parser_state_t state,
+					       char c, char *result);
 
-grub_err_t
-EXPORT_FUNC (grub_parser_split_cmdline) (const char *cmdline,
-					 grub_reader_getline_t getline,
-					 int *argc, char ***argv);
+grub_err_t grub_parser_split_cmdline (const char *cmdline,
+				      grub_reader_getline_t getline,
+				      int *argc, char ***argv);
 
 struct grub_parser
 {
@@ -83,12 +81,15 @@ struct grub_parser
 };
 typedef struct grub_parser *grub_parser_t;
 
-extern struct grub_handler_class EXPORT_VAR(grub_parser_class);
-grub_err_t EXPORT_FUNC(grub_parser_execute) (char *source);
+extern struct grub_handler_class grub_parser_class;
+grub_err_t grub_parser_execute (char *source);
+
+#define grub_parser_register(name, parser) \
+  grub_parser_register_internal (parser); \
+  GRUB_MODATTR ("handler", "parser." name);
 
 static inline void
-grub_parser_register (const char *name __attribute__ ((unused)),
-		      grub_parser_t parser)
+grub_parser_register_internal (grub_parser_t parser)
 {
   grub_handler_register (&grub_parser_class, GRUB_AS_HANDLER (parser));
 }

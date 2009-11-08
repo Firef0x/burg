@@ -27,6 +27,9 @@
 #include <grub/scsi.h>
 #include <grub/scsicmd.h>
 
+GRUB_EXPORT(grub_scsi_dev_register);
+GRUB_EXPORT(grub_scsi_dev_unregister);
+
 
 static grub_scsi_dev_t grub_scsi_dev_list;
 

@@ -20,6 +20,8 @@
 #include <grub/misc.h>
 #include <grub/disk.h>
 
+GRUB_EXPORT(grub_get_root_biosnumber);
+
 static int
 grub_get_root_biosnumber_default (void)
 {

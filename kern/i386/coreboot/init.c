@@ -39,8 +39,7 @@
 
 #define GRUB_FLOPPY_REG_DIGITAL_OUTPUT		0x3f2
 
-extern char _start[];
-extern char _end[];
+GRUB_EXPORT(grub_stop_floppy);
 
 grub_addr_t grub_os_area_addr;
 grub_size_t grub_os_area_size;
@@ -139,15 +138,4 @@ grub_machine_fini (void)
 {
   grub_vga_text_fini ();
   grub_stop_floppy ();
-}
-
-/* Return the end of the core image.  */
-grub_addr_t
-grub_arch_modules_addr (void)
-{
-#ifdef GRUB_MACHINE_QEMU
-  return grub_core_entry_addr + grub_kernel_image_size;
-#else
-  return ALIGN_UP((grub_addr_t) _end, GRUB_MOD_ALIGN);
-#endif
 }

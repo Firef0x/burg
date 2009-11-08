@@ -54,19 +54,21 @@ typedef enum
     GRUB_ERR_MENU,
     GRUB_ERR_TIMEOUT,
     GRUB_ERR_IO,
-    GRUB_ERR_ACCESS_DENIED
+    GRUB_ERR_ACCESS_DENIED,
+    GRUB_ERR_MENU_ESCAPE,
+    GRUB_ERR_MENU_CONTINUE
   }
 grub_err_t;
 
-extern grub_err_t EXPORT_VAR(grub_errno);
-extern char EXPORT_VAR(grub_errmsg)[];
+extern grub_err_t grub_errno;
+extern char grub_errmsg[];
 
-grub_err_t EXPORT_FUNC(grub_error) (grub_err_t n, const char *fmt, ...);
-void EXPORT_FUNC(grub_fatal) (const char *fmt, ...) __attribute__ ((noreturn));
-void EXPORT_FUNC(grub_error_push) (void);
-int EXPORT_FUNC(grub_error_pop) (void);
-void EXPORT_FUNC(grub_print_error) (void);
-int EXPORT_FUNC(grub_err_printf) (const char *fmt, ...)
+grub_err_t grub_error (grub_err_t n, const char *fmt, ...);
+void grub_fatal (const char *fmt, ...) __attribute__ ((noreturn));
+void grub_error_push (void);
+int grub_error_pop (void);
+void grub_print_error (void);
+int grub_err_printf (const char *fmt, ...)
 __attribute__ ((format (printf, 1, 2)));
 
 #endif /* ! GRUB_ERR_HEADER */

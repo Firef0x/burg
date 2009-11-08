@@ -23,6 +23,8 @@
 #include <grub/term.h>
 #include <grub/extcmd.h>
 
+GRUB_EXPORT(grub_arg_show_help);
+
 /* Built-in parser for default options.  */
 #define SHORT_ARG_HELP	-100
 #define SHORT_ARG_USAGE	-101

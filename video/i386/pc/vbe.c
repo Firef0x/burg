@@ -28,6 +28,11 @@
 #include <grub/mm.h>
 #include <grub/video.h>
 
+GRUB_EXPORT(grub_vbe_get_video_mode);
+GRUB_EXPORT(grub_vbe_get_video_mode_info);
+GRUB_EXPORT(grub_vbe_probe);
+GRUB_EXPORT(grub_vbe_set_video_mode);
+
 static int vbe_detected = -1;
 
 static struct grub_vbe_info_block controller_info;

@@ -19,6 +19,9 @@
 
 #include <grub/datetime.h>
 
+GRUB_EXPORT(grub_get_weekday);
+GRUB_EXPORT(grub_get_weekday_name);
+
 static char *grub_weekday_names[] =
 {
   "Sunday",

@@ -454,8 +454,8 @@ typedef struct
    the end of a chain, meaning no further symbols are found in that bucket.  */
 
 #define STN_UNDEF	0		/* End of a chain.  */
-#define STN_ABS		65521
-
+#define STN_ABS		0xfff1
+#define STN_COMMON	0xfff2
 
 /* How to extract and insert information held in the st_other field.  */
 

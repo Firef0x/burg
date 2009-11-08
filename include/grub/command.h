@@ -72,33 +72,22 @@ struct grub_command
 };
 typedef struct grub_command *grub_command_t;
 
-extern grub_command_t EXPORT_VAR(grub_command_list);
+extern grub_command_t grub_command_list;
 
-grub_command_t
-EXPORT_FUNC(grub_register_command_prio) (const char *name,
-					 grub_command_func_t func,
-					 const char *summary,
-					 const char *description,
-					 int prio);
-void EXPORT_FUNC(grub_unregister_command) (grub_command_t cmd);
+grub_command_t grub_reg_cmd (const char *name,
+			     grub_command_func_t func,
+			     const char *summary,
+			     const char *description,
+			     int prio);
+void grub_unregister_command (grub_command_t cmd);
 
-static inline grub_command_t
-grub_register_command (const char *name,
-		       grub_command_func_t func,
-		       const char *summary,
-		       const char *description)
-{
-  return grub_register_command_prio (name, func, summary, description, 0);
-}
+#define grub_register_command(name, func, summary, description) \
+  grub_reg_cmd (name, func, summary, description, 0); \
+  GRUB_MODATTR ("command", name);
 
-static inline grub_command_t
-grub_register_command_p1 (const char *name,
-			  grub_command_func_t func,
-			  const char *summary,
-			  const char *description)
-{
-  return grub_register_command_prio (name, func, summary, description, 1);
-}
+#define grub_register_command_p1(name, func, summary, description) \
+  grub_reg_cmd (name, func, summary, description, 1); \
+  GRUB_MODATTR ("command", "*" name);
 
 static inline grub_command_t
 grub_command_find (const char *name)

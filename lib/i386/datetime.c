@@ -20,6 +20,8 @@
 #include <grub/datetime.h>
 #include <grub/i386/cmos.h>
 
+GRUB_EXPORT(grub_get_datetime);
+
 grub_err_t
 grub_get_datetime (struct grub_datetime *datetime)
 {

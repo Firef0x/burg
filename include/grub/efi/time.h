@@ -25,6 +25,6 @@
 #define GRUB_TICKS_PER_SECOND	((1UL << 31) / 60 / 60 * 2)
 
 /* Return the real time in ticks.  */
-grub_uint32_t EXPORT_FUNC (grub_get_rtc) (void);
+grub_uint32_t grub_get_rtc (void);
 
 #endif /* ! GRUB_EFI_TIME_HEADER */

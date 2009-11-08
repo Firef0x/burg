@@ -134,7 +134,7 @@ grub_mb2_arch_unload (struct multiboot_tag_header *tags)
 void
 grub_mb2_arch_boot (grub_addr_t entry_addr, void *tags)
 {
-#if defined(__powerpc__)
+#if defined(GRUB_TARGET_POWERPC)
   kernel_entry_t entry = (kernel_entry_t) entry_addr;
   entry (MULTIBOOT2_BOOTLOADER_MAGIC, tags, grub_ieee1275_entry_fn, 0, 0);
 #elif defined(__i386__)

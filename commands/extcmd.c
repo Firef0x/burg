@@ -22,6 +22,9 @@
 #include <grub/misc.h>
 #include <grub/extcmd.h>
 
+GRUB_EXPORT(grub_reg_ecmd);
+GRUB_EXPORT(grub_unregister_extcmd);
+
 static grub_err_t
 grub_extcmd_dispatcher (struct grub_command *cmd,
 			int argc, char **args)
@@ -57,10 +60,10 @@ grub_extcmd_dispatcher (struct grub_command *cmd,
 }
 
 grub_extcmd_t
-grub_register_extcmd (const char *name, grub_extcmd_func_t func,
-		      unsigned flags, const char *summary,
-		      const char *description,
-		      const struct grub_arg_option *parser)
+grub_reg_ecmd (const char *name, grub_extcmd_func_t func,
+	       unsigned flags, const char *summary,
+	       const char *description,
+	       const struct grub_arg_option *parser)
 {
   grub_extcmd_t ext;
   grub_command_t cmd;
@@ -69,8 +72,8 @@ grub_register_extcmd (const char *name, grub_extcmd_func_t func,
   if (! ext)
     return 0;
 
-  cmd = grub_register_command_prio (name, grub_extcmd_dispatcher,
-				    summary, description, 1);
+  cmd = grub_reg_cmd (name, grub_extcmd_dispatcher,
+		      summary, description, 1);
   if (! cmd)
     {
       grub_free (ext);

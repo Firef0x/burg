@@ -24,6 +24,34 @@
 	.align 2
 	.globl grub_arch_sync_caches
 grub_arch_sync_caches:
+
+#ifdef APPLE_CC
+
+	/* `address' may not be CACHE_LINE_BYTES-aligned.  */
+	andi. r6, r3, CACHE_LINE_BYTES - 1 /* Find the misalignment.  */
+	add r4, r4, r6 /* Adjust `size' to compensate.  */
+
+	/* Force the dcache lines to memory.  */
+	li r5, 0
+1:	dcbst r5, r3
+	addi r5, r5, CACHE_LINE_BYTES
+	cmpw r5, r4
+	blt 1b
+	sync            /* Force all dcbsts to complete.  */
+
+	/* Invalidate the icache lines.  */
+	li r5, 0
+1:	icbi r5, r3
+	addi r5, r5, CACHE_LINE_BYTES
+	cmpw r5, r4
+	blt 1b
+	sync            /* Force all icbis to complete.  */
+	isync           /* Discard partially executed instructions that were
+		           loaded from the invalid icache.  */
+	blr
+
+#else
+
 	/* `address' may not be CACHE_LINE_BYTES-aligned.  */
 	andi. 6, 3, CACHE_LINE_BYTES - 1 /* Find the misalignment.  */
 	add 4, 4, 6 /* Adjust `size' to compensate.  */
@@ -46,3 +74,5 @@ grub_arch_sync_caches:
 	isync           /* Discard partially executed instructions that were
 		           loaded from the invalid icache.  */
 	blr
+
+#endif

@@ -21,6 +21,9 @@
 #include <grub/mm.h>
 #include <grub/misc.h>
 
+GRUB_EXPORT(grub_mmap_get_lower);
+GRUB_EXPORT(grub_mmap_get_upper);
+
 grub_uint64_t
 grub_mmap_get_lower (void)
 {

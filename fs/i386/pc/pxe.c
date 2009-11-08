@@ -20,6 +20,7 @@
 #include <grub/dl.h>
 #include <grub/fs.h>
 #include <grub/mm.h>
+#include <grub/env.h>
 #include <grub/disk.h>
 #include <grub/file.h>
 #include <grub/misc.h>
@@ -28,16 +29,19 @@
 #include <grub/machine/pxe.h>
 #include <grub/machine/memory.h>
 
+GRUB_EXPORT(grub_pxe_blksize);
+GRUB_EXPORT(grub_pxe_bootinfo);
+GRUB_EXPORT(grub_pxe_pxenv);
+GRUB_EXPORT(grub_pxe_unload);
+
 #define SEGMENT(x)	((x) >> 4)
 #define OFFSET(x)	((x) & 0xF)
 #define SEGOFS(x)	((SEGMENT(x) << 16) + OFFSET(x))
 #define LINEAR(x)	(void *) (((x >> 16) <<4) + (x & 0xFFFF))
 
 struct grub_pxenv *grub_pxe_pxenv;
-grub_uint32_t grub_pxe_your_ip;
-grub_uint32_t grub_pxe_server_ip;
-grub_uint32_t grub_pxe_gateway_ip;
 int grub_pxe_blksize = GRUB_PXE_MIN_BLKSIZE;
+struct grub_pxenv_boot_player grub_pxe_bootinfo;
 
 static grub_file_t curr_file = 0;
 
@@ -131,8 +135,8 @@ grub_pxefs_open (struct grub_file *file, const char *name)
       curr_file = 0;
     }
 
-  c.c1.server_ip = grub_pxe_server_ip;
-  c.c1.gateway_ip = grub_pxe_gateway_ip;
+  c.c1.server_ip = grub_pxe_bootinfo.server_ip;
+  c.c1.gateway_ip = grub_pxe_bootinfo.gateway_ip;
   grub_strcpy ((char *)&c.c1.filename[0], name);
   grub_pxe_call (GRUB_PXENV_TFTP_GET_FSIZE, &c.c1);
   if (c.c1.status)
@@ -199,10 +203,10 @@ grub_pxefs_read (grub_file_t file, char *buf, grub_size_t len)
       struct grub_pxenv_tftp_open o;
 
       if (curr_file != 0)
-        grub_pxe_call (GRUB_PXENV_TFTP_CLOSE, &o);
+	grub_pxe_call (GRUB_PXENV_TFTP_CLOSE, &o);
 
-      o.server_ip = grub_pxe_server_ip;
-      o.gateway_ip = grub_pxe_gateway_ip;
+      o.server_ip = grub_pxe_bootinfo.server_ip;
+      o.gateway_ip = grub_pxe_bootinfo.gateway_ip;
       grub_strcpy ((char *)&o.filename[0], data->filename);
       o.tftp_port = grub_cpu_to_be16 (GRUB_PXE_TFTP_PORT);
       o.packet_size = data->block_size;
@@ -270,6 +274,36 @@ static struct grub_fs grub_pxefs_fs =
   };
 
 static void
+export_variable (struct grub_pxenv_boot_player *bp)
+{
+  char buf[6 * 3], *p;
+  grub_uint8_t *s;
+  int i;
+
+  p = buf;
+  s = (grub_uint8_t *) &bp->mac_addr;
+  for (i = 0; i < 6; i++)
+    {
+      grub_sprintf (p, "%02x", *(s++));
+      p += 3;
+      *(p - 1) = '-';
+    }
+  *(p - 1) = 0;
+  grub_env_set ("PXE_MAC", buf);
+
+  p = buf;
+  s = (grub_uint8_t *) &bp->your_ip;
+  for (i = 0; i < 4; i++)
+    {
+      grub_sprintf (p, "%d", *(s++));
+      p += grub_strlen (p) + 1;
+      *(p - 1) = '.';
+    }
+  *(p - 1) = 0;
+  grub_env_set ("PXE_IP", buf);
+}
+
+static void
 grub_pxe_detect (void)
 {
   struct grub_pxenv *pxenv;
@@ -288,10 +322,8 @@ grub_pxe_detect (void)
     return;
 
   bp = LINEAR (ci.buffer);
-
-  grub_pxe_your_ip = bp->your_ip;
-  grub_pxe_server_ip = bp->server_ip;
-  grub_pxe_gateway_ip = bp->gateway_ip;
+  export_variable (bp);
+  grub_memcpy (&grub_pxe_bootinfo, bp, sizeof (grub_pxe_bootinfo));
 
   grub_pxe_pxenv = pxenv;
 }

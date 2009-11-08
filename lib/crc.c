@@ -18,7 +18,10 @@
  */
 
 #include <grub/types.h>
+#include <grub/symbol.h>
 #include <grub/lib/crc.h>
+
+GRUB_EXPORT(grub_getcrc32);
 
 static grub_uint32_t crc32_table [256];
 

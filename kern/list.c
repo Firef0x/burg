@@ -20,6 +20,14 @@
 #include <grub/list.h>
 #include <grub/misc.h>
 
+GRUB_EXPORT(grub_list_push);
+GRUB_EXPORT(grub_list_pop);
+GRUB_EXPORT(grub_list_remove);
+GRUB_EXPORT(grub_list_iterate);
+GRUB_EXPORT(grub_list_insert);
+GRUB_EXPORT(grub_prio_list_insert);
+GRUB_EXPORT(grub_named_list_find);
+
 void
 grub_list_push (grub_list_t *head, grub_list_t item)
 {
@@ -78,6 +86,7 @@ grub_list_insert (grub_list_t *head, grub_list_t item,
   item->next = q;
 }
 
+#if 0
 void *
 grub_named_list_find (grub_named_list_t head, const char *name)
 {
@@ -98,6 +107,21 @@ grub_named_list_find (grub_named_list_t head, const char *name)
   grub_list_iterate (GRUB_AS_LIST (head), (grub_list_hook_t) list_find);
   return result;
 }
+#else
+void *
+grub_named_list_find (grub_named_list_t head, const char *name)
+{
+  while (head)
+    {
+      if (! grub_strcmp (head->name, name))
+	return head;
+
+      head = head->next;
+    }
+
+  return 0;
+}
+#endif
 
 void
 grub_prio_list_insert (grub_prio_list_t *head, grub_prio_list_t nitem)

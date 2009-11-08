@@ -3,7 +3,7 @@
 # For grub-mkelfimage.
 bin_UTILITIES += grub-mkelfimage
 grub_mkelfimage_SOURCES = util/elf/grub-mkimage.c util/misc.c \
-	util/resolve.c
+	util/resolve.c util/obj.c kern/list.c
 util/elf/grub-mkimage.c_DEPENDENCIES = Makefile
 
 # For grub-probe.
@@ -12,7 +12,7 @@ util/grub-probe.c_DEPENDENCIES = grub_probe_init.h
 grub_probe_SOURCES = util/grub-probe.c	\
 	util/hostdisk.c	util/misc.c util/getroot.c		\
 	kern/device.c kern/disk.c kern/err.c kern/misc.c	\
-	kern/parser.c kern/partition.c kern/file.c		\
+	kern/parser.c kern/partition.c kern/file.c kern/list.c	\
 	\
 	fs/affs.c fs/cpio.c fs/fat.c fs/ext2.c fs/hfs.c		\
 	fs/hfsplus.c fs/iso9660.c fs/udf.c fs/jfs.c fs/minix.c	\
@@ -127,6 +127,33 @@ endif
 grub_pe2elf_SOURCES = util/grub-pe2elf.c util/misc.c
 CLEANFILES += grub-pe2elf
 
+# grub-mkmod
+bin_UTILITIES += grub-mkmod
+grub_mkmod_SOURCES = util/grub-mkmod.c util/misc.c util/obj.c \
+	util/obj_pe.c util/obj_elf.c util/obj_macho.c kern/list.c
+CLEANFILES += grub-mkmod
+
+# grub-mkrawimage
+bin_UTILITIES += grub-mkrawimage
+grub_mkrawimage_SOURCES = util/grub-mkrawimage.c util/misc.c util/obj.c \
+	util/obj_pe.c util/obj_elf.c util/obj_macho.c kern/list.c
+CLEANFILES += grub-mkrawimage
+
+# grub-symdb
+bin_UTILITIES += grub-symdb
+grub_symdb_SOURCES = util/grub-symdb.c util/obj.c util/misc.c kern/list.c
+CLEANFILES += grub-symdb
+
+# grub-objdump
+bin_UTILITIES += grub-objdump
+grub_objdump_SOURCES = util/grub-objdump.c util/obj.c util/misc.c \
+	util/obj_dump.c kern/list.c
+CLEANFILES += grub-objdump
+
+# grub_macho2img assumes a lot about source file.
+# So installing it definitively is useless
+# But adding to bin_UTILITIES is needed for
+# genmk.rb to work
 grub_macho2img_SOURCES = util/grub-macho2img.c
 CLEANFILES += grub-macho2img
 
@@ -362,7 +389,8 @@ pkglib_MODULES += minicmd.mod extcmd.mod hello.mod handler.mod	\
 	read.mod sleep.mod loadenv.mod crc.mod parttool.mod	\
 	msdospart.mod memrw.mod normal.mod sh.mod 		\
 	gptsync.mod true.mod probe.mod password.mod		\
-	keystatus.mod
+	keystatus.mod menu.mod textmenu.mod gfxmenu.mod menucmd.mod \
+	coreui.mod loadcfg.mod
 
 # For password.mod.
 password_mod_SOURCES = commands/password.c
@@ -388,6 +416,58 @@ extcmd_mod_LDFLAGS = $(COMMON_LDFLAGS)
 hello_mod_SOURCES = hello/hello.c
 hello_mod_CFLAGS = $(COMMON_CFLAGS)
 hello_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For menu.mod.
+menu_mod_SOURCES = menu/region.c menu/tree.c menu/uitree.c menu/widget.c \
+	menu/data_type.c menu/dialog.c
+menu_mod_CFLAGS = $(COMMON_CFLAGS)
+menu_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For textmenu.mod
+textmenu_mod_SOURCES = menu/text_region.c
+textmenu_mod_CFLAGS = $(COMMON_CFLAGS)
+textmenu_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For gfxmenu.mod
+gfxmenu_mod_SOURCES = menu/gfx_region.c
+gfxmenu_mod_CFLAGS = $(COMMON_CFLAGS)
+gfxmenu_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For menucmd.mod
+menucmd_mod_SOURCES = commands/menucmd.c
+menucmd_mod_CFLAGS = $(COMMON_CFLAGS)
+menucmd_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For loadcfg.mod
+loadcfg_mod_SOURCES = commands/loadcfg.c
+loadcfg_mod_CFLAGS = $(COMMON_CFLAGS)
+loadcfg_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For coreui.mod
+coreui_mod_SOURCES = ui/coreui.c
+coreui_mod_CFLAGS = $(COMMON_CFLAGS)
+coreui_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For gfxmenu.mod.
+#gfxmenu_mod_SOURCES = \
+#	gfxmenu/gfxmenu.c \
+#	gfxmenu/model.c \
+#	gfxmenu/view.c \
+#	gfxmenu/icon_manager.c \
+#	gfxmenu/theme_loader.c \
+#	gfxmenu/widget-box.c \
+#	gfxmenu/gui_canvas.c \
+#	gfxmenu/gui_circular_progress.c \
+#	gfxmenu/gui_box.c \
+#	gfxmenu/gui_label.c \
+#	gfxmenu/gui_list.c \
+#	gfxmenu/gui_image.c \
+#	gfxmenu/gui_progress_bar.c \
+#	gfxmenu/gui_util.c \
+#	gfxmenu/gui_string_util.c \
+#	gfxmenu/named_colors.c
+#gfxmenu_mod_CFLAGS = $(COMMON_CFLAGS)
+#gfxmenu_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For parttool.mod.
 parttool_mod_SOURCES = commands/parttool.c
@@ -549,7 +629,7 @@ videotest_mod_CFLAGS = $(COMMON_CFLAGS)
 videotest_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For bitmap.mod
-bitmap_mod_SOURCES = video/bitmap.c
+bitmap_mod_SOURCES = video/bitmap.c video/bitmap_scale.c
 bitmap_mod_CFLAGS = $(COMMON_CFLAGS)
 bitmap_mod_LDFLAGS = $(COMMON_LDFLAGS)
 

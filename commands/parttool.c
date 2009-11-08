@@ -30,6 +30,9 @@
 #include <grub/parttool.h>
 #include <grub/command.h>
 
+GRUB_EXPORT(grub_parttool_register);
+GRUB_EXPORT(grub_parttool_unregister);
+
 static struct grub_parttool *parts = 0;
 static int curhandle = 0;
 static grub_dl_t mymod;

@@ -125,12 +125,12 @@ struct grub_ata_device
   struct grub_ata_device *next;
 };
 
-grub_err_t EXPORT_FUNC(grub_ata_wait_not_busy) (struct grub_ata_device *dev,
-                                                int milliseconds);
-grub_err_t EXPORT_FUNC(grub_ata_wait_drq) (struct grub_ata_device *dev,
-					   int rw, int milliseconds);
-void EXPORT_FUNC(grub_ata_pio_read) (struct grub_ata_device *dev,
-				     char *buf, grub_size_t size);
+grub_err_t grub_ata_wait_not_busy (struct grub_ata_device *dev,
+				   int milliseconds);
+grub_err_t grub_ata_wait_drq (struct grub_ata_device *dev,
+			      int rw, int milliseconds);
+void grub_ata_pio_read (struct grub_ata_device *dev,
+			char *buf, grub_size_t size);
 
 static inline void
 grub_ata_regset (struct grub_ata_device *dev, int reg, int val)

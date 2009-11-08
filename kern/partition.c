@@ -20,39 +20,12 @@
 #include <grub/partition.h>
 #include <grub/disk.h>
 
-static grub_partition_map_t grub_partition_map_list;
+GRUB_EXPORT(grub_partition_map_list);
+GRUB_EXPORT(grub_partition_probe);
+GRUB_EXPORT(grub_partition_iterate);
+GRUB_EXPORT(grub_partition_get_name);
 
-void
-grub_partition_map_register (grub_partition_map_t partmap)
-{
-  partmap->next = grub_partition_map_list;
-  grub_partition_map_list = partmap;
-}
-
-void
-grub_partition_map_unregister (grub_partition_map_t partmap)
-{
-  grub_partition_map_t *p, q;
-
-  for (p = &grub_partition_map_list, q = *p; q; p = &(q->next), q = q->next)
-    if (q == partmap)
-      {
-        *p = q->next;
-	break;
-      }
-}
-
-int
-grub_partition_map_iterate (int (*hook) (const grub_partition_map_t partmap))
-{
-  grub_partition_map_t p;
-
-  for (p = grub_partition_map_list; p; p = p->next)
-    if (hook (p))
-      return 1;
-
-  return 0;
-}
+grub_partition_map_t grub_partition_map_list;
 
 grub_partition_t
 grub_partition_probe (struct grub_disk *disk, const char *str)

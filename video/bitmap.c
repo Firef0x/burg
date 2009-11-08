@@ -23,6 +23,15 @@
 #include <grub/mm.h>
 #include <grub/misc.h>
 
+GRUB_EXPORT(grub_video_bitmap_create);
+GRUB_EXPORT(grub_video_bitmap_destroy);
+GRUB_EXPORT(grub_video_bitmap_get_width);
+GRUB_EXPORT(grub_video_bitmap_get_height);
+GRUB_EXPORT(grub_video_bitmap_load);
+GRUB_EXPORT(grub_video_bitmap_reader_register);
+GRUB_EXPORT(grub_video_bitmap_reader_unregister);
+GRUB_EXPORT(grub_video_bitmap_get_data);
+
 /* List of bitmap readers registered to system.  */
 static grub_video_bitmap_reader_t bitmap_readers_list;
 

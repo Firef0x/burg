@@ -19,6 +19,7 @@
 #include <grub/machine/init.h>
 #include <grub/machine/memory.h>
 #include <grub/machine/boot.h>
+#include <grub/kernel.h>
 #include <grub/types.h>
 #include <grub/err.h>
 #include <grub/misc.h>
@@ -28,9 +29,6 @@
 #define QEMU_CMOS_MEMSIZE_LOW		0x34
 
 #define min(a,b)	((a) > (b) ? (b) : (a))
-
-extern char _start[];
-extern char _end[];
 
 grub_size_t grub_lower_mem, grub_upper_mem;
 grub_uint64_t mem_size;
@@ -48,7 +46,7 @@ grub_err_t
 grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t))
 {
   if (hook (0x0,
-	    (grub_addr_t) _start,
+	    (grub_addr_t) grub_code_start,
 	    GRUB_MACHINE_MEMORY_AVAILABLE))
     return 1;
 

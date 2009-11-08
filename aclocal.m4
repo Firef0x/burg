@@ -18,7 +18,7 @@ AC_DEFUN(grub_PROG_TARGET_CC,
 [AC_MSG_CHECKING([whether target compiler is working])
 AC_CACHE_VAL(grub_cv_prog_target_cc,
 [AC_LINK_IFELSE([AC_LANG_PROGRAM([[
-asm (".globl start; start: nop");
+asm (".globl start,_start\n start:\n _start:\n nop");
 int main (void);
 ]], [[]])],
   		[grub_cv_prog_target_cc=yes],
@@ -182,7 +182,7 @@ AC_DEFUN(grub_apple_cc,
 [AC_REQUIRE([AC_PROG_CC])
 AC_MSG_CHECKING([whether our compiler is apple cc])
 AC_CACHE_VAL(grub_cv_apple_cc,
-[if $CC -v 2>&1 | grep "Apple Inc." > /dev/null; then
+[if $CC -v 2>&1 | grep "Apple" > /dev/null; then
   grub_cv_apple_cc=yes
 else
   grub_cv_apple_cc=no
@@ -197,7 +197,7 @@ AC_DEFUN(grub_apple_target_cc,
 [AC_REQUIRE([AC_PROG_CC])
 AC_MSG_CHECKING([whether our target compiler is apple cc])
 AC_CACHE_VAL(grub_cv_apple_target_cc,
-[if $CC -v 2>&1 | grep "Apple Inc." > /dev/null; then
+[if $CC -v 2>&1 | grep "Apple" > /dev/null; then
   grub_cv_apple_target_cc=yes
 else
   grub_cv_apple_target_cc=no

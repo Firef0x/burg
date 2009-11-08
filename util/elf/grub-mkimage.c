@@ -27,10 +27,12 @@
 #include <string.h>
 #include <grub/elf.h>
 #include <grub/misc.h>
+#include <grub/util/obj.h>
 #include <grub/util/misc.h>
 #include <grub/util/resolve.h>
 #include <grub/kernel.h>
 #include <grub/cpu/kernel.h>
+#include <grub/machine/machine.h>
 
 #define GRUB_IEEE1275_NOTE_NAME "PowerPC"
 #define GRUB_IEEE1275_NOTE_TYPE 0x1275
@@ -63,7 +65,7 @@ struct grub_ieee1275_note
 };
 
 void
-load_note (Elf32_Phdr *phdr, FILE *out)
+make_note_section (FILE *out, Elf32_Phdr *phdr, grub_uint32_t offset)
 {
   struct grub_ieee1275_note note;
   int note_size = sizeof (struct grub_ieee1275_note);
@@ -82,8 +84,7 @@ load_note (Elf32_Phdr *phdr, FILE *out)
   note.descriptor.load_base = grub_host_to_target32 (0x00004000);
 
   /* Write the note data to the new segment.  */
-  grub_util_write_image_at (&note, note_size,
-			    grub_target_to_host32 (phdr->p_offset), out);
+  grub_util_write_image_at (&note, note_size, offset, out);
 
   /* Fill in the rest of the segment header.  */
   phdr->p_type = grub_host_to_target32 (PT_NOTE);
@@ -93,219 +94,179 @@ load_note (Elf32_Phdr *phdr, FILE *out)
   phdr->p_paddr = 0;
   phdr->p_filesz = grub_host_to_target32 (note_size);
   phdr->p_memsz = 0;
+  phdr->p_offset = grub_host_to_target32 (offset);
 }
 
-void
-load_modules (grub_addr_t modbase, Elf32_Phdr *phdr, const char *dir,
-	      char *mods[], FILE *out, char *memdisk_path)
+int
+grub_strcmp (const char *s1, const char *s2)
 {
-  char *module_img;
-  struct grub_util_path_list *path_list;
-  struct grub_util_path_list *p;
-  struct grub_module_info *modinfo;
-  size_t offset;
-  size_t total_module_size;
-  size_t memdisk_size = 0;
+  return strcmp (s1, s2);
+}
 
-  path_list = grub_util_resolve_dependencies (dir, "moddep.lst", mods);
+#define MAX_SECTIONS	2
 
-  offset = sizeof (struct grub_module_info);
-  total_module_size = sizeof (struct grub_module_info);
+static void
+write_padding (FILE *out, size_t size)
+{
+  size_t i;
 
-  if (memdisk_path)
+  for (i = 0; i < size; i++)
+    if (fputc (0, out) == EOF)
+      grub_util_error ("padding failed");
+}
+
+static grub_uint32_t
+make_header_space (FILE *out)
+{
+  grub_uint32_t addr;
+
+  addr = (ALIGN_UP (sizeof (Elf32_Ehdr), GRUB_TARGET_SIZEOF_LONG) +
+	  sizeof (Elf32_Shdr) * MAX_SECTIONS);
+  write_padding (out, addr);
+
+  return addr;
+}
+
+static grub_uint32_t
+write_section_padding (FILE* out, grub_uint32_t offset)
+{
+  grub_uint32_t new_ofs;
+
+  new_ofs = ALIGN_UP (offset, GRUB_TARGET_SIZEOF_LONG);
+  if (new_ofs != offset)
     {
-      memdisk_size = ALIGN_UP(grub_util_get_image_size (memdisk_path), 512);
-      grub_util_info ("the size of memory disk is 0x%x", memdisk_size);
-      total_module_size += memdisk_size + sizeof (struct grub_module_header);
+      grub_util_info ("padding %d bytes for file alignment",
+		      new_ofs - offset);
+      write_padding (out, new_ofs - offset);
+      offset = new_ofs;
     }
 
-  for (p = path_list; p; p = p->next)
-    {
-      total_module_size += (grub_util_get_image_size (p->name)
-	  + sizeof (struct grub_module_header));
-    }
+  return offset;
+}
 
-  grub_util_info ("the total module size is 0x%x", total_module_size);
+static grub_uint32_t
+write_sections (FILE* out, struct grub_util_obj *obj,
+		Elf32_Phdr *phdr, grub_uint32_t sofs)
+{
+  struct grub_util_obj_segment *seg;
+  grub_uint32_t ofs, vaddr;
 
-  module_img = xmalloc (total_module_size);
-  modinfo = (struct grub_module_info *) module_img;
-  modinfo->magic = grub_host_to_target32 (GRUB_MODULE_MAGIC);
-  modinfo->offset = grub_host_to_target32 (sizeof (struct grub_module_info));
-  modinfo->size = grub_host_to_target32 (total_module_size);
-
-  /* Load all the modules, with headers, into module_img.  */
-  for (p = path_list; p; p = p->next)
-    {
-      struct grub_module_header *header;
-      size_t mod_size;
-
-      grub_util_info ("adding module %s", p->name);
-
-      mod_size = grub_util_get_image_size (p->name);
-
-      header = (struct grub_module_header *) (module_img + offset);
-      header->type = OBJ_TYPE_ELF;
-      header->size = grub_host_to_target32 (mod_size + sizeof (*header));
-
-      grub_util_load_image (p->name, module_img + offset + sizeof (*header));
-
-      offset += sizeof (*header) + mod_size;
-    }
-
-  if (memdisk_path)
-    {
-      struct grub_module_header *header;
-
-      header = (struct grub_module_header *) (module_img + offset);
-      header->type = OBJ_TYPE_MEMDISK;
-      header->size = grub_host_to_target32 (memdisk_size + sizeof (*header));
-      offset += sizeof (*header);
-
-      grub_util_load_image (memdisk_path, module_img + offset);
-      offset += memdisk_size;
-    }
-
-
-  /* Write the module data to the new segment.  */
-  grub_util_write_image_at (module_img, total_module_size,
-			    grub_host_to_target32 (phdr->p_offset), out);
-
-  /* Fill in the rest of the segment header.  */
+  seg = obj->segments;
   phdr->p_type = grub_host_to_target32 (PT_LOAD);
   phdr->p_flags = grub_host_to_target32 (PF_R | PF_W | PF_X);
-  phdr->p_align = grub_host_to_target32 (GRUB_TARGET_SIZEOF_LONG);
-  phdr->p_vaddr = grub_host_to_target32 (modbase);
-  phdr->p_paddr = grub_host_to_target32 (modbase);
-  phdr->p_filesz = grub_host_to_target32 (total_module_size);
-  phdr->p_memsz = grub_host_to_target32 (total_module_size);
+  phdr->p_align = grub_host_to_target32 (seg->segment.align);
+
+  vaddr = seg->segment.offset;
+  phdr->p_vaddr = grub_host_to_target32 (vaddr);
+  phdr->p_paddr = phdr->p_vaddr;
+
+  ofs = sofs;
+  phdr->p_offset = grub_host_to_target32 (ofs);
+  for (; seg; seg = seg->next)
+    {
+      grub_uint32_t seg_ofs;
+
+      seg_ofs = seg->segment.offset - vaddr;
+      phdr->p_memsz = grub_host_to_target32 (seg_ofs + seg->segment.size);
+      if (seg->data)
+	{
+	  phdr->p_filesz = grub_host_to_target32 (seg_ofs + seg->raw_size);
+	  ofs = sofs + grub_target_to_host32 (phdr->p_filesz);
+	  grub_util_write_image_at (seg->data, seg->raw_size,
+				    sofs + seg_ofs, out);
+	}
+    }
+
+  return write_section_padding (out, ofs);
 }
 
-void
-add_segments (char *dir, char *prefix, FILE *out, int chrp, char *mods[], char *memdisk_path)
+static void
+make_header (FILE *out, Elf32_Phdr *phdr, int num_sections)
 {
   Elf32_Ehdr ehdr;
-  Elf32_Phdr *phdrs = NULL;
-  Elf32_Phdr *phdr;
-  FILE *in;
-  char *kernel_path;
-  grub_addr_t grub_end = 0;
-  off_t offset, first_segment;
-  int i, phdr_size;
+  grub_uint32_t offset;
 
-  /* Read ELF header.  */
-  kernel_path = grub_util_get_path (dir, "kernel.img");
-  in = fopen (kernel_path, "rb");
-  if (! in)
-    grub_util_error ("cannot open %s", kernel_path);
+  memset (&ehdr, 0, sizeof (ehdr));
 
-  grub_util_read_at (&ehdr, sizeof (ehdr), 0, in);
+  ehdr.e_ident[EI_MAG0] = ELFMAG0;
+  ehdr.e_ident[EI_MAG1] = ELFMAG1;
+  ehdr.e_ident[EI_MAG2] = ELFMAG2;
+  ehdr.e_ident[EI_MAG3] = ELFMAG3;
+  ehdr.e_ident[EI_VERSION] = EV_CURRENT;
+  ehdr.e_version = grub_host_to_target32 (EV_CURRENT);
+  ehdr.e_type = grub_host_to_target16 (ET_EXEC);
+  ehdr.e_ident[EI_CLASS] = ELFCLASS32;
+  ehdr.e_ehsize = grub_host_to_target16 (sizeof (ehdr));
+  ehdr.e_entry = phdr->p_vaddr;
+
+#if defined(GRUB_TARGET_I386)
+  ehdr.e_ident[EI_DATA] = ELFDATA2LSB;
+  ehdr.e_machine = grub_host_to_target16 (EM_386);
+#elif defined(GRUB_TARGET_POWERPC)
+  ehdr.e_ident[EI_DATA] = ELFDATA2MSB;
+  ehdr.e_machine = grub_host_to_target16 (EM_PPC);
+#endif
 
   offset = ALIGN_UP (sizeof (ehdr), GRUB_TARGET_SIZEOF_LONG);
   ehdr.e_phoff = grub_host_to_target32 (offset);
+  ehdr.e_phentsize = grub_host_to_target16 (sizeof (Elf32_Phdr));
+  ehdr.e_phnum = grub_host_to_target16 (num_sections);
 
-  phdr_size = (grub_target_to_host16 (ehdr.e_phentsize) *
-               grub_target_to_host16 (ehdr.e_phnum));
-
-  if (mods[0] != NULL)
-    phdr_size += grub_target_to_host16 (ehdr.e_phentsize);
-
-  if (chrp)
-    phdr_size += grub_target_to_host16 (ehdr.e_phentsize);
-
-  phdrs = xmalloc (phdr_size);
-  offset += ALIGN_UP (phdr_size, GRUB_TARGET_SIZEOF_LONG);
-
-  first_segment = offset;
-
-  /* Copy all existing segments.  */
-  for (i = 0; i < grub_target_to_host16 (ehdr.e_phnum); i++)
-    {
-      char *segment_img;
-      grub_size_t segment_end;
-
-      phdr = phdrs + i;
-
-      /* Read segment header.  */
-      grub_util_read_at (phdr, sizeof (Elf32_Phdr),
-			 (grub_target_to_host32 (ehdr.e_phoff)
-			  + (i * grub_target_to_host16 (ehdr.e_phentsize))),
-			 in);
-      grub_util_info ("copying segment %d, type %d", i,
-		      grub_target_to_host32 (phdr->p_type));
-
-      /* Locate _end.  */
-      segment_end = grub_target_to_host32 (phdr->p_paddr)
-		    + grub_target_to_host32 (phdr->p_memsz);
-      grub_util_info ("segment %u end 0x%lx", i, segment_end);
-      if (segment_end > grub_end)
-	grub_end = segment_end;
-
-      /* Read segment data and write it to new file.  */
-      segment_img = xmalloc (grub_target_to_host32 (phdr->p_filesz));
-
-      grub_util_read_at (segment_img, grub_target_to_host32 (phdr->p_filesz),
-			 grub_target_to_host32 (phdr->p_offset), in);
-
-      phdr->p_offset = grub_host_to_target32 (offset);
-      grub_util_write_image_at (segment_img, grub_target_to_host32 (phdr->p_filesz),
-				offset, out);
-      offset += ALIGN_UP (grub_target_to_host32 (phdr->p_filesz),
-			  GRUB_TARGET_SIZEOF_LONG);
-
-      free (segment_img);
-    }
-
-  if (mods[0] != NULL)
-    {
-      grub_addr_t modbase;
-
-      /* Place modules just after grub segment.  */
-      modbase = ALIGN_UP(grub_end + GRUB_MOD_GAP, GRUB_MOD_ALIGN);
-
-      /* Construct new segment header for modules.  */
-      phdr = phdrs + grub_target_to_host16 (ehdr.e_phnum);
-      ehdr.e_phnum = grub_host_to_target16 (grub_target_to_host16 (ehdr.e_phnum) + 1);
-
-      /* Fill in p_offset so the callees know where to write.  */
-      phdr->p_offset = grub_host_to_target32 (ALIGN_UP (grub_util_get_fp_size (out),
-							GRUB_TARGET_SIZEOF_LONG));
-
-      load_modules (modbase, phdr, dir, mods, out, memdisk_path);
-    }
-
-  if (chrp)
-    {
-      /* Construct new segment header for the CHRP note.  */
-      phdr = phdrs + grub_target_to_host16 (ehdr.e_phnum);
-      ehdr.e_phnum = grub_host_to_target16 (grub_target_to_host16 (ehdr.e_phnum) + 1);
-
-      /* Fill in p_offset so the callees know where to write.  */
-      phdr->p_offset = grub_host_to_target32 (ALIGN_UP (grub_util_get_fp_size (out),
-							GRUB_TARGET_SIZEOF_LONG));
-
-      load_note (phdr, out);
-    }
-
-  /* Don't bother preserving the section headers.  */
-  ehdr.e_shoff = 0;
-  ehdr.e_shnum = 0;
-  ehdr.e_shstrndx = 0;
-
-  /* Write entire segment table to the file.  */
-  grub_util_write_image_at (phdrs, phdr_size, grub_target_to_host32 (ehdr.e_phoff), out);
-
-  /* Write ELF header.  */
   grub_util_write_image_at (&ehdr, sizeof (ehdr), 0, out);
+  grub_util_write_image_at (phdr, sizeof (Elf32_Phdr) * num_sections,
+			    offset, out);
+}
+
+void
+generate_image (char *dir, char *prefix, FILE *out, grub_uint32_t base,
+		int chrp, char *mods[], char *memdisk_path, char *config_path)
+{
+  Elf32_Phdr *sections;
+  int num_sections;
+  grub_uint32_t offset;
+  struct grub_util_path_list *path_list;
+  struct grub_util_obj *obj;
+  struct grub_util_obj_segment *modinfo;
+
+  path_list = grub_util_resolve_dependencies (dir, "moddep.lst", mods);
+
+  obj = xmalloc_zero (sizeof (*obj));
+  modinfo = grub_obj_add_modinfo (obj, dir, path_list, 0,
+				  memdisk_path, config_path);
+  grub_obj_sort_segments (obj);
+  grub_obj_merge_segments (obj, GRUB_TARGET_SIZEOF_LONG, GRUB_OBJ_MERGE_ALL);
+  grub_obj_add_kernel_symbols (obj, modinfo, 0);
+  grub_obj_reloc_symbols (obj, GRUB_OBJ_MERGE_ALL);
+  grub_obj_link (obj, base);
 
   if (prefix)
     {
-      if (GRUB_KERNEL_CPU_PREFIX + strlen (prefix) + 1 > GRUB_KERNEL_CPU_DATA_END)
-        grub_util_error ("prefix too long");
-      grub_util_write_image_at (prefix, strlen (prefix) + 1, first_segment + GRUB_KERNEL_CPU_PREFIX, out);
+      if ((! obj->segments) ||
+	  (obj->segments->segment.type != GRUB_OBJ_SEG_TEXT))
+	grub_util_error ("invalid mod format");
+
+      if (GRUB_KERNEL_CPU_PREFIX + strlen (prefix) + 1 >
+	  GRUB_KERNEL_CPU_DATA_END)
+	grub_util_error ("prefix too long");
+
+      strcpy (obj->segments->data + GRUB_KERNEL_CPU_PREFIX, prefix);
     }
 
-  free (phdrs);
-  free (kernel_path);
+  sections = xmalloc_zero (sizeof (Elf32_Phdr) * MAX_SECTIONS);
+  offset = make_header_space (out);
+  offset = write_sections (out, obj, sections, offset);
+  num_sections = 1;
+
+  if (chrp)
+    {
+      make_note_section (out, &sections[num_sections], offset);
+      num_sections++;
+    }
+
+  make_header (out, sections, num_sections);
+
+  grub_obj_free (obj);
+  free (sections);
 }
 
 static struct option options[] =
@@ -313,7 +274,9 @@ static struct option options[] =
     {"directory", required_argument, 0, 'd'},
     {"prefix", required_argument, 0, 'p'},
     {"memdisk", required_argument, 0, 'm'},
+    {"config", required_argument, 0, 'c'},
     {"output", required_argument, 0, 'o'},
+    {"base", required_argument, 0, 'b'},
     {"help", no_argument, 0, 'h'},
     {"note", no_argument, 0, 'n'},
     {"version", no_argument, 0, 'V'},
@@ -335,7 +298,9 @@ Make a bootable image of GRUB.\n\
   -d, --directory=DIR     use images and modules under DIR [default=%s]\n\
   -p, --prefix=DIR        set grub_prefix directory\n\
   -m, --memdisk=FILE      embed FILE as a memdisk image\n\
+  -c, --config=FILE       embed FILE as boot config\n\
   -o, --output=FILE       output a generated image to FILE\n\
+  -b, --base=ADDR         set base address\n\
   -h, --help              display this message and exit\n\
   -n, --note              add NOTE segment for CHRP Open Firmware\n\
   -V, --version           print version information and exit\n\
@@ -355,13 +320,25 @@ main (int argc, char *argv[])
   char *dir = NULL;
   char *prefix = NULL;
   char *memdisk = NULL;
+  char *config = NULL;
   int chrp = 0;
+  grub_uint32_t base;
+
+#if defined (GRUB_TARGET_I386) && defined (GRUB_MACHINE_IEEE1275)
+  base = 0x10000;
+#elif defined (GRUB_TARGET_I386) && defined (GRUB_MACHINE_COREBOOT)
+  base = 0x8200;
+#elif defined (GRUB_TARGET_POWERPC) && defined (GRUB_MACHINE_IEEE1275)
+  base = 0x200000;
+#else
+  base = 0;
+#endif
 
   progname = "grub-mkimage";
 
   while (1)
     {
-      int c = getopt_long (argc, argv, "d:p:m:o:hVvn", options, 0);
+      int c = getopt_long (argc, argv, "d:p:m:c:o:b:hVvn", options, 0);
       if (c == -1)
 	break;
 
@@ -387,6 +364,14 @@ main (int argc, char *argv[])
 	    prefix = xstrdup ("(memdisk)/boot/grub");
 
 	    break;
+
+	case 'c':
+	    if (config)
+	      free (config);
+
+	    config = xstrdup (optarg);
+	    break;
+
 	  case 'h':
 	    usage (0);
 	    break;
@@ -397,6 +382,9 @@ main (int argc, char *argv[])
 	    if (output)
 	      free (output);
 	    output = xstrdup (optarg);
+	    break;
+	  case 'b':
+	    base = strtoul (optarg, 0, 0);
 	    break;
 	  case 'V':
 	    printf ("grub-mkimage (%s) %s\n", PACKAGE_NAME, PACKAGE_VERSION);
@@ -417,9 +405,19 @@ main (int argc, char *argv[])
   if (! fp)
     grub_util_error ("cannot open %s", output);
 
-  add_segments (dir ? : GRUB_LIBDIR, prefix, fp, chrp, argv + optind, memdisk);
+  generate_image (dir ? : GRUB_LIBDIR, prefix, fp, base, chrp, argv + optind,
+		  memdisk, config);
 
   fclose (fp);
+
+  if (dir)
+    free (dir);
+
+  if (memdisk)
+    free (memdisk);
+
+  if (config)
+    free (config);
 
   return 0;
 }

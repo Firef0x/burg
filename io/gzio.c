@@ -42,6 +42,9 @@
 #include <grub/file.h>
 #include <grub/gzio.h>
 
+GRUB_EXPORT(grub_gzfile_open);
+GRUB_EXPORT(grub_gzio_open);
+
 /*
  *  Window Size
  *

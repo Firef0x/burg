@@ -23,6 +23,8 @@
 #include <grub/misc.h>
 #include <grub/mm.h>
 
+GRUB_EXPORT(grub_mmap_free_and_unregister);
+GRUB_EXPORT(grub_mmap_malign_and_register);
 
 #ifndef GRUB_MMAP_REGISTER_BY_FIRMWARE
 

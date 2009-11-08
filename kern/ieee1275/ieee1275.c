@@ -20,6 +20,32 @@
 #include <grub/ieee1275/ieee1275.h>
 #include <grub/types.h>
 
+GRUB_EXPORT(grub_ieee1275_init);
+GRUB_EXPORT(grub_ieee1275_finddevice);
+GRUB_EXPORT(grub_ieee1275_get_property);
+GRUB_EXPORT(grub_ieee1275_get_integer_property);
+GRUB_EXPORT(grub_ieee1275_next_property);
+GRUB_EXPORT(grub_ieee1275_get_property_length);
+GRUB_EXPORT(grub_ieee1275_instance_to_package);
+GRUB_EXPORT(grub_ieee1275_package_to_path);
+GRUB_EXPORT(grub_ieee1275_instance_to_path);
+GRUB_EXPORT(grub_ieee1275_write);
+GRUB_EXPORT(grub_ieee1275_read);
+GRUB_EXPORT(grub_ieee1275_seek);
+GRUB_EXPORT(grub_ieee1275_peer);
+GRUB_EXPORT(grub_ieee1275_child);
+GRUB_EXPORT(grub_ieee1275_parent);
+GRUB_EXPORT(grub_ieee1275_interpret);
+GRUB_EXPORT(grub_ieee1275_enter);
+GRUB_EXPORT(grub_ieee1275_exit);
+GRUB_EXPORT(grub_ieee1275_open);
+GRUB_EXPORT(grub_ieee1275_close);
+GRUB_EXPORT(grub_ieee1275_claim);
+GRUB_EXPORT(grub_ieee1275_release);
+GRUB_EXPORT(grub_ieee1275_set_property);
+GRUB_EXPORT(grub_ieee1275_set_color);
+GRUB_EXPORT(grub_ieee1275_milliseconds);
+
 #define IEEE1275_PHANDLE_INVALID  ((grub_ieee1275_cell_t) -1)
 #define IEEE1275_IHANDLE_INVALID  ((grub_ieee1275_cell_t) 0)
 #define IEEE1275_CELL_INVALID     ((grub_ieee1275_cell_t) -1)

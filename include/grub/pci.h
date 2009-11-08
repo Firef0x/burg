@@ -40,10 +40,10 @@ typedef int NESTED_FUNC_ATTR (*grub_pci_iteratefunc_t)
      (int bus, int device, int func, grub_pci_id_t pciid);
 typedef grub_uint32_t grub_pci_address_t;
 
-grub_pci_address_t EXPORT_FUNC(grub_pci_make_address) (int bus, int device,
-						       int function, int reg);
+grub_pci_address_t grub_pci_make_address (int bus, int device,
+					  int function, int reg);
 
-void EXPORT_FUNC(grub_pci_iterate) (grub_pci_iteratefunc_t hook);
+void grub_pci_iterate (grub_pci_iteratefunc_t hook);
 
 #include <grub/cpu/pci.h>
 

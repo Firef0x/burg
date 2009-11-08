@@ -521,18 +521,18 @@ lzma_decode_loop:
 	movl	state, %eax
 	addl	$IsRepG0, %eax
 	call	RangeDecoderBitDecode
-	jc	10f
+	jc	LOCAL(lzma_10a)
 
 	movl	(%esp), %eax
 	addl	$IsRep0Long, %eax
 	call	RangeDecoderBitDecode
-	jc	20f
+	jc	LOCAL(lzma_20a)
 
 	cmpb	$7, state
 	movb	$9, state
-	jb	100f
+	jb	LOCAL(lzma_100a)
 	addb	$2, state
-100:
+LOCAL(lzma_100a):
 
 	movl	$1, %ecx
 
@@ -549,36 +549,36 @@ lzma_decode_loop:
 	popl	%eax
 	jmp	lzma_decode_loop
 
-10:
+LOCAL(lzma_10a):
 	movl	state, %eax
 	addl	$IsRepG1, %eax
 	call	RangeDecoderBitDecode
 	movl	rep1, %edx
-	jnc	100f
+	jnc	LOCAL(lzma_100b)
 
 	movl	state, %eax
 	addl	$IsRepG2, %eax
 	call	RangeDecoderBitDecode
 	movl	rep2, %edx
-	jnc	1000f
+	jnc	LOCAL(lzma_1000a)
 	movl	rep2, %edx
 	xchgl	rep3, %edx
-1000:
+LOCAL(lzma_1000a):
 	pushl	rep1
 	popl	rep2
-100:
+LOCAL(lzma_100b):
 	xchg	rep0, %edx
 	movl	%edx, rep1
-20:
+LOCAL(lzma_20a):
 
 	movl	$RepLenCoder, %eax
 	call	LzmaLenDecode
 
 	cmpb	$7, state
 	movb	$8, state
-	jb	100f
+	jb	LOCAL(lzma_100c)
 	addb	$3, state
-100:
+LOCAL(lzma_100c):
 	jmp	2f
 
 1:
@@ -589,9 +589,9 @@ lzma_decode_loop:
 
 	cmpb	$7, state
 	movb	$7, state
-	jb	10f
+	jb	LOCAL(lzma_10b)
 	addb	$3, state
-10:
+LOCAL(lzma_10b):
 
 	movl	$LenCoder, %eax
 	call	LzmaLenDecode
@@ -599,9 +599,9 @@ lzma_decode_loop:
 
 	movl	$(kNumLenToPosStates - 1), %eax
 	cmpl	%eax, %edx
-	jbe	100f
+	jbe	LOCAL(lzma_100d)
 	movl	%eax, %edx
-100:
+LOCAL(lzma_100d):
 	movb	$kNumPosSlotBits, %cl
 	shll	%cl, %edx
 	leal	PosSlot(%edx), %eax
@@ -609,7 +609,7 @@ lzma_decode_loop:
 
 	movl	%edx, rep0
 	cmpl	$kStartPosModelIndex, %edx
-	jb	100f
+	jb	LOCAL(lzma_100e)
 
 	movl	%edx, %ecx
 	shrl	$1, %ecx
@@ -622,38 +622,38 @@ lzma_decode_loop:
 	movl	%eax, rep0
 
 	cmpl	$kEndPosModelIndex, %edx
-	jae	200f
+	jae	LOCAL(lzma_200a)
 	movl	rep0, %eax
 	addl	$(SpecPos - 1), %eax
 	subl	%edx, %eax
-	jmp	300f
-200:
+	jmp	LOCAL(lzma_300a)
+LOCAL(lzma_200a):
 
 	subb	$kNumAlignBits, %cl
 
 	/* RangeDecoderDecodeDirectBits */
 	xorl	%edx, %edx
 
-1000:
+LOCAL(lzma_1000b):
 	shrl	$1, range
 	shll	$1, %edx
 
 	movl	range, %eax
 	cmpl	%eax, code
-	jb	2000f
+	jb	LOCAL(lzma_2000a)
 	subl	%eax, code
 	orb	$1, %dl
-2000:
+LOCAL(lzma_2000a):
 
 	cmpl	$kTopValue, %eax
-	jae	3000f
+	jae	LOCAL(lzma_3000a)
 	shll	$8, range
 	shll	$8, code
 	lodsb
 	movb	%al, code
 
-3000:
-	loop	1000b
+LOCAL(lzma_3000a):
+	loop	LOCAL(lzma_1000b)
 
 	movb	$kNumAlignBits, %cl
 	shll	%cl, %edx
@@ -661,11 +661,11 @@ lzma_decode_loop:
 
 	movl	$Align, %eax
 
-300:
+LOCAL(lzma_300a):
 	call	RangeDecoderReverseBitTreeDecode
 	addl	%ecx, rep0
 
-100:
+LOCAL(lzma_100e):
 	incl	rep0
 	popl	%edx
 

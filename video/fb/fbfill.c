@@ -33,11 +33,13 @@
 #include <grub/types.h>
 #include <grub/video.h>
 
+GRUB_EXPORT(grub_video_fbfill);
+
 /* Generic filler that works for every supported mode.  */
-void
-grub_video_fbfill (struct grub_video_fbblit_info *dst,
-		   grub_video_color_t color, int x, int y,
-		   int width, int height)
+static void
+grub_video_fbfill_generic (struct grub_video_fbblit_info *dst,
+			   grub_video_color_t color, int x, int y,
+			   int width, int height)
 {
   int i;
   int j;
@@ -49,7 +51,7 @@ grub_video_fbfill (struct grub_video_fbblit_info *dst,
 
 /* Optimized filler for direct color 32 bit modes.  It is assumed that color
    is already mapped to destination format.  */
-void
+static void
 grub_video_fbfill_direct32 (struct grub_video_fbblit_info *dst,
 			    grub_video_color_t color, int x, int y,
 			    int width, int height)
@@ -78,7 +80,7 @@ grub_video_fbfill_direct32 (struct grub_video_fbblit_info *dst,
 
 /* Optimized filler for direct color 24 bit modes.  It is assumed that color
    is already mapped to destination format.  */
-void
+static void
 grub_video_fbfill_direct24 (struct grub_video_fbblit_info *dst,
 			    grub_video_color_t color, int x, int y,
 			    int width, int height)
@@ -114,7 +116,7 @@ grub_video_fbfill_direct24 (struct grub_video_fbblit_info *dst,
 
 /* Optimized filler for direct color 16 bit modes.  It is assumed that color
    is already mapped to destination format.  */
-void
+static void
 grub_video_fbfill_direct16 (struct grub_video_fbblit_info *dst,
 			    grub_video_color_t color, int x, int y,
 			    int width, int height)
@@ -148,7 +150,7 @@ grub_video_fbfill_direct16 (struct grub_video_fbblit_info *dst,
 
 /* Optimized filler for index color.  It is assumed that color
    is already mapped to destination format.  */
-void
+static void
 grub_video_fbfill_direct8 (struct grub_video_fbblit_info *dst,
 			   grub_video_color_t color, int x, int y,
 			   int width, int height)
@@ -173,5 +175,44 @@ grub_video_fbfill_direct8 (struct grub_video_fbblit_info *dst,
 
       /* Advance the dest pointer to the right location on the next line.  */
       dstptr += rowskip;
+    }
+}
+
+void
+grub_video_fbfill (struct grub_video_fbblit_info *target,
+		   grub_video_color_t color, int x, int y,
+		   int width, int height)
+{
+    /* Try to figure out more optimized version.  Note that color is already
+     mapped to target format so we can make assumptions based on that.  */
+  switch (target->mode_info->blit_format)
+    {
+    case GRUB_VIDEO_BLIT_FORMAT_BGRA_8888:
+      grub_video_fbfill_direct32 (target, color, x, y, width, height);
+      break;
+
+    case GRUB_VIDEO_BLIT_FORMAT_RGBA_8888:
+      grub_video_fbfill_direct32 (target, color, x, y,width, height);
+      break;
+
+    case GRUB_VIDEO_BLIT_FORMAT_RGB_888:
+      grub_video_fbfill_direct24 (target, color, x, y, width, height);
+      break;
+
+    case GRUB_VIDEO_BLIT_FORMAT_RGB_565:
+      grub_video_fbfill_direct16 (target, color, x, y, width, height);
+      break;
+
+    case GRUB_VIDEO_BLIT_FORMAT_BGR_565:
+      grub_video_fbfill_direct16 (target, color, x, y, width, height);
+      break;
+
+    case GRUB_VIDEO_BLIT_FORMAT_INDEXCOLOR:
+      grub_video_fbfill_direct8 (target, color, x, y, width, height);
+      break;
+
+    default:
+      /* No optimized version found, use default (slow) filler.  */
+      grub_video_fbfill_generic (target, color, x, y, width, height);
     }
 }

@@ -24,6 +24,14 @@
 #include <grub/machine/kernel.h>
 #include <grub/ieee1275/ieee1275.h>
 
+GRUB_EXPORT(grub_devalias_iterate);
+GRUB_EXPORT(grub_children_iterate);
+GRUB_EXPORT(grub_claimmap);
+GRUB_EXPORT(grub_ieee1275_encode_devname);
+GRUB_EXPORT(grub_ieee1275_get_filename);
+GRUB_EXPORT(grub_halt);
+GRUB_EXPORT(grub_reboot);
+
 enum grub_ieee1275_parse_type
 {
   GRUB_PARSE_FILENAME,
@@ -140,6 +148,9 @@ grub_devalias_iterate (int (*hook) (struct grub_ieee1275_devalias *alias))
       grub_ieee1275_phandle_t dev;
       grub_ssize_t pathlen;
       char *devpath;
+
+      if (! aliasname[0])
+	break;
 
       grub_dprintf ("devalias", "devalias name = %s\n", aliasname);
 

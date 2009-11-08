@@ -24,7 +24,7 @@
 
 enum
 {
-  OBJ_TYPE_ELF,
+  OBJ_TYPE_OBJECT,
   OBJ_TYPE_MEMDISK,
   OBJ_TYPE_CONFIG
 };
@@ -36,7 +36,15 @@ struct grub_module_header
   grub_uint8_t type;
   /* The size of object (including this header).  */
   grub_uint32_t size;
-};
+} __attribute__((packed));
+
+struct grub_module_object
+{
+  grub_uint32_t init_func;
+  grub_uint32_t fini_func;
+  grub_uint16_t symbol_offset;
+  char name[0];
+} __attribute__((packed));
 
 /* "gmim" (GRUB Module Info Magic).  */
 #define GRUB_MODULE_MAGIC 0x676d696d
@@ -45,18 +53,13 @@ struct grub_module_info
 {
   /* Magic number so we know we have modules present.  */
   grub_uint32_t magic;
-#if GRUB_TARGET_SIZEOF_VOID_P == 8
-  grub_uint32_t padding;
-#endif
-  /* The offset of the modules.  */
-  grub_target_off_t offset;
   /* The size of all modules plus this header.  */
-  grub_target_size_t size;
-};
+  grub_uint32_t size;
+} __attribute__((packed));
 
 extern grub_addr_t grub_arch_modules_addr (void);
 
-extern void EXPORT_FUNC(grub_module_iterate) (int (*hook) (struct grub_module_header *));
+extern void grub_module_iterate (int (*hook) (struct grub_module_header *));
 
 /* The start point of the C code.  */
 void grub_main (void);
@@ -65,12 +68,20 @@ void grub_main (void);
 void grub_machine_init (void);
 
 /* The machine-specific finalization.  */
-void EXPORT_FUNC(grub_machine_fini) (void);
+void grub_machine_fini (void);
 
 /* The machine-specific prefix initialization.  */
 void grub_machine_set_prefix (void);
 
 /* Register all the exported symbols. This is automatically generated.  */
 void grub_register_exported_symbols (void);
+
+/* These symbols are inserted by grub-mkimage.  */
+extern struct grub_module_info grub_modinfo;
+extern char grub_bss_start[];
+extern char grub_bss_end[];
+
+/* This is defined in startup code.  */
+extern char grub_code_start[];
 
 #endif /* ! GRUB_KERNEL_HEADER */

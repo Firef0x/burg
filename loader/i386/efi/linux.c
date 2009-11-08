@@ -30,6 +30,7 @@
 #include <grub/efi/api.h>
 #include <grub/efi/efi.h>
 #include <grub/efi/uga_draw.h>
+#include <grub/efi/graphics_output.h>
 #include <grub/pci.h>
 #include <grub/command.h>
 #include <grub/memory.h>
@@ -425,7 +426,7 @@ grub_linux_unload (void)
 }
 
 static grub_efi_guid_t uga_draw_guid = GRUB_EFI_UGA_DRAW_GUID;
-
+static grub_efi_guid_t graphics_output_guid = GRUB_EFI_GRAPHICS_OUTPUT_GUID;
 
 #define RGB_MASK	0xffffff
 #define RGB_MAGIC	0x121314
@@ -539,32 +540,55 @@ find_framebuf (grub_uint32_t *fb_base, grub_uint32_t *line_len)
 static int
 grub_linux_setup_video (struct linux_kernel_params *params)
 {
-  grub_efi_uga_draw_protocol_t *c;
-  grub_uint32_t width, height, depth, rate, pixel, fb_base, line_len;
+  struct grub_efi_graphics_output_protocol *gop;
+  grub_uint32_t width, height, depth, fb_base, fb_size, line_len;
   int ret;
 
-  c = grub_efi_locate_protocol (&uga_draw_guid, 0);
-  if (! c)
-    return 1;
-
-  if (efi_call_5 (c->get_mode, c, &width, &height, &depth, &rate))
-    return 1;
-
-  grub_printf ("Video mode: %ux%u-%u@%u\n", width, height, depth, rate);
-
-  grub_efi_set_text_mode (0);
-  pixel = RGB_MAGIC;
-  efi_call_10 (c->blt, c, (struct grub_efi_uga_pixel *) &pixel,
-	       GRUB_EFI_UGA_VIDEO_FILL, 0, 0, 0, 0, 1, height, 0);
-  ret = find_framebuf (&fb_base, &line_len);
-  grub_efi_set_text_mode (1);
-
-  if (! ret)
+  gop = grub_efi_locate_protocol (&graphics_output_guid, 0);
+  if (gop)
     {
-      grub_printf ("Can\'t find frame buffer address\n");
-      return 1;
+      width = gop->mode->info->horizontal_resolution;
+      height = gop->mode->info->vertical_resolution;
+      depth = 32;
+      line_len = 4 * gop->mode->info->pixels_per_scan_line;
+      fb_base = (gop->mode->frame_buffer_base & 0xffffffff);
+      fb_size = gop->mode->frame_buffer_size;
+    }
+  else
+    {
+      grub_efi_uga_draw_protocol_t *c;
+      grub_uint32_t rate, pixel;
+
+      c = grub_efi_locate_protocol (&uga_draw_guid, 0);
+      if (! c)
+	{
+	  grub_printf ("Can\'t locate uga protocol\n");
+	  return 1;
+	}
+
+      if (efi_call_5 (c->get_mode, c, &width, &height, &depth, &rate))
+	{
+	  grub_printf ("Can\'t get mode\n");
+	  return 1;
+	}
+
+      grub_efi_set_text_mode (0);
+      pixel = RGB_MAGIC;
+      efi_call_10 (c->blt, c, (struct grub_efi_uga_pixel *) &pixel,
+		   GRUB_EFI_UGA_VIDEO_FILL, 0, 0, 0, 0, 1, height, 0);
+      ret = find_framebuf (&fb_base, &line_len);
+      grub_efi_set_text_mode (1);
+
+      if (! ret)
+	{
+	  grub_printf ("Can\'t find frame buffer address\n");
+	  return 1;
+	}
+
+      fb_size = (line_len * params->lfb_height + 65535) >> 16;
     }
 
+  grub_printf ("Video mode: %ux%u-%u\n", width, height, depth);
   grub_printf ("Frame buffer base: 0x%x\n", fb_base);
   grub_printf ("Video line length: %d\n", line_len);
 
@@ -574,7 +598,7 @@ grub_linux_setup_video (struct linux_kernel_params *params)
   params->lfb_line_len = line_len;
 
   params->lfb_base = fb_base;
-  params->lfb_size = (line_len * params->lfb_height + 65535) >> 16;
+  params->lfb_size = fb_size;
 
   params->red_mask_size = 8;
   params->red_field_pos = 16;

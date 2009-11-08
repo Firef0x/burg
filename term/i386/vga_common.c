@@ -63,6 +63,24 @@ map_char (grub_uint32_t c)
 	case 0x251B:	/* lower-right corner */
 	  c = 0xd9;
 	  break;
+	case 0x2550:	/* double horizontal line */
+	  c = 0xcd;
+	  break;
+	case 0x2551:	/* double vertical line */
+	  c = 0xba;
+	  break;
+	case 0x2554:	/* double upper-left corner */
+	  c = 0xc9;
+	  break;
+	case 0x2557:	/* double upper-right corner */
+	  c = 0xbb;
+	  break;
+	case 0x255A:	/* double lower-left corner */
+	  c = 0xc8;
+	  break;
+	case 0x255D:	/* double lower-right corner */
+	  c = 0xbc;
+	  break;
 
 	default:
 	  c = '?';

@@ -20,6 +20,8 @@
 #include <grub/i386/io.h>
 #include <grub/i386/pit.h>
 
+GRUB_EXPORT(grub_pit_wait);
+
 #define TIMER2_REG_CONTROL	0x42
 #define TIMER_REG_COMMAND	0x43
 #define TIMER2_REG_LATCH	0x61

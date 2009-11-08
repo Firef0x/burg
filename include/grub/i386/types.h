@@ -28,4 +28,6 @@
 /* i386 is little-endian.  */
 #undef GRUB_TARGET_WORDS_BIGENDIAN
 
+#define GRUB_TARGET_I386		1
+
 #endif /* ! GRUB_TYPES_CPU_HEADER */

@@ -26,9 +26,9 @@
 #define GRUB_MEMORY_MACHINE_VGA_ADDR		GRUB_MEMORY_MACHINE_UPPER
 
 /* Set the video mode to MODE and return the previous mode.  */
-unsigned char EXPORT_FUNC(grub_vga_set_mode) (unsigned char mode);
+unsigned char grub_vga_set_mode (unsigned char mode);
 
 /* Return a pointer to the ROM font table.  */
-unsigned char *EXPORT_FUNC(grub_vga_get_font) (void);
+unsigned char *grub_vga_get_font (void);
 
 #endif /* ! GRUB_VGA_MACHINE_HEADER */

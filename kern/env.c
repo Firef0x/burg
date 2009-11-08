@@ -21,6 +21,19 @@
 #include <grub/misc.h>
 #include <grub/mm.h>
 
+GRUB_EXPORT(grub_env_set);
+GRUB_EXPORT(grub_env_get);
+GRUB_EXPORT(grub_env_unset);
+GRUB_EXPORT(grub_env_iterate);
+GRUB_EXPORT(grub_register_variable_hook);
+GRUB_EXPORT(grub_env_context_open);
+GRUB_EXPORT(grub_env_context_close);
+GRUB_EXPORT(grub_env_export);
+
+GRUB_EXPORT(grub_env_set_data_slot);
+GRUB_EXPORT(grub_env_get_data_slot);
+GRUB_EXPORT(grub_env_unset_data_slot);
+
 /* The size of the hash table.  */
 #define	HASHSZ	13
 

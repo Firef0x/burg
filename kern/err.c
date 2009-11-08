@@ -21,6 +21,16 @@
 #include <grub/misc.h>
 #include <stdarg.h>
 
+GRUB_EXPORT(grub_errno);
+GRUB_EXPORT(grub_errmsg);
+
+GRUB_EXPORT(grub_error);
+GRUB_EXPORT(grub_fatal);
+GRUB_EXPORT(grub_error_push);
+GRUB_EXPORT(grub_error_pop);
+GRUB_EXPORT(grub_print_error);
+GRUB_EXPORT(grub_err_printf);
+
 #define GRUB_MAX_ERRMSG		256
 #define GRUB_ERROR_STACK_SIZE	10
 

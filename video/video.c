@@ -22,6 +22,30 @@
 #include <grub/misc.h>
 #include <grub/mm.h>
 
+GRUB_EXPORT(grub_video_blit_bitmap);
+GRUB_EXPORT(grub_video_blit_render_target);
+GRUB_EXPORT(grub_video_create_render_target);
+GRUB_EXPORT(grub_video_delete_render_target);
+GRUB_EXPORT(grub_video_fill_rect);
+GRUB_EXPORT(grub_video_get_active_render_target);
+GRUB_EXPORT(grub_video_get_blit_format);
+GRUB_EXPORT(grub_video_get_info);
+GRUB_EXPORT(grub_video_set_viewport);
+GRUB_EXPORT(grub_video_get_viewport);
+GRUB_EXPORT(grub_video_map_color);
+GRUB_EXPORT(grub_video_map_rgb);
+GRUB_EXPORT(grub_video_map_rgba);
+GRUB_EXPORT(grub_video_register);
+GRUB_EXPORT(grub_video_restore);
+GRUB_EXPORT(grub_video_scroll);
+GRUB_EXPORT(grub_video_swap_buffers);
+GRUB_EXPORT(grub_video_create_render_target);
+GRUB_EXPORT(grub_video_delete_render_target);
+GRUB_EXPORT(grub_video_set_active_render_target);
+GRUB_EXPORT(grub_video_set_mode);
+GRUB_EXPORT(grub_video_unmap_color);
+GRUB_EXPORT(grub_video_unregister);
+
 /* The list of video adapters registered to system.  */
 static grub_video_adapter_t grub_video_adapter_list;
 

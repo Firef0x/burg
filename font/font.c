@@ -27,6 +27,20 @@
 #include <grub/video.h>
 #include <grub/bitmap.h>
 
+GRUB_EXPORT(grub_font_draw_glyph);
+GRUB_EXPORT(grub_font_draw_string);
+GRUB_EXPORT(grub_font_get);
+GRUB_EXPORT(grub_font_get_ascent);
+GRUB_EXPORT(grub_font_get_descent);
+GRUB_EXPORT(grub_font_get_glyph);
+GRUB_EXPORT(grub_font_get_glyph_with_fallback);
+GRUB_EXPORT(grub_font_get_leading);
+GRUB_EXPORT(grub_font_get_max_char_height);
+GRUB_EXPORT(grub_font_get_code_width);
+GRUB_EXPORT(grub_font_get_string_width);
+GRUB_EXPORT(grub_font_get_name);
+GRUB_EXPORT(grub_font_get_height);
+
 #ifndef FONT_DEBUG
 #define FONT_DEBUG 0
 #endif
@@ -843,23 +857,34 @@ grub_font_get_height (grub_font_t font)
   return font->ascent + font->descent + font->leading;
 }
 
+int
+grub_font_get_code_width (grub_font_t font, const char *str, const char **end)
+{
+  grub_uint32_t code;
+
+  if (grub_utf8_to_ucs4 (&code, 1, (const grub_uint8_t *) str,
+			 -1, (const grub_uint8_t **) end) > 0)
+    {
+      struct grub_font_glyph *glyph;
+
+      glyph = grub_font_get_glyph_with_fallback (font, code);
+      return glyph->device_width;
+    }
+  else
+    return 0;
+}
+
 /* Get the width in pixels of the specified UTF-8 string, when rendered in
    in the specified font (but falling back on other fonts for glyphs that
    are missing).  */
 int
 grub_font_get_string_width (grub_font_t font, const char *str)
 {
-  int width;
-  struct grub_font_glyph *glyph;
-  grub_uint32_t code;
-  const grub_uint8_t *ptr;
+  int width, w;
 
-  for (ptr = (const grub_uint8_t *) str, width = 0;
-       grub_utf8_to_ucs4 (&code, 1, ptr, -1, &ptr) > 0; )
-    {
-      glyph = grub_font_get_glyph_with_fallback (font, code);
-      width += glyph->device_width;
-    }
+  width = 0;
+  while ((w = grub_font_get_code_width (font, str, &str)) > 0)
+    width += w;
 
   return width;
 }

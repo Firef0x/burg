@@ -19,6 +19,11 @@
 
 #include <grub/handler.h>
 
+GRUB_EXPORT(grub_handler_class_list);
+GRUB_EXPORT(grub_handler_register);
+GRUB_EXPORT(grub_handler_unregister);
+GRUB_EXPORT(grub_handler_set_current);
+
 grub_handler_class_t grub_handler_class_list;
 
 void

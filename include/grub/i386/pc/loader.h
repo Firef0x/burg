@@ -23,6 +23,6 @@
 #include <grub/cpu/loader.h>
 
 /* This is an asm part of the chainloader.  */
-void EXPORT_FUNC(grub_chainloader_real_boot) (int drive, void *part_addr) __attribute__ ((noreturn));
+void grub_chainloader_real_boot (int drive, void *part_addr) __attribute__ ((noreturn));
 
 #endif /* ! GRUB_LOADER_MACHINE_HEADER */

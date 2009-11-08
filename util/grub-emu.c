@@ -45,6 +45,9 @@ static jmp_buf main_env;
 /* Store the prefix specified by an argument.  */
 static char *prefix = 0;
 
+struct grub_module_info grub_modinfo;
+char grub_code_start[0];
+
 grub_addr_t
 grub_arch_modules_addr (void)
 {

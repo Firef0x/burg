@@ -23,6 +23,11 @@
 #include <grub/usb.h>
 #include <grub/usbtrans.h>
 
+GRUB_EXPORT(grub_usb_bulk_read);
+GRUB_EXPORT(grub_usb_bulk_write);
+GRUB_EXPORT(grub_usb_clear_halt);
+GRUB_EXPORT(grub_usb_control_msg);
+
 grub_usb_err_t
 grub_usb_control_msg (grub_usb_device_t dev,
 		      grub_uint8_t reqtype,

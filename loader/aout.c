@@ -21,6 +21,9 @@
 #include <grub/misc.h>
 #include <grub/aout.h>
 
+GRUB_EXPORT(grub_aout_get_type);
+GRUB_EXPORT(grub_aout_load);
+
 int
 grub_aout_get_type (union grub_aout_header *header)
 {

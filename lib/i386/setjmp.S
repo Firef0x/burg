@@ -22,6 +22,9 @@
 
 	.text
 
+GRUB_EXPORT(grub_setjmp);
+GRUB_EXPORT(grub_longjmp);
+
 /*
  * int grub_setjmp (grub_jmp_buf env)
  */

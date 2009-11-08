@@ -32,6 +32,8 @@
 #include <grub/machine/memory.h>
 #include <grub/efiemu/efiemu.h>
 
+GRUB_EXPORT(grub_efiemu_get_memory_map);
+
 struct grub_efiemu_memrequest
 {
   struct grub_efiemu_memrequest *next;

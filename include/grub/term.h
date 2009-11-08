@@ -20,18 +20,56 @@
 #define GRUB_TERM_HEADER	1
 
 /* Internal codes used by GRUB to represent terminal input.  */
-#define GRUB_TERM_LEFT		2
-#define GRUB_TERM_RIGHT		6
-#define GRUB_TERM_UP		16
-#define GRUB_TERM_DOWN		14
-#define GRUB_TERM_HOME		1
-#define GRUB_TERM_END		5
-#define GRUB_TERM_DC		4
+#define GRUB_TERM_LEFT		2	/* ctrl-b  */
+#define GRUB_TERM_RIGHT		6	/* ctrl-f  */
+#define GRUB_TERM_UP		16	/* ctrl-p  */
+#define GRUB_TERM_DOWN		14	/* ctrl-n  */
+#define GRUB_TERM_HOME		1	/* ctrl-a  */
+#define GRUB_TERM_END		5	/* ctrl-e  */
+#define GRUB_TERM_DC		4	/* ctrl-d  */
 #define GRUB_TERM_PPAGE		7
 #define GRUB_TERM_NPAGE		3
 #define GRUB_TERM_ESC		'\e'
 #define GRUB_TERM_TAB		'\t'
 #define GRUB_TERM_BACKSPACE	8
+
+#define GRUB_TERM_F1		0xf0
+#define GRUB_TERM_F2		0xf1
+#define GRUB_TERM_F3		0xf2
+#define GRUB_TERM_F4		0xf3
+#define GRUB_TERM_F5		0xf4
+#define GRUB_TERM_F6		0xf5
+#define GRUB_TERM_F7		0xf6
+#define GRUB_TERM_F8		0xf7
+#define GRUB_TERM_F9		0xf8
+#define GRUB_TERM_F10		0xf9
+
+#define GRUB_TERM_CTRL_A	1
+#define GRUB_TERM_CTRL_B	2
+#define GRUB_TERM_CTRL_C	3
+#define GRUB_TERM_CTRL_D	4
+#define GRUB_TERM_CTRL_E	5
+#define GRUB_TERM_CTRL_F	6
+#define GRUB_TERM_CTRL_G	7
+#define GRUB_TERM_CTRL_H	8
+#define GRUB_TERM_CTRL_I	9
+#define GRUB_TERM_CTRL_J	10
+#define GRUB_TERM_CTRL_K	11
+#define GRUB_TERM_CTRL_L	12
+#define GRUB_TERM_CTRL_M	13
+#define GRUB_TERM_CTRL_N	14
+#define GRUB_TERM_CTRL_O	15
+#define GRUB_TERM_CTRL_P	16
+#define GRUB_TERM_CTRL_Q	17
+#define GRUB_TERM_CTRL_R	18
+#define GRUB_TERM_CTRL_S	19
+#define GRUB_TERM_CTRL_T	20
+#define GRUB_TERM_CTRL_U	21
+#define GRUB_TERM_CTRL_V	22
+#define GRUB_TERM_CTRL_W	23
+#define GRUB_TERM_CTRL_X	24
+#define GRUB_TERM_CTRL_Y	25
+#define GRUB_TERM_CTRL_Z	26
 
 #ifndef ASM_FILE
 
@@ -224,19 +262,25 @@ struct grub_term_output
 };
 typedef struct grub_term_output *grub_term_output_t;
 
-extern struct grub_handler_class EXPORT_VAR(grub_term_input_class);
-extern struct grub_handler_class EXPORT_VAR(grub_term_output_class);
+extern struct grub_handler_class grub_term_input_class;
+extern struct grub_handler_class grub_term_output_class;
+
+#define grub_term_register_input(name, term) \
+  grub_term_register_input_internal (term); \
+  GRUB_MODATTR ("handler", "terminal_input." name);
+
+#define grub_term_register_output(name, term) \
+  grub_term_register_output_internal (term); \
+  GRUB_MODATTR ("handler", "terminal_output." name);
 
 static inline void
-grub_term_register_input (const char *name __attribute__ ((unused)),
-			  grub_term_input_t term)
+grub_term_register_input_internal (grub_term_input_t term)
 {
   grub_handler_register (&grub_term_input_class, GRUB_AS_HANDLER (term));
 }
 
 static inline void
-grub_term_register_output (const char *name __attribute__ ((unused)),
-			   grub_term_output_t term)
+grub_term_register_output_internal (grub_term_output_t term)
 {
   grub_handler_register (&grub_term_output_class, GRUB_AS_HANDLER (term));
 }
@@ -279,25 +323,25 @@ grub_term_get_current_output (void)
   return (grub_term_output_t) grub_term_output_class.cur_handler;
 }
 
-void EXPORT_FUNC(grub_putchar) (int c);
-void EXPORT_FUNC(grub_putcode) (grub_uint32_t code);
-grub_ssize_t EXPORT_FUNC(grub_getcharwidth) (grub_uint32_t code);
-int EXPORT_FUNC(grub_getkey) (void);
-int EXPORT_FUNC(grub_checkkey) (void);
-int EXPORT_FUNC(grub_getkeystatus) (void);
-grub_uint16_t EXPORT_FUNC(grub_getwh) (void);
-grub_uint16_t EXPORT_FUNC(grub_getxy) (void);
-void EXPORT_FUNC(grub_gotoxy) (grub_uint8_t x, grub_uint8_t y);
-void EXPORT_FUNC(grub_cls) (void);
-void EXPORT_FUNC(grub_setcolorstate) (grub_term_color_state state);
-void EXPORT_FUNC(grub_setcolor) (grub_uint8_t normal_color,
-				 grub_uint8_t highlight_color);
-void EXPORT_FUNC(grub_getcolor) (grub_uint8_t *normal_color,
-				 grub_uint8_t *highlight_color);
-int EXPORT_FUNC(grub_setcursor) (int on);
-int EXPORT_FUNC(grub_getcursor) (void);
-void EXPORT_FUNC(grub_refresh) (void);
-void EXPORT_FUNC(grub_set_more) (int onoff);
+void grub_putchar (int c);
+void grub_putcode (grub_uint32_t code);
+grub_ssize_t grub_getcharwidth (grub_uint32_t code);
+int grub_getkey (void);
+int grub_checkkey (void);
+int grub_getkeystatus (void);
+grub_uint16_t grub_getwh (void);
+grub_uint16_t grub_getxy (void);
+void grub_gotoxy (grub_uint8_t x, grub_uint8_t y);
+void grub_cls (void);
+void grub_setcolorstate (grub_term_color_state state);
+void grub_setcolor (grub_uint8_t normal_color,
+		    grub_uint8_t highlight_color);
+void grub_getcolor (grub_uint8_t *normal_color,
+		    grub_uint8_t *highlight_color);
+int grub_setcursor (int on);
+int grub_getcursor (void);
+void grub_refresh (void);
+void grub_set_more (int onoff);
 
 /* For convenience.  */
 #define GRUB_TERM_ASCII_CHAR(c)	((c) & 0xff)

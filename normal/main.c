@@ -29,6 +29,17 @@
 #include <grub/reader.h>
 #include <grub/menu_viewer.h>
 #include <grub/auth.h>
+#include <grub/uitree.h>
+
+GRUB_EXPORT(grub_file_getline);
+GRUB_EXPORT(grub_normal_add_menu_entry);
+GRUB_EXPORT(grub_normal_do_completion);
+GRUB_EXPORT(grub_normal_execute);
+GRUB_EXPORT(grub_normal_print_device_info);
+GRUB_EXPORT(grub_unixtime2datetime);
+GRUB_EXPORT(grub_wait_after_message);
+GRUB_EXPORT(grub_cmdline_run);
+GRUB_EXPORT(grub_cmdline_get);
 
 #define GRUB_DEFAULT_HISTORY_SIZE	50
 
@@ -148,6 +159,33 @@ free_menu_entry_classes (struct grub_menu_entry_class *head)
       grub_free (head);
       head = next;
     }
+}
+
+static grub_err_t
+uitree_append (grub_menu_entry_t entry)
+{
+  grub_uitree_t root, node;
+
+  root = grub_uitree_find (&grub_uitree_root, "menu");
+  if (! root)
+    {
+      root = grub_uitree_create_node ("menu");
+      if (! root)
+	return grub_errno;
+      grub_tree_add_child (GRUB_AS_TREE (&grub_uitree_root),
+			   GRUB_AS_TREE (root), -1);
+    }
+
+  node = grub_uitree_create_node (entry->title);
+  if (! node)
+    return grub_errno;
+
+  if (entry->classes->next)
+    grub_uitree_set_prop (node, "class", entry->classes->next->name);
+  grub_uitree_set_prop (node, "command", entry->sourcecode);
+  grub_tree_add_child (GRUB_AS_TREE (root), GRUB_AS_TREE (node), -1);
+
+  return grub_errno;
 }
 
 /* Add a menu entry to the current menu context (as given by the environment
@@ -296,7 +334,7 @@ grub_normal_add_menu_entry (int argc, const char **args,
 
   menu->size++;
 
-  return GRUB_ERR_NONE;
+  return uitree_append (*last);
 }
 
 static grub_menu_t
@@ -574,8 +612,8 @@ GRUB_MOD_INIT(normal)
   grub_register_variable_hook ("pager", 0, grub_env_write_pager);
 
   /* Register a command "normal" for the rescue mode.  */
-  grub_register_command_prio ("normal", grub_cmd_normal,
-			      0, "Enter normal mode", 0);
+  grub_reg_cmd ("normal", grub_cmd_normal,
+		0, "Enter normal mode", 0);
 
   /* Reload terminal colors when these variables are written to.  */
   grub_register_variable_hook ("color_normal", NULL, grub_env_write_color_normal);

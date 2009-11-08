@@ -28,6 +28,11 @@
 #include <grub/parser.h>
 #include <grub/auth.h>
 
+GRUB_EXPORT(grub_menu_get_timeout);
+GRUB_EXPORT(grub_menu_set_timeout);
+GRUB_EXPORT(grub_menu_execute_entry);
+GRUB_EXPORT(grub_menu_execute_with_fallback);
+
 /* Get a menu entry by its index in the entry list.  */
 grub_menu_entry_t
 grub_menu_get_entry (grub_menu_t menu, int no)

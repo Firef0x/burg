@@ -45,6 +45,12 @@
  *  This is the area for all of the special variables.
  */
 
+GRUB_EXPORT(grub_linux_prot_size);
+GRUB_EXPORT(grub_linux_tmp_addr);
+GRUB_EXPORT(grub_linux_real_addr);
+GRUB_EXPORT(grub_linux_is_bzimage);
+GRUB_EXPORT(grub_linux16_boot);
+
 	.p2align	2	/* force 4-byte alignment */
 
 /*

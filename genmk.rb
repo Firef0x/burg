@@ -66,21 +66,8 @@ mostlyclean-image-#{@name}.#{@rule_count}:
 
 MOSTLYCLEAN_IMAGE_TARGETS += mostlyclean-image-#{@name}.#{@rule_count}
 
-ifneq ($(TARGET_APPLE_CC),1)
-#{@name}: #{exe}
-	$(OBJCOPY) -O $(#{prefix}_FORMAT) --strip-unneeded -R .note -R .comment -R .note.gnu.build-id $< $@
-else
-ifneq (#{exe},kernel.exec)
-#{@name}: #{exe} ./grub-macho2img
-	./grub-macho2img $< $@
-else
-#{@name}: #{exe} ./grub-macho2img
-	./grub-macho2img --bss $< $@
-endif
-endif
-
-#{exe}: #{objs_str}
-	$(TARGET_CC) -o $@ $^ $(TARGET_LDFLAGS) $(#{prefix}_LDFLAGS)
+#{@name}: #{objs_str} grub-mkrawimage
+	./grub-mkrawimage -o $@ -b $(#{prefix}_LINKADDR) $(filter %.o, $^)
 
 " + objs.collect_with_index do |obj, i|
       src = sources[i]
@@ -118,71 +105,24 @@ class PModule
     objs_str = objs.join(' ')
     deps = objs.collect {|obj| obj.suffix('d')}
     deps_str = deps.join(' ')
-    pre_obj = 'pre-' + @name.suffix('o')
-    mod_src = 'mod-' + @name.suffix('c')
-    mod_obj = mod_src.suffix('o')
-    defsym = 'def-' + @name.suffix('lst')
-    undsym = 'und-' + @name.suffix('lst')
     mod_name = File.basename(@name, '.mod')
     symbolic_name = mod_name.sub(/\.[^\.]*$/, '')
 
 "
 clean-module-#{@name}.#{@rule_count}:
-	rm -f #{@name} #{mod_obj} #{mod_src} #{pre_obj} #{objs_str} #{undsym}
+	rm -f #{@name} #{objs_str}
 
 CLEAN_MODULE_TARGETS += clean-module-#{@name}.#{@rule_count}
 
-ifneq ($(#{prefix}_EXPORTS),no)
-clean-module-#{@name}-symbol.#{@rule_count}:
-	rm -f #{defsym}
-
-CLEAN_MODULE_TARGETS += clean-module-#{@name}-symbol.#{@rule_count}
-DEFSYMFILES += #{defsym}
-endif
 mostlyclean-module-#{@name}.#{@rule_count}:
 	rm -f #{deps_str}
 
 MOSTLYCLEAN_MODULE_TARGETS += mostlyclean-module-#{@name}.#{@rule_count}
-UNDSYMFILES += #{undsym}
 
-ifneq ($(TARGET_APPLE_CC),1)
-#{@name}: #{pre_obj} #{mod_obj} $(TARGET_OBJ2ELF)
-	-rm -f $@
-	$(TARGET_CC) $(#{prefix}_LDFLAGS) $(TARGET_LDFLAGS) -Wl,-r,-d -o $@ #{pre_obj} #{mod_obj}
-	if test ! -z \"$(TARGET_OBJ2ELF)\"; then ./$(TARGET_OBJ2ELF) $@ || (rm -f $@; exit 1); fi
-	$(STRIP) --strip-unneeded -K grub_mod_init -K grub_mod_fini -K _grub_mod_init -K _grub_mod_fini -R .note -R .comment $@
-else
-#{@name}: #{pre_obj} #{mod_obj} $(TARGET_OBJ2ELF)
-	-rm -f $@
-	-rm -f $@.bin
-	$(TARGET_CC) $(#{prefix}_LDFLAGS) $(TARGET_LDFLAGS) -Wl,-r,-d -o $@.bin #{pre_obj} #{mod_obj}
-	$(OBJCONV) -f$(TARGET_MODULE_FORMAT) -nr:_grub_mod_init:grub_mod_init -nr:_grub_mod_fini:grub_mod_fini -wd1106 -nu -nd $@.bin $@
-	-rm -f $@.bin
-endif
+#{@name}: $(#{prefix}_DEPENDENCIES) #{objs_str} grub-mkmod
+	./grub-mkmod -o $@ $(filter %.o, $^)
 
-#{pre_obj}: $(#{prefix}_DEPENDENCIES) #{objs_str}
-	-rm -f $@
-	$(TARGET_CC) $(#{prefix}_LDFLAGS) $(TARGET_LDFLAGS) -Wl,-r,-d -o $@ #{objs_str}
-
-#{mod_obj}: #{mod_src}
-	$(TARGET_CC) $(TARGET_CPPFLAGS) $(TARGET_CFLAGS) $(#{prefix}_CFLAGS) -c -o $@ $<
-
-#{mod_src}: $(builddir)/moddep.lst $(srcdir)/genmodsrc.sh
-	sh $(srcdir)/genmodsrc.sh '#{mod_name}' $< > $@ || (rm -f $@; exit 1)
-
-ifneq ($(#{prefix}_EXPORTS),no)
-ifneq ($(TARGET_APPLE_CC),1)
-#{defsym}: #{pre_obj}
-	$(NM) -g --defined-only -P -p $< | sed 's/^\\([^ ]*\\).*/\\1 #{mod_name}/' > $@
-else
-#{defsym}: #{pre_obj}
-	$(NM) -g -P -p $< | grep -E '^[a-zA-Z0-9_]* [TDS]'  | sed 's/^\\([^ ]*\\).*/\\1 #{mod_name}/' > $@
-endif
-endif
-
-#{undsym}: #{pre_obj}
-	echo '#{mod_name}' > $@
-	$(NM) -u -P -p $< | cut -f1 -d' ' >> $@
+MODFILES += #{@name}
 
 " + objs.collect_with_index do |obj, i|
       src = sources[i]
@@ -201,42 +141,6 @@ endif
       "#{obj}: #{src} $(#{src}_DEPENDENCIES)
 	$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<
 -include #{dep}
-
-clean-module-#{extra_target}.#{@rule_count}:
-	rm -f #{command} #{fs} #{partmap} #{handler} #{parttool}
-
-CLEAN_MODULE_TARGETS += clean-module-#{extra_target}.#{@rule_count}
-
-COMMANDFILES += #{command}
-FSFILES += #{fs}
-PARTTOOLFILES += #{parttool}
-PARTMAPFILES += #{partmap}
-HANDLERFILES += #{handler}
-
-#{command}: #{src} $(#{src}_DEPENDENCIES) gencmdlist.sh
-	set -e; \
-	  $(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -E $< \
-	  | sh $(srcdir)/gencmdlist.sh #{symbolic_name} > $@ || (rm -f $@; exit 1)
-
-#{fs}: #{src} $(#{src}_DEPENDENCIES) genfslist.sh
-	set -e; \
-	  $(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -E $< \
-	  | sh $(srcdir)/genfslist.sh #{symbolic_name} > $@ || (rm -f $@; exit 1)
-
-#{parttool}: #{src} $(#{src}_DEPENDENCIES) genparttoollist.sh
-	set -e; \
-	  $(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -E $< \
-	  | sh $(srcdir)/genparttoollist.sh #{symbolic_name} > $@ || (rm -f $@; exit 1)
-
-#{partmap}: #{src} $(#{src}_DEPENDENCIES) genpartmaplist.sh
-	set -e; \
-	  $(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -E $< \
-	  | sh $(srcdir)/genpartmaplist.sh #{symbolic_name} > $@ || (rm -f $@; exit 1)
-
-#{handler}: #{src} $(#{src}_DEPENDENCIES) genhandlerlist.sh
-	set -e; \
-	  $(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -E $< \
-	  | sh $(srcdir)/genhandlerlist.sh #{symbolic_name} > $@ || (rm -f $@; exit 1)
 
 "
     end.join('')

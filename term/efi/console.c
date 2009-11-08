@@ -75,6 +75,14 @@ map_char (grub_uint32_t c)
 	  c = 0x2518;
 	  break;
 
+	case 0x2550:	/* double horizontal line */
+	case 0x2551:	/* double vertical line */
+	case 0x2554:	/* double upper-left corner */
+	case 0x2557:	/* double upper-right corner */
+	case 0x255A:	/* double lower-left corner */
+	case 0x255D:	/* double lower-right corner */
+	  break;
+
 	default:
 	  c = '?';
 	  break;
@@ -155,51 +163,47 @@ grub_console_checkkey (void)
     {
       switch (key.scan_code)
 	{
-	case 0x00:
+	case GRUB_EFI_SCAN_NULL:
 	  read_key = key.unicode_char;
 	  break;
-	case 0x01:
-	  read_key = 16;
+	case GRUB_EFI_SCAN_UP:
+	  read_key = GRUB_TERM_UP;
 	  break;
-	case 0x02:
-	  read_key = 14;
+	case GRUB_EFI_SCAN_DOWN:
+	  read_key = GRUB_TERM_DOWN;
 	  break;
-	case 0x03:
-	  read_key = 6;
+	case GRUB_EFI_SCAN_RIGHT:
+	  read_key = GRUB_TERM_RIGHT;
 	  break;
-	case 0x04:
-	  read_key = 2;
+	case GRUB_EFI_SCAN_LEFT:
+	  read_key = GRUB_TERM_LEFT;
 	  break;
-	case 0x05:
-	  read_key = 1;
+	case GRUB_EFI_SCAN_HOME:
+	  read_key = GRUB_TERM_HOME;
 	  break;
-	case 0x06:
-	  read_key = 5;
+	case GRUB_EFI_SCAN_END:
+	  read_key = GRUB_TERM_END;
 	  break;
-	case 0x07:
+	case GRUB_EFI_SCAN_INSERT:
 	  break;
-	case 0x08:
-	  read_key = 4;
+	case GRUB_EFI_SCAN_DELETE:
+	  read_key = GRUB_TERM_DC;
 	  break;
-	case 0x09:
+	case GRUB_EFI_SCAN_PAGE_UP:
+	  read_key = GRUB_TERM_PPAGE;
 	  break;
-	case 0x0a:
+	case GRUB_EFI_SCAN_PAGE_DOWN:
+	  read_key = GRUB_TERM_NPAGE;
 	  break;
-	case 0x0b:
-	  read_key = 24;
-	  break;
-	case 0x0c:
-	  read_key = 1;
-	  break;
-	case 0x0d:
-	  read_key = 5;
-	  break;
-	case 0x17:
-	  read_key = '\e';
+	case GRUB_EFI_SCAN_ESC:
+	  read_key = GRUB_TERM_ESC;
 	  break;
 	default:
 	  break;
 	}
+      if ((key.scan_code >= GRUB_EFI_SCAN_F1) &&
+	  (key.scan_code <= GRUB_EFI_SCAN_F10))
+	read_key = GRUB_TERM_F1 + key.scan_code - GRUB_EFI_SCAN_F1;
     }
 
   return read_key;
@@ -332,6 +336,25 @@ grub_console_setcursor (int on)
   efi_call_2 (o->enable_cursor, o, on);
 }
 
+static void
+set_mode (void)
+{
+  grub_efi_simple_text_output_interface_t *o;
+  grub_efi_uintn_t mode, saved_columns, columns, rows;
+
+  o = grub_efi_system_table->con_out;
+  if (efi_call_4 (o->query_mode, o, 0, &saved_columns, &rows))
+    return;
+
+  mode = 1;
+  columns = 0;
+  while ((! efi_call_4 (o->query_mode, o, mode, &columns, &rows)) &&
+	 (columns != saved_columns))
+    mode++;
+  if (mode > 1)
+    efi_call_2 (o->set_mode, o, mode - 1);
+}
+
 static struct grub_term_input grub_console_term_input =
   {
     .name = "console",
@@ -366,6 +389,7 @@ grub_console_init (void)
       return;
     }
 
+  set_mode ();
   grub_term_register_input ("console", &grub_console_term_input);
   grub_term_register_output ("console", &grub_console_term_output);
 }

@@ -53,20 +53,20 @@ struct grub_env_var
   enum grub_env_var_type type;
 };
 
-grub_err_t EXPORT_FUNC(grub_env_set) (const char *name, const char *val);
-char *EXPORT_FUNC(grub_env_get) (const char *name);
-void EXPORT_FUNC(grub_env_unset) (const char *name);
-void EXPORT_FUNC(grub_env_iterate) (int (*func) (struct grub_env_var *var));
-grub_err_t EXPORT_FUNC(grub_register_variable_hook) (const char *name,
-						     grub_env_read_hook_t read_hook,
-						     grub_env_write_hook_t write_hook);
-grub_err_t EXPORT_FUNC(grub_env_context_open) (int export);
-grub_err_t EXPORT_FUNC(grub_env_context_close) (void);
-grub_err_t EXPORT_FUNC(grub_env_export) (const char *name);
+grub_err_t grub_env_set (const char *name, const char *val);
+char *grub_env_get (const char *name);
+void grub_env_unset (const char *name);
+void grub_env_iterate (int (*func) (struct grub_env_var *var));
+grub_err_t grub_register_variable_hook (const char *name,
+					grub_env_read_hook_t read_hook,
+					grub_env_write_hook_t write_hook);
+grub_err_t grub_env_context_open (int export);
+grub_err_t grub_env_context_close (void);
+grub_err_t grub_env_export (const char *name);
 
-grub_err_t EXPORT_FUNC(grub_env_set_data_slot) (const char *name,
-						const void *ptr);
-void *EXPORT_FUNC(grub_env_get_data_slot) (const char *name);
-void EXPORT_FUNC(grub_env_unset_data_slot) (const char *name);
+grub_err_t grub_env_set_data_slot (const char *name,
+				   const void *ptr);
+void *grub_env_get_data_slot (const char *name);
+void grub_env_unset_data_slot (const char *name);
 
 #endif /* ! GRUB_ENV_HEADER */

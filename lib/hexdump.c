@@ -21,6 +21,8 @@
 #include <grub/misc.h>
 #include <grub/lib/hexdump.h>
 
+GRUB_EXPORT(hexdump);
+
 void
 hexdump (unsigned long bse, char *buf, int len)
 {

@@ -175,8 +175,8 @@ typedef grub_err_t (*ntfscomp_func_t) (struct grub_ntfs_attr * at, char *dest,
 				       struct grub_ntfs_rlst * ctx,
 				       grub_uint32_t vcn);
 
-extern ntfscomp_func_t EXPORT_VAR (grub_ntfscomp_func);
+extern ntfscomp_func_t grub_ntfscomp_func;
 
-grub_err_t EXPORT_FUNC(grub_ntfs_read_run_list) (struct grub_ntfs_rlst *ctx);
+grub_err_t grub_ntfs_read_run_list (struct grub_ntfs_rlst *ctx);
 
 #endif /* ! GRUB_NTFS_H */

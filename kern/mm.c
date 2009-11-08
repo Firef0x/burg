@@ -72,7 +72,22 @@
 # undef grub_realloc
 # undef grub_free
 # undef grub_memalign
+
+GRUB_EXPORT(grub_mm_debug);
+GRUB_EXPORT(grub_debug_malloc);
+GRUB_EXPORT(grub_debug_zalloc);
+GRUB_EXPORT(grub_debug_free);
+GRUB_EXPORT(grub_debug_realloc);
+GRUB_EXPORT(grub_debug_memalign);
+GRUB_EXPORT(grub_mm_get_free);
+
 #endif
+
+GRUB_EXPORT(grub_malloc);
+GRUB_EXPORT(grub_zalloc);
+GRUB_EXPORT(grub_free);
+GRUB_EXPORT(grub_realloc);
+GRUB_EXPORT(grub_memalign);
 
 /* Magic words.  */
 #define GRUB_MM_FREE_MAGIC	0x2d3c2808

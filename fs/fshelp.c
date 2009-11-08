@@ -23,6 +23,9 @@
 #include <grub/disk.h>
 #include <grub/fshelp.h>
 
+GRUB_EXPORT(grub_fshelp_find_file);
+GRUB_EXPORT(grub_fshelp_log2blksize);
+GRUB_EXPORT(grub_fshelp_read_file);
 
 /* Lookup the node PATH.  The node ROOTNODE describes the root of the
    directory tree.  The node found is returned in FOUNDNODE, which is

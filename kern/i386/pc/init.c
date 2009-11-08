@@ -32,6 +32,13 @@
 #include <grub/time.h>
 #include <grub/cpu/tsc.h>
 
+GRUB_EXPORT(grub_os_area_addr);
+GRUB_EXPORT(grub_os_area_size);
+GRUB_EXPORT(grub_get_mmap_entry);
+GRUB_EXPORT(grub_reboot);
+GRUB_EXPORT(grub_halt);
+GRUB_EXPORT(grub_stop_floppy);
+
 struct mem_region
 {
   grub_addr_t addr;

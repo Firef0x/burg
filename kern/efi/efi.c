@@ -27,6 +27,27 @@
 #include <grub/kernel.h>
 #include <grub/mm.h>
 
+GRUB_EXPORT(grub_efi_locate_protocol);
+GRUB_EXPORT(grub_efi_locate_handle);
+GRUB_EXPORT(grub_efi_open_protocol);
+GRUB_EXPORT(grub_efi_set_text_mode);
+GRUB_EXPORT(grub_efi_stall);
+GRUB_EXPORT(grub_efi_allocate_pages);
+GRUB_EXPORT(grub_efi_free_pages);
+GRUB_EXPORT(grub_efi_get_memory_map);
+GRUB_EXPORT(grub_efi_get_loaded_image);
+GRUB_EXPORT(grub_efi_print_device_path);
+GRUB_EXPORT(grub_efi_get_filename);
+GRUB_EXPORT(grub_efi_get_device_path);
+GRUB_EXPORT(grub_efi_exit_boot_services);
+GRUB_EXPORT(grub_reboot);
+GRUB_EXPORT(grub_halt);
+GRUB_EXPORT(grub_efi_finish_boot_services);
+GRUB_EXPORT(grub_efi_system_table);
+GRUB_EXPORT(grub_efi_image_handle);
+
+GRUB_EXPORT(grub_get_rtc);
+
 /* The handle of GRUB itself. Filled in by the startup code.  */
 grub_efi_handle_t grub_efi_image_handle;
 

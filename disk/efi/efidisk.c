@@ -27,6 +27,9 @@
 #include <grub/efi/efi.h>
 #include <grub/efi/disk.h>
 
+GRUB_EXPORT(grub_efidisk_get_device_handle);
+GRUB_EXPORT(grub_efidisk_get_device_name);
+
 struct grub_efidisk_data
 {
   grub_efi_handle_t handle;

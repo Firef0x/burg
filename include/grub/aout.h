@@ -82,10 +82,10 @@ union grub_aout_header
 #define AOUT_GETMID(header) ((header).a_midmag >> 16) & 0x03ff)
 #define AOUT_GETFLAG(header) ((header).a_midmag >> 26) & 0x3f)
 
-int EXPORT_FUNC(grub_aout_get_type) (union grub_aout_header *header);
+int grub_aout_get_type (union grub_aout_header *header);
 
-grub_err_t EXPORT_FUNC(grub_aout_load) (grub_file_t file, int offset,
-                                        grub_addr_t load_addr, int load_size,
-                                        grub_addr_t bss_end_addr);
+grub_err_t grub_aout_load (grub_file_t file, int offset,
+  grub_addr_t load_addr, int load_size,
+  grub_addr_t bss_end_addr);
 
 #endif /* ! GRUB_AOUT_HEADER */

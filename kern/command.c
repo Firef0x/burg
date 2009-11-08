@@ -20,14 +20,18 @@
 #include <grub/mm.h>
 #include <grub/command.h>
 
+GRUB_EXPORT(grub_command_list);
+GRUB_EXPORT(grub_reg_cmd);
+GRUB_EXPORT(grub_unregister_command);
+
 grub_command_t grub_command_list;
 
 grub_command_t
-grub_register_command_prio (const char *name,
-			    grub_command_func_t func,
-			    const char *summary,
-			    const char *description,
-			    int prio)
+grub_reg_cmd (const char *name,
+	      grub_command_func_t func,
+	      const char *summary,
+	      const char *description,
+	      int prio)
 {
   grub_command_t cmd;
 

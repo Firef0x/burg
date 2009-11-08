@@ -22,6 +22,12 @@
 #include <grub/usb.h>
 #include <grub/misc.h>
 
+GRUB_EXPORT(grub_usb_controller_dev_register);
+GRUB_EXPORT(grub_usb_controller_dev_unregister);
+GRUB_EXPORT(grub_usb_get_string);
+GRUB_EXPORT(grub_usb_iterate);
+GRUB_EXPORT(grub_usb_set_configuration);
+
 static grub_usb_controller_dev_t grub_usb_list;
 
 void

@@ -85,10 +85,11 @@ struct grub_dl
 };
 typedef struct grub_dl *grub_dl_t;
 
-grub_dl_t EXPORT_FUNC(grub_dl_load_file) (const char *filename);
-grub_dl_t EXPORT_FUNC(grub_dl_load) (const char *name);
+
+grub_dl_t grub_dl_load_file (const char *filename);
+grub_dl_t grub_dl_load (const char *name);
 grub_dl_t grub_dl_load_core (void *addr, grub_size_t size);
-int EXPORT_FUNC(grub_dl_unload) (grub_dl_t mod);
+int grub_dl_unload (grub_dl_t mod);
 void grub_dl_unload_unneeded (void);
 void grub_dl_unload_all (void);
 #ifdef GRUB_UTIL
@@ -105,15 +106,18 @@ grub_dl_unref (grub_dl_t mod)
   return 0;
 }
 #else
-int EXPORT_FUNC(grub_dl_ref) (grub_dl_t mod);
-int EXPORT_FUNC(grub_dl_unref) (grub_dl_t mod);
+int grub_dl_ref (grub_dl_t mod);
+int grub_dl_unref (grub_dl_t mod);
 #endif
-void EXPORT_FUNC(grub_dl_iterate) (int (*hook) (grub_dl_t mod));
-grub_dl_t EXPORT_FUNC(grub_dl_get) (const char *name);
-grub_err_t EXPORT_FUNC(grub_dl_register_symbol) (const char *name, void *addr,
-					    grub_dl_t mod);
+void grub_dl_iterate (int (*hook) (grub_dl_t mod));
+grub_dl_t grub_dl_get (const char *name);
+grub_err_t grub_dl_register_symbol (const char *name, void *addr,
+				    grub_dl_t mod);
 
 grub_err_t grub_arch_dl_check_header (void *ehdr);
 grub_err_t grub_arch_dl_relocate_symbols (grub_dl_t mod, void *ehdr);
+
+grub_err_t grub_dl_add (grub_dl_t mod);
+grub_err_t grub_dl_resolve_dependencies (grub_dl_t mod, char *name);
 
 #endif /* ! GRUB_DL_H */

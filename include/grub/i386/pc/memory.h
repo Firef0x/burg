@@ -108,7 +108,7 @@ struct grub_machine_mmap_entry
   grub_uint32_t type;
 } __attribute__((packed));
 
-grub_err_t EXPORT_FUNC(grub_machine_mmap_iterate)
+grub_err_t grub_machine_mmap_iterate
      (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t));
 
 grub_uint64_t grub_mmap_get_post64 (void);

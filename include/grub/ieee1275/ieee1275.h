@@ -65,9 +65,9 @@ struct grub_ieee1275_common_hdr
 typedef grub_uint32_t grub_ieee1275_ihandle_t;
 typedef grub_uint32_t grub_ieee1275_phandle_t;
 
-extern grub_ieee1275_phandle_t EXPORT_VAR(grub_ieee1275_chosen);
-extern grub_ieee1275_ihandle_t EXPORT_VAR(grub_ieee1275_mmu);
-extern int (* EXPORT_VAR(grub_ieee1275_entry_fn)) (void *);
+extern grub_ieee1275_phandle_t grub_ieee1275_chosen;
+extern grub_ieee1275_ihandle_t grub_ieee1275_mmu;
+extern int (* grub_ieee1275_entry_fn) (void *);
 
 enum grub_ieee1275_flag
 {
@@ -102,78 +102,78 @@ enum grub_ieee1275_flag
   GRUB_IEEE1275_FLAG_NO_ANSI,
 };
 
-extern int EXPORT_FUNC(grub_ieee1275_test_flag) (enum grub_ieee1275_flag flag);
-extern void EXPORT_FUNC(grub_ieee1275_set_flag) (enum grub_ieee1275_flag flag);
+int grub_ieee1275_test_flag (enum grub_ieee1275_flag flag);
+void grub_ieee1275_set_flag (enum grub_ieee1275_flag flag);
 
 
 
 
-void EXPORT_FUNC(grub_ieee1275_init) (void);
-int EXPORT_FUNC(grub_ieee1275_finddevice) (char *name,
-					   grub_ieee1275_phandle_t *phandlep);
-int EXPORT_FUNC(grub_ieee1275_get_property) (grub_ieee1275_phandle_t phandle,
-					     const char *property, void *buf,
-					     grub_size_t size,
-					     grub_ssize_t *actual);
-int EXPORT_FUNC(grub_ieee1275_get_integer_property) (grub_ieee1275_phandle_t phandle,
-						     const char *property, grub_uint32_t *buf,
-						     grub_size_t size,
-						     grub_ssize_t *actual);
-int EXPORT_FUNC(grub_ieee1275_next_property) (grub_ieee1275_phandle_t phandle,
-					      char *prev_prop, char *prop);
-int EXPORT_FUNC(grub_ieee1275_get_property_length)
-     (grub_ieee1275_phandle_t phandle, const char *prop, grub_ssize_t *length);
-int EXPORT_FUNC(grub_ieee1275_instance_to_package)
-     (grub_ieee1275_ihandle_t ihandle, grub_ieee1275_phandle_t *phandlep);
-int EXPORT_FUNC(grub_ieee1275_package_to_path) (grub_ieee1275_phandle_t phandle,
-						char *path, grub_size_t len,
-						grub_ssize_t *actual);
-int EXPORT_FUNC(grub_ieee1275_instance_to_path)
-     (grub_ieee1275_ihandle_t ihandle, char *path, grub_size_t len,
-      grub_ssize_t *actual);
-int EXPORT_FUNC(grub_ieee1275_write) (grub_ieee1275_ihandle_t ihandle,
-				      void *buffer, grub_size_t len,
-				      grub_ssize_t *actualp);
-int EXPORT_FUNC(grub_ieee1275_read) (grub_ieee1275_ihandle_t ihandle,
-				     void *buffer, grub_size_t len,
-				     grub_ssize_t *actualp);
-int EXPORT_FUNC(grub_ieee1275_seek) (grub_ieee1275_ihandle_t ihandle,
-				     int pos_hi, int pos_lo,
-				     grub_ssize_t *result);
-int EXPORT_FUNC(grub_ieee1275_peer) (grub_ieee1275_phandle_t node,
-				     grub_ieee1275_phandle_t *result);
-int EXPORT_FUNC(grub_ieee1275_child) (grub_ieee1275_phandle_t node,
-				      grub_ieee1275_phandle_t *result);
-int EXPORT_FUNC(grub_ieee1275_parent) (grub_ieee1275_phandle_t node,
-				       grub_ieee1275_phandle_t *result);
-int EXPORT_FUNC(grub_ieee1275_interpret) (const char *command,
-					  grub_ieee1275_cell_t *catch);
-int EXPORT_FUNC(grub_ieee1275_enter) (void);
-void EXPORT_FUNC(grub_ieee1275_exit) (void) __attribute__ ((noreturn));
-int EXPORT_FUNC(grub_ieee1275_open) (const char *node,
-				     grub_ieee1275_ihandle_t *result);
-int EXPORT_FUNC(grub_ieee1275_close) (grub_ieee1275_ihandle_t ihandle);
-int EXPORT_FUNC(grub_ieee1275_claim) (grub_addr_t addr, grub_size_t size,
-				      unsigned int align, grub_addr_t *result);
-int EXPORT_FUNC(grub_ieee1275_release) (grub_addr_t addr, grub_size_t size);
-int EXPORT_FUNC(grub_ieee1275_set_property) (grub_ieee1275_phandle_t phandle,
-					     const char *propname, void *buf,
-					     grub_size_t size,
-					     grub_ssize_t *actual);
-int EXPORT_FUNC(grub_ieee1275_set_color) (grub_ieee1275_ihandle_t ihandle,
-					  int index, int r, int g, int b);
-int EXPORT_FUNC(grub_ieee1275_milliseconds) (grub_uint32_t *msecs);
+void grub_ieee1275_init (void);
+int grub_ieee1275_finddevice (char *name,
+			      grub_ieee1275_phandle_t *phandlep);
+int grub_ieee1275_get_property (grub_ieee1275_phandle_t phandle,
+				const char *property, void *buf,
+				grub_size_t size,
+				grub_ssize_t *actual);
+int grub_ieee1275_get_integer_property (grub_ieee1275_phandle_t phandle,
+					const char *property,
+					grub_uint32_t *buf,
+					grub_size_t size,
+					grub_ssize_t *actual);
+int grub_ieee1275_next_property (grub_ieee1275_phandle_t phandle,
+				 char *prev_prop, char *prop);
+int grub_ieee1275_get_property_length (grub_ieee1275_phandle_t phandle,
+				       const char *prop, grub_ssize_t *length);
+int grub_ieee1275_instance_to_package (grub_ieee1275_ihandle_t ihandle,
+				       grub_ieee1275_phandle_t *phandlep);
+int grub_ieee1275_package_to_path (grub_ieee1275_phandle_t phandle,
+				   char *path, grub_size_t len,
+				   grub_ssize_t *actual);
+int grub_ieee1275_instance_to_path (grub_ieee1275_ihandle_t ihandle,
+				    char *path, grub_size_t len,
+				    grub_ssize_t *actual);
+int grub_ieee1275_write (grub_ieee1275_ihandle_t ihandle,
+			 void *buffer, grub_size_t len,
+			 grub_ssize_t *actualp);
+int grub_ieee1275_read (grub_ieee1275_ihandle_t ihandle,
+			void *buffer, grub_size_t len,
+			grub_ssize_t *actualp);
+int grub_ieee1275_seek (grub_ieee1275_ihandle_t ihandle,
+			int pos_hi, int pos_lo,
+			grub_ssize_t *result);
+int grub_ieee1275_peer (grub_ieee1275_phandle_t node,
+			grub_ieee1275_phandle_t *result);
+int grub_ieee1275_child (grub_ieee1275_phandle_t node,
+			 grub_ieee1275_phandle_t *result);
+int grub_ieee1275_parent (grub_ieee1275_phandle_t node,
+			  grub_ieee1275_phandle_t *result);
+int grub_ieee1275_interpret (const char *command,
+			     grub_ieee1275_cell_t *catch);
+int grub_ieee1275_enter (void);
+void grub_ieee1275_exit (void) __attribute__ ((noreturn));
+int grub_ieee1275_open (const char *node,
+			grub_ieee1275_ihandle_t *result);
+int grub_ieee1275_close (grub_ieee1275_ihandle_t ihandle);
+int grub_ieee1275_claim (grub_addr_t addr, grub_size_t size,
+			 unsigned int align, grub_addr_t *result);
+int grub_ieee1275_release (grub_addr_t addr, grub_size_t size);
+int grub_ieee1275_set_property (grub_ieee1275_phandle_t phandle,
+				const char *propname, void *buf,
+				grub_size_t size,
+				grub_ssize_t *actual);
+int grub_ieee1275_set_color (grub_ieee1275_ihandle_t ihandle,
+			     int index, int r, int g, int b);
+int grub_ieee1275_milliseconds (grub_uint32_t *msecs);
 
 
-int EXPORT_FUNC(grub_devalias_iterate)
-     (int (*hook) (struct grub_ieee1275_devalias *alias));
-int EXPORT_FUNC(grub_children_iterate) (char *devpath,
-     int (*hook) (struct grub_ieee1275_devalias *alias));
-grub_err_t EXPORT_FUNC(grub_machine_mmap_iterate)
-     (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t));
-int EXPORT_FUNC(grub_claimmap) (grub_addr_t addr, grub_size_t size);
+int grub_devalias_iterate (int (*hook) (struct grub_ieee1275_devalias *alias));
+int grub_children_iterate (char *devpath,
+			   int (*hook) (struct grub_ieee1275_devalias *alias));
+grub_err_t grub_machine_mmap_iterate
+  (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t));
+int grub_claimmap (grub_addr_t addr, grub_size_t size);
 
-char *EXPORT_FUNC(grub_ieee1275_encode_devname) (const char *path);
-char *EXPORT_FUNC(grub_ieee1275_get_filename) (const char *path);
+char *grub_ieee1275_encode_devname (const char *path);
+char *grub_ieee1275_get_filename (const char *path);
 
 #endif /* ! GRUB_IEEE1275_HEADER */

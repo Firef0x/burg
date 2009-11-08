@@ -44,13 +44,16 @@ struct grub_reader
 };
 typedef struct grub_reader *grub_reader_t;
 
-extern struct grub_handler_class EXPORT_VAR(grub_reader_class);
+extern struct grub_handler_class grub_reader_class;
 
-grub_err_t EXPORT_FUNC(grub_reader_loop) (grub_reader_getline_t getline);
+grub_err_t grub_reader_loop (grub_reader_getline_t getline);
+
+#define grub_reader_register(name, reader) \
+  grub_reader_register_internal (reader); \
+  GRUB_MODATTR ("handler", "reader." name);
 
 static inline void
-grub_reader_register (const char *name __attribute__ ((unused)),
-		      grub_reader_t reader)
+grub_reader_register_internal (grub_reader_t reader)
 {
   grub_handler_register (&grub_reader_class, GRUB_AS_HANDLER (reader));
 }

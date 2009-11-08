@@ -20,6 +20,7 @@
 #define GRUB_PART_HEADER	1
 
 #include <grub/dl.h>
+#include <grub/list.h>
 
 struct grub_disk;
 
@@ -28,6 +29,9 @@ typedef struct grub_partition *grub_partition_t;
 /* Partition map type.  */
 struct grub_partition_map
 {
+  /* The next partition map type.  */
+  struct grub_partition_map *next;
+
   /* The name of the partition map type.  */
   const char *name;
 
@@ -42,9 +46,6 @@ struct grub_partition_map
 
   /* Return the name of the partition PARTITION.  */
   char *(*get_name) (const grub_partition_t partition);
-
-  /* The next partition map type.  */
-  struct grub_partition_map *next;
 };
 typedef struct grub_partition_map *grub_partition_map_t;
 
@@ -70,18 +71,36 @@ struct grub_partition
   grub_partition_map_t partmap;
 };
 
-grub_partition_t EXPORT_FUNC(grub_partition_probe) (struct grub_disk *disk,
-						    const char *str);
-int EXPORT_FUNC(grub_partition_iterate) (struct grub_disk *disk,
-					 int (*hook) (struct grub_disk *disk,
-						      const grub_partition_t partition));
-char *EXPORT_FUNC(grub_partition_get_name) (const grub_partition_t partition);
+extern grub_partition_map_t grub_partition_map_list;
 
-int EXPORT_FUNC(grub_partition_map_iterate) (int (*hook) (const grub_partition_map_t partmap));
+static inline void
+grub_partition_map_register (grub_partition_map_t partmap)
+{
+  grub_list_push (GRUB_AS_LIST_P (&grub_partition_map_list),
+		  GRUB_AS_LIST (partmap));
+  GRUB_MODATTR ("partmap", "");
+}
 
-void EXPORT_FUNC(grub_partition_map_register) (grub_partition_map_t partmap);
+static inline void
+grub_partition_map_unregister (grub_partition_map_t partmap)
+{
+  grub_list_remove (GRUB_AS_LIST_P (&grub_partition_map_list),
+		    GRUB_AS_LIST (partmap));
+}
 
-void EXPORT_FUNC(grub_partition_map_unregister) (grub_partition_map_t partmap);
+static inline void
+grub_partition_map_iterate (int (*hook) (const grub_partition_map_t partmap))
+{
+  grub_list_iterate (GRUB_AS_LIST (grub_partition_map_list),
+		     (grub_list_hook_t) hook);
+}
+
+grub_partition_t grub_partition_probe (struct grub_disk *disk,
+				       const char *str);
+int grub_partition_iterate (struct grub_disk *disk,
+			    int (*hook) (struct grub_disk *disk,
+					 const grub_partition_t partition));
+char *grub_partition_get_name (const grub_partition_t partition);
 
 #ifdef GRUB_UTIL
 void grub_msdos_partition_map_init (void);

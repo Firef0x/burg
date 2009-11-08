@@ -22,6 +22,10 @@
 #include <grub/misc.h>
 #include <grub/mm.h>
 
+GRUB_EXPORT(grub_parser_cmdline_state);
+GRUB_EXPORT(grub_parser_split_cmdline);
+GRUB_EXPORT(grub_parser_class);
+GRUB_EXPORT(grub_parser_execute);
 
 /* All the possible state transitions on the command line.  If a
    transition can not be found, it is assumed that there is no

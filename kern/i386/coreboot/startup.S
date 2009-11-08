@@ -33,7 +33,8 @@
 
 	.file	"startup.S"
 	.text
-	.globl	start, _start
+	.globl	grub_code_start, _start
+grub_code_start:
 start:
 _start:
 	jmp codestart

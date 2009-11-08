@@ -22,6 +22,27 @@
 #include <grub/misc.h>
 #include <grub/env.h>
 
+GRUB_EXPORT(grub_term_input_class);
+GRUB_EXPORT(grub_term_output_class);
+GRUB_EXPORT(grub_putchar);
+GRUB_EXPORT(grub_putcode);
+GRUB_EXPORT(grub_putcode);
+GRUB_EXPORT(grub_getcharwidth);
+GRUB_EXPORT(grub_getkey);
+GRUB_EXPORT(grub_getkeystatus);
+GRUB_EXPORT(grub_checkkey);
+GRUB_EXPORT(grub_getwh);
+GRUB_EXPORT(grub_getxy);
+GRUB_EXPORT(grub_gotoxy);
+GRUB_EXPORT(grub_cls);
+GRUB_EXPORT(grub_setcolorstate);
+GRUB_EXPORT(grub_setcolor);
+GRUB_EXPORT(grub_getcolor);
+GRUB_EXPORT(grub_setcursor);
+GRUB_EXPORT(grub_getcursor);
+GRUB_EXPORT(grub_refresh);
+GRUB_EXPORT(grub_set_more);
+
 /* The amount of lines counted by the pager.  */
 static int grub_more_lines;
 

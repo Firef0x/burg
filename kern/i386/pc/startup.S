@@ -53,7 +53,42 @@
 #include <multiboot.h>
 #include <multiboot2.h>
 
-#define ABS(x)	((x) - _start + GRUB_BOOT_MACHINE_KERNEL_ADDR + 0x200)
+GRUB_EXPORT(grub_pxe_scan);
+GRUB_EXPORT(grub_pxe_call);
+GRUB_EXPORT(grub_get_rtc);
+
+GRUB_EXPORT(grub_vbe_bios_get_controller_info);
+GRUB_EXPORT(grub_vbe_bios_get_mode_info);
+GRUB_EXPORT(grub_vbe_bios_set_mode);
+GRUB_EXPORT(grub_vbe_bios_get_mode);
+GRUB_EXPORT(grub_vbe_bios_set_memory_window);
+GRUB_EXPORT(grub_vbe_bios_get_memory_window);
+GRUB_EXPORT(grub_vbe_bios_set_scanline_length);
+GRUB_EXPORT(grub_vbe_bios_get_scanline_length);
+GRUB_EXPORT(grub_vbe_bios_set_display_start);
+GRUB_EXPORT(grub_vbe_bios_get_display_start);
+GRUB_EXPORT(grub_vbe_bios_set_palette_data);
+GRUB_EXPORT(grub_vbe_bios_getset_dac_palette_width);
+
+GRUB_EXPORT(grub_vga_set_mode);
+GRUB_EXPORT(grub_vga_get_font);
+
+GRUB_EXPORT(grub_chainloader_real_boot);
+
+GRUB_EXPORT(grub_biosdisk_rw_int13_extensions);
+GRUB_EXPORT(grub_biosdisk_rw_standard);
+GRUB_EXPORT(grub_biosdisk_check_int13_extensions);
+GRUB_EXPORT(grub_biosdisk_get_diskinfo_int13_extensions);
+GRUB_EXPORT(grub_biosdisk_get_cdinfo_int13_extensions);
+GRUB_EXPORT(grub_biosdisk_get_diskinfo_standard);
+GRUB_EXPORT(grub_biosdisk_get_num_floppies);
+
+GRUB_EXPORT(grub_boot_drive);
+
+#define ABS(x)	((x) - LOCAL (base) + GRUB_BOOT_MACHINE_KERNEL_ADDR + 0x200)
+
+/* DATA32 call real_to_prot  */
+#define REAL_TO_PROT	.byte 0x66, 0xe8 ; .long real_to_prot - 9f ; 9:
 
 	.file	"startup.S"
 
@@ -63,19 +98,19 @@
 	   in real mode. */
 	.code16
 
-	.globl	start, _start
-start:
+	.globl	start, _start, grub_code_start
+grub_code_start:
+L_start:
 _start:
+LOCAL (base):
 	/*
 	 *  Guarantee that "main" is loaded at 0x0:0x8200.
 	 */
-#ifdef APPLE_CC
-	codestart_abs = ABS(codestart) - 0x10000
-	ljmp $0, $(codestart_abs)
+#ifdef __APPLE__
+	ljmp $0, $(ABS(LOCAL (codestart)) - 0x10000)
 #else
-	ljmp $0, $ABS(codestart)
+	ljmp $0, $ABS(LOCAL (codestart))
 #endif
-
 	/*
 	 *  Compatibility version number
 	 *
@@ -109,13 +144,6 @@ VARIABLE(grub_prefix)
 	 */
 
 	. = _start + GRUB_KERNEL_MACHINE_DATA_END
-
-#ifdef APPLE_CC
-bss_start:
-	.long 0
-bss_end:
-	.long 0
-#endif
 
 /*
  * Support for booting GRUB from a Multiboot boot loader (e.g. GRUB itself).
@@ -180,7 +208,7 @@ multiboot_trampoline:
 	.code16
 
 /* the real mode code continues... */
-codestart:
+LOCAL (codestart):
 	cli		/* we're not safe here! */
 
 	/* set up %ds, %ss, and %es */
@@ -196,13 +224,15 @@ codestart:
 	sti		/* we're safe again */
 
 	/* save the boot drive */
-	ADDR32	movb	%dl, EXT_C(grub_boot_drive)
+	/* ADDR32 movb  %dl, EXT_C(grub_boot_drive)  */
+	.byte	0x67, 0x88, 0x15
+	.long	EXT_C(grub_boot_drive)
 
 	/* reset disk system (%ah = 0) */
 	int	$0x13
 
 	/* transition to protected mode */
-	DATA32	call real_to_prot
+	REAL_TO_PROT
 
 	/* The ".code32" directive takes GAS out of 16-bit mode. */
 	.code32
@@ -212,7 +242,7 @@ codestart:
 
 #ifdef ENABLE_LZMA
 	movl	$GRUB_MEMORY_MACHINE_DECOMPRESSION_ADDR, %edi
-	movl	$(_start + GRUB_KERNEL_MACHINE_RAW_SIZE), %esi
+	movl	$(ABS(L_start) + GRUB_KERNEL_MACHINE_RAW_SIZE), %esi
 	pushl	%edi
 	pushl	%esi
 	movl	EXT_C(grub_kernel_image_size), %ecx
@@ -225,12 +255,13 @@ codestart:
 	popl	%ecx
 	popl	%edi
 	popl	%esi
-#endif
 
 	/* copy back the decompressed part (except the modules) */
 	subl	EXT_C(grub_total_module_size), %ecx
 	rep
 	movsb
+#endif
+
 
 #if 0
 	/* copy modules before cleaning out the bss */
@@ -247,24 +278,12 @@ codestart:
 	movsb
 #endif
 
-#ifdef APPLE_CC
 	/* clean out the bss */
-	bss_start_abs = ABS (bss_start)
-	bss_end_abs = ABS (bss_end)
-
-	movl    bss_start_abs, %edi
+	movl	$grub_bss_start, %edi
 
 	/* compute the bss length */
-	movl	bss_end_abs, %ecx
+	movl	$grub_bss_end, %ecx
 	subl	%edi, %ecx
-#else
-	/* clean out the bss */
-	movl	$BSS_START_SYMBOL, %edi
-
-	/* compute the bss length */
-	movl	$END_SYMBOL, %ecx
-	subl	%edi, %ecx
-#endif
 
 	/* clean out */
 	xorl	%eax, %eax
@@ -320,7 +339,7 @@ gate_a20_try_bios:
 	incw	%ax
 1:	int	$0x15
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	popl	%ebp
@@ -454,6 +473,7 @@ gate_a20_check_state:
 	 * mode, so think about it before changing it.
 	 */
 
+L_grub_hard_stop:
 FUNCTION(grub_hard_stop)
 	hlt
 	jmp EXT_C(grub_hard_stop)
@@ -517,7 +537,7 @@ FUNCTION(grub_halt)
 	movw	$0x5300, %ax
 	xorw	%bx, %bx
 	int	$0x15
-	jc	EXT_C(grub_hard_stop)
+	jc	L_grub_hard_stop
 	/* don't check %bx for buggy BIOSes... */
 
 	/* disconnect APM first */
@@ -529,14 +549,14 @@ FUNCTION(grub_halt)
 	movw	$0x5301, %ax
 	xorw	%bx, %bx
 	int	$0x15
-	jc	EXT_C(grub_hard_stop)
+	jc	L_grub_hard_stop
 
 	/* set APM protocol level - 1.1 or bust. (this covers APM 1.2 also) */
 	movw	$0x530E, %ax
 	xorw	%bx, %bx
 	movw	$0x0101, %cx
 	int	$0x15
-	jc	EXT_C(grub_hard_stop)
+	jc	L_grub_hard_stop
 
 	/* set the power state to off */
 	movw	$0x5307, %ax
@@ -545,7 +565,7 @@ FUNCTION(grub_halt)
 	int	$0x15
 
 	/* shouldn't reach here */
-	jmp	EXT_C(grub_hard_stop)
+	jmp	L_grub_hard_stop
 	.code32
 
 
@@ -606,7 +626,7 @@ FUNCTION(grub_biosdisk_rw_int13_extensions)
 	int	$0x13		/* do the operation */
 	movb	%ah, %dl	/* save return value */
 	/* back to protected mode */
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movb	%dl, %al	/* return value in %eax */
@@ -677,7 +697,7 @@ FUNCTION(grub_biosdisk_rw_standard)
 	jmp	1b		/* retry */
 2:
 	/* back to protected mode */
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movb	%bl, %al	/* return value in %eax */
@@ -726,7 +746,7 @@ FUNCTION(grub_biosdisk_check_int13_extensions)
 	xorb	%bl, %bl
 2:
 	/* back to protected mode */
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movb	%bl, %al	/* return value in %eax */
@@ -778,7 +798,7 @@ FUNCTION(grub_biosdisk_get_diskinfo_int13_extensions)
 	int	$0x13		/* do the operation */
 	movb	%ah, %bl	/* save return value in %bl */
 	/* back to protected mode */
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movb	%bl, %al	/* return value in %eax */
@@ -830,7 +850,7 @@ FUNCTION(grub_biosdisk_get_diskinfo_standard)
 1:
 	movb	%ah, %bl	/* save return value in %bl */
 	/* back to protected mode */
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	/* pop HEADS */
@@ -892,7 +912,7 @@ FUNCTION(grub_biosdisk_get_num_floppies)
 	cmpb	$2, %dl
 	jne	1b
 2:
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movl	%edx, %eax
@@ -931,7 +951,7 @@ xext:
 xdone:
 	movw	%ax, %dx
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movw	%dx, %ax
@@ -964,7 +984,7 @@ FUNCTION(grub_get_eisa_mmap)
 	shll	$16, %ebx
 	movw	%ax, %bx
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	cmpb	$0x86, %bh
@@ -1020,20 +1040,20 @@ FUNCTION(grub_get_mmap_entry)
 	movl	$0xe820, %eax
 	int	$0x15
 
-	DATA32	jc	xnosmap
+	jc	LOCAL(xnosmap)
 
 	cmpl	$0x534d4150, %eax
-	jne	xnosmap
+	jne	LOCAL(xnosmap)
 
 	cmpl	$0x14, %ecx
-	jl	xnosmap
+	jl	LOCAL(xnosmap)
 
 	cmpl	$0x400, %ecx
-	jg	xnosmap
+	jg	LOCAL(xnosmap)
 
-	jmp	xsmap
+	jmp	LOCAL(xsmap)
 
-xnosmap:
+LOCAL(xnosmap):
 	xorl	%ecx, %ecx
 
 /* 	Apple's cc jumps few bytes before the correct
@@ -1047,8 +1067,8 @@ xnosmap:
 	nop
 #endif
 
-xsmap:
-	DATA32	call	real_to_prot
+LOCAL(xsmap):
+	REAL_TO_PROT
 	.code32
 
 	/* write length of buffer (zero if error) into ADDR */
@@ -1142,7 +1162,8 @@ FUNCTION(grub_console_real_putchar)
 	movb	$0xe, %ah
 	int	$0x10
 
-3:	DATA32	call	real_to_prot
+3:
+	REAL_TO_PROT
 	.code32
 
 	popa
@@ -1158,7 +1179,7 @@ FUNCTION(grub_console_real_putchar)
  */
 
 /* this table is used in translate_keycode below */
-translation_table:
+LOCAL (translation_table):
 	.word	GRUB_CONSOLE_KEY_LEFT, GRUB_TERM_LEFT
 	.word	GRUB_CONSOLE_KEY_RIGHT, GRUB_TERM_RIGHT
 	.word	GRUB_CONSOLE_KEY_UP, GRUB_TERM_UP
@@ -1176,16 +1197,25 @@ translation_table:
  */
 	.code16
 
-translate_keycode:
+LOCAL(translate_keycode):
 	pushw	%bx
 	pushw	%si
 
-#ifdef APPLE_CC
-	translation_table_abs = ABS (translation_table) - 0x10000
-	movw	$(translation_table_abs), %si
+#ifdef __APPLE__
+	movw	$(ABS(LOCAL (translation_table)) - 0x10000), %si
 #else
-	movw	$ABS(translation_table), %si
+	movw	$ABS(LOCAL (translation_table)), %si
 #endif
+
+	orb	%dl, %dl
+	jnz	1f
+	cmpb	$(GRUB_CONSOLE_KEY_F1 >> 8), %dh
+	jb	1f
+	cmpb	$(GRUB_CONSOLE_KEY_F10 >> 8), %dh
+	ja	1f
+	xchgb	%dh, %dl
+	addb	$(GRUB_TERM_F1 - (GRUB_CONSOLE_KEY_F1 >> 8)), %dl
+	jmp	2f
 
 1:	lodsw
 	/* check if this is the end */
@@ -1232,9 +1262,9 @@ FUNCTION(grub_console_getkey)
 	int	$0x16
 
 	movw	%ax, %dx		/* real_to_prot uses %eax */
-	call	translate_keycode
+	call	LOCAL(translate_keycode)
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movw	%dx, %ax
@@ -1266,16 +1296,16 @@ FUNCTION(grub_console_checkkey)
 	movb	$0x1, %ah
 	int	$0x16
 
-	jz	notpending
+	jz	L_notpending
 
 	movw	%ax, %dx
-	DATA32	jmp	pending
+	jmp	L_pending
 
-notpending:
+L_notpending:
 	decl	%edx
 
-pending:
-	DATA32	call	real_to_prot
+L_pending:
+	REAL_TO_PROT
 	.code32
 
 	movl	%edx, %eax
@@ -1307,7 +1337,7 @@ FUNCTION(grub_console_getxy)
 	movb	$0x3, %ah
 	int	$0x10			/* get cursor position */
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movb	%dl, %ah
@@ -1342,7 +1372,7 @@ FUNCTION(grub_console_gotoxy)
 	movb	$0x2, %ah
 	int	$0x10			/* set cursor position */
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	popl	%ebx
@@ -1383,7 +1413,7 @@ FUNCTION(grub_console_cls)
 	movb	$0x02, %ah
 	int	$0x10
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	popl	%ebx
@@ -1423,7 +1453,7 @@ FUNCTION(grub_console_setcursor)
 	xorb	%bh, %bh
 	int	$0x10
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movw	%cx, console_cursor_shape
@@ -1441,7 +1471,7 @@ FUNCTION(grub_console_setcursor)
 	movb    $0x1, %ah
 	int     $0x10
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	popl	%ebx
@@ -1476,11 +1506,11 @@ FUNCTION(grub_getrtsecs)
 	movb	$0x2, %ah
 	int	$0x1a
 
-	DATA32	jnc	gottime
+	jnc	L_gottime
 	movb	$0xff, %dh
 
-gottime:
-	DATA32	call	real_to_prot
+L_gottime:
+	REAL_TO_PROT
 	.code32
 
 	movb	%dh, %al
@@ -1503,7 +1533,7 @@ FUNCTION(grub_get_rtc)
 	/* %ax is already zero */
         int	$0x1a
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movl	%ecx, %eax
@@ -1535,7 +1565,7 @@ FUNCTION(grub_vga_set_mode)
 	xorb	%ah, %ah
 	int	$0x10
 
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movb	%dl, %al
@@ -1558,7 +1588,7 @@ FUNCTION(grub_vga_get_font)
 	int	$0x10
 	movw	%es, %bx
 	movw	%bp, %dx
-	DATA32	call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movzwl	%bx, %ecx
@@ -1599,7 +1629,7 @@ FUNCTION(grub_vbe_bios_get_controller_info)
 
 	popw	%es
 
-	DATA32 call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movl	%edx, %eax
@@ -1641,7 +1671,7 @@ FUNCTION(grub_vbe_bios_get_mode_info)
 
 	popw    %es
 
-	DATA32 call     real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movl    %edx, %eax
@@ -1684,7 +1714,7 @@ FUNCTION(grub_vbe_bios_set_mode)
 
 	popw	%es
 
-	DATA32 call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movw	%dx, %ax
@@ -1716,7 +1746,7 @@ FUNCTION(grub_vbe_bios_get_mode)
 
 	movw	%ax, %dx	/* real_to_prot destroys %eax.  */
 
-	DATA32 call     real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	popl	%edi		/* Pops *mode from stack to %edi.  */
@@ -1763,7 +1793,7 @@ FUNCTION(grub_vbe_bios_getset_dac_palette_width)
 
 	movw	%ax, %cx	/* real_to_prot destroys %eax.  */
 
-	DATA32 call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	/* Move result back to *dac_mask_size.  */
@@ -1801,7 +1831,7 @@ FUNCTION(grub_vbe_bios_set_memory_window)
 
 	movw	%ax, %dx	/* real_to_prot destroys %eax.  */
 
-	DATA32 call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movw	%dx, %ax
@@ -1837,7 +1867,7 @@ FUNCTION(grub_vbe_bios_get_memory_window)
 
 	movw	%ax, %bx	/* real_to_prot destroys %eax.  */
 
-	DATA32 call     real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	popl	%edi		/* pops *position from stack to %edi.  */
@@ -1874,7 +1904,7 @@ FUNCTION(grub_vbe_bios_set_scanline_length)
 
 	movw	%ax, %dx	/* real_to_prot destroys %eax.  */
 
-	DATA32 call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movw	%dx, %ax
@@ -1906,7 +1936,7 @@ FUNCTION(grub_vbe_bios_get_scanline_length)
 
 	movw	%ax, %dx	/* real_to_prot destroys %eax.  */
 
-	DATA32 call     real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	popl	%edi		/* Pops *length from stack to %edi.  */
@@ -1945,7 +1975,7 @@ FUNCTION(grub_vbe_bios_set_display_start)
 
 	movw	%ax, %dx	/* real_to_prot destroys %eax.  */
 
-	DATA32 call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movw	%dx, %ax
@@ -1979,7 +2009,7 @@ FUNCTION(grub_vbe_bios_get_display_start)
 
 	movw	%ax, %bx	/* real_to_prot destroys %eax.  */
 
-	DATA32 call     real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	popl	%edi		/* Pops *y from stack to %edi.  */
@@ -2035,7 +2065,7 @@ FUNCTION(grub_vbe_bios_set_palette_data)
 
 	popw	%es
 
-	DATA32 call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movw	%dx, %ax
@@ -2085,7 +2115,7 @@ FUNCTION(grub_pxe_scan)
 
 	popw	%es
 
-	DATA32 call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	xorl	%eax, %eax
@@ -2134,7 +2164,7 @@ FUNCTION(grub_pxe_call)
 	addw	$10, %sp
 	movw	%ax, %cx
 
-	DATA32  call	real_to_prot
+	REAL_TO_PROT
 	.code32
 
 	movzwl	%cx, %eax

@@ -32,6 +32,13 @@
 #include <grub/tparm.h>
 #include <grub/command.h>
 
+GRUB_EXPORT(grub_terminfo_cls);
+GRUB_EXPORT(grub_terminfo_cursor_on);
+GRUB_EXPORT(grub_terminfo_cursor_off);
+GRUB_EXPORT(grub_terminfo_gotoxy);
+GRUB_EXPORT(grub_terminfo_reverse_video_on);
+GRUB_EXPORT(grub_terminfo_reverse_video_off);
+
 struct terminfo
 {
   char *name;

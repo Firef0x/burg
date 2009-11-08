@@ -25,6 +25,9 @@
 #include <grub/fshelp.h>
 #include <grub/ntfs.h>
 
+GRUB_EXPORT(grub_ntfscomp_func);
+GRUB_EXPORT(grub_ntfs_read_run_list);
+
 static grub_dl_t my_mod;
 
 ntfscomp_func_t grub_ntfscomp_func;

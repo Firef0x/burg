@@ -140,27 +140,27 @@ typedef struct grub_disk_memberlist *grub_disk_memberlist_t;
 /* This is called from the memory manager.  */
 void grub_disk_cache_invalidate_all (void);
 
-void EXPORT_FUNC(grub_disk_dev_register) (grub_disk_dev_t dev);
-void EXPORT_FUNC(grub_disk_dev_unregister) (grub_disk_dev_t dev);
-int EXPORT_FUNC(grub_disk_dev_iterate) (int (*hook) (const char *name));
+void grub_disk_dev_register (grub_disk_dev_t dev);
+void grub_disk_dev_unregister (grub_disk_dev_t dev);
+int grub_disk_dev_iterate (int (*hook) (const char *name));
 
-grub_disk_t EXPORT_FUNC(grub_disk_open) (const char *name);
-void EXPORT_FUNC(grub_disk_close) (grub_disk_t disk);
-grub_err_t EXPORT_FUNC(grub_disk_read) (grub_disk_t disk,
-					grub_disk_addr_t sector,
-					grub_off_t offset,
-					grub_size_t size,
-					void *buf);
-grub_err_t EXPORT_FUNC(grub_disk_write) (grub_disk_t disk,
-					 grub_disk_addr_t sector,
-					 grub_off_t offset,
-					 grub_size_t size,
-					 const void *buf);
+grub_disk_t grub_disk_open (const char *name);
+void grub_disk_close (grub_disk_t disk);
+grub_err_t grub_disk_read (grub_disk_t disk,
+			   grub_disk_addr_t sector,
+			   grub_off_t offset,
+			   grub_size_t size,
+			   void *buf);
+grub_err_t grub_disk_write (grub_disk_t disk,
+			    grub_disk_addr_t sector,
+			    grub_off_t offset,
+			    grub_size_t size,
+			    const void *buf);
 
-grub_uint64_t EXPORT_FUNC(grub_disk_get_size) (grub_disk_t disk);
+grub_uint64_t grub_disk_get_size (grub_disk_t disk);
 
-extern void (* EXPORT_VAR(grub_disk_firmware_fini)) (void);
-extern int EXPORT_VAR(grub_disk_firmware_is_tainted);
+extern void (* grub_disk_firmware_fini) (void);
+extern int grub_disk_firmware_is_tainted;
 
 /* ATA pass through parameters and function.  */
 struct grub_disk_ata_pass_through_parms
@@ -170,7 +170,7 @@ struct grub_disk_ata_pass_through_parms
   int size;
 };
 
-extern grub_err_t (* EXPORT_VAR(grub_disk_ata_pass_through)) (grub_disk_t,
+extern grub_err_t (* grub_disk_ata_pass_through) (grub_disk_t,
 		   struct grub_disk_ata_pass_through_parms *);
 
 #endif /* ! GRUB_DISK_HEADER */

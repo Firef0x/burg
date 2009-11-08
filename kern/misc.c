@@ -24,6 +24,42 @@
 #include <grub/term.h>
 #include <grub/env.h>
 
+GRUB_EXPORT(grub_memmove);
+GRUB_EXPORT(grub_strcpy);
+GRUB_EXPORT(grub_strncpy);
+GRUB_EXPORT(grub_stpcpy);
+
+GRUB_EXPORT(grub_memcmp);
+GRUB_EXPORT(grub_strcmp);
+GRUB_EXPORT(grub_strncmp);
+GRUB_EXPORT(grub_strchr);
+GRUB_EXPORT(grub_strrchr);
+GRUB_EXPORT(grub_strword);
+GRUB_EXPORT(grub_strstr);
+GRUB_EXPORT(grub_isspace);
+GRUB_EXPORT(grub_isprint);
+
+GRUB_EXPORT(grub_strtoul);
+GRUB_EXPORT(grub_strtoull);
+GRUB_EXPORT(grub_strdup);
+GRUB_EXPORT(grub_strndup);
+GRUB_EXPORT(grub_memset);
+GRUB_EXPORT(grub_strlen);
+GRUB_EXPORT(grub_printf);
+GRUB_EXPORT(grub_real_dprintf);
+GRUB_EXPORT(grub_vprintf);
+GRUB_EXPORT(grub_sprintf);
+GRUB_EXPORT(grub_vsprintf);
+GRUB_EXPORT(grub_exit);
+GRUB_EXPORT(grub_abort);
+GRUB_EXPORT(grub_utf16_to_utf8);
+GRUB_EXPORT(grub_utf8_to_ucs4);
+GRUB_EXPORT(grub_divmod64);
+
+#ifdef NEED_ENABLE_EXECUTE_STACK
+GRUB_EXPORT(__enable_execute_stack);
+#endif
+
 static int
 grub_iswordseparator (int c)
 {
@@ -50,23 +86,6 @@ grub_memmove (void *dest, const void *src, grub_size_t n)
 
   return dest;
 }
-
-#ifndef APPLE_CC
-void *memmove (void *dest, const void *src, grub_size_t n)
-  __attribute__ ((alias ("grub_memmove")));
-/* GCC emits references to memcpy() for struct copies etc.  */
-void *memcpy (void *dest, const void *src, grub_size_t n)
-  __attribute__ ((alias ("grub_memmove")));
-#else
-void *memcpy (void *dest, const void *src, grub_size_t n)
-{
-	return grub_memmove (dest, src, n);
-}
-void *memmove (void *dest, const void *src, grub_size_t n)
-{
-	return grub_memmove (dest, src, n);
-}
-#endif
 
 char *
 grub_strcpy (char *dest, const char *src)
@@ -182,10 +201,6 @@ grub_memcmp (const void *s1, const void *s2, grub_size_t n)
 
   return 0;
 }
-#ifndef APPLE_CC
-int memcmp (const void *s1, const void *s2, grub_size_t n)
-  __attribute__ ((alias ("grub_memcmp")));
-#endif
 
 int
 grub_strcmp (const char *s1, const char *s2)
@@ -467,10 +482,6 @@ grub_memset (void *s, int c, grub_size_t n)
 
   return s;
 }
-#ifndef APPLE_CC
-void *memset (void *s, int c, grub_size_t n)
-  __attribute__ ((alias ("grub_memset")));
-#endif
 
 grub_size_t
 grub_strlen (const char *s)
@@ -1001,11 +1012,6 @@ grub_abort (void)
 
   grub_exit ();
 }
-
-#ifndef APPLE_CC
-/* GCC emits references to abort().  */
-void abort (void) __attribute__ ((alias ("grub_abort")));
-#endif
 
 #ifdef NEED_ENABLE_EXECUTE_STACK
 /* Some gcc versions generate a call to this function

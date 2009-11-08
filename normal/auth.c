@@ -23,6 +23,10 @@
 #include <grub/env.h>
 #include <grub/normal.h>
 
+GRUB_EXPORT(grub_auth_authenticate);
+GRUB_EXPORT(grub_auth_strcmp);
+GRUB_EXPORT(grub_auth_register_authentication);
+
 struct grub_auth_user
 {
   struct grub_auth_user *next;

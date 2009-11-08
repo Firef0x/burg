@@ -192,18 +192,11 @@ if test "x$target_alias" != x && test "x$host_alias" != "x$target_alias"; then
 
   AC_CHECK_TOOLS(TARGET_CC, [gcc egcs cc],
                  [AC_MSG_ERROR([none of gcc, egcs and cc is found. set TARGET_CC manually.])])
-  AC_CHECK_TOOL(OBJCOPY, objcopy)
-  AC_CHECK_TOOL(STRIP, strip)
-  AC_CHECK_TOOL(NM, nm)
-
   ac_tool_prefix="$tmp_ac_tool_prefix"
 else
   if test "x$TARGET_CC" = x; then
     TARGET_CC=$CC
   fi
-  AC_CHECK_TOOL(OBJCOPY, objcopy)
-  AC_CHECK_TOOL(STRIP, strip)
-  AC_CHECK_TOOL(NM, nm)
 fi
 AC_SUBST(TARGET_CC)
 
@@ -282,30 +275,8 @@ if test x$grub_cv_apple_target_cc = xyes ; then
   CFLAGS="$CFLAGS -DAPPLE_CC=1 -fnested-functions"
   TARGET_ASFLAGS="$TARGET_ASFLAGS -DAPPLE_CC=1"
   TARGET_APPLE_CC=1
-  AC_CHECK_PROG([OBJCONV], [objconv], [objconv], [])
-  if test "x$OBJCONV" = x ; then
-     AC_CHECK_PROG([OBJCONV], [objconv], [./objconv], [], [.])
-  fi
-  if test "x$OBJCONV" = x ; then
-    AC_MSG_ERROR([objconv not found which is required when building with apple compiler])
-  fi
-  TARGET_IMG_LDSCRIPT=
-  TARGET_IMG_CFLAGS="-static"
-  TARGET_IMG_LDFLAGS='-nostdlib -static -Wl,-preload -Wl,-segalign,20 -Wl,-image_base,'
-  TARGET_IMG_LDFLAGS_AC='-nostdlib -static -Wl,-preload -Wl,-segalign,20 -Wl,-image_base,'
 else
   TARGET_APPLE_CC=0
-# Use linker script if present, otherwise use builtin -N script.
-if test -f "${srcdir}/conf/${target_cpu}-${platform}-${host_os}-img-ld.sc"; then
-  TARGET_IMG_LDSCRIPT='$(top_srcdir)'"/conf/${target_cpu}-${platform}-${host_os}-img-ld.sc"
-  TARGET_IMG_LDFLAGS="-Wl,-T${TARGET_IMG_LDSCRIPT}  -Wl,-Ttext,"
-  TARGET_IMG_LDFLAGS_AC="-Wl,-T${srcdir}/conf/${target_cpu}-${platform}-${host_os}-img-ld.sc"
-else
-  TARGET_IMG_LDSCRIPT=
-  TARGET_IMG_LDFLAGS='-Wl,-N  -Wl,-Ttext,'
-  TARGET_IMG_LDFLAGS_AC='-Wl,-N  -Wl,-Ttext,'
-fi
-TARGET_IMG_CFLAGS=
 fi
 
 AC_SUBST(TARGET_IMG_LDSCRIPT)
@@ -325,33 +296,37 @@ AC_MSG_RESULT([$TARGET_OBJ2ELF])
 if test "x$target_m32" = x1; then
   # Force 32-bit mode.
   TARGET_CFLAGS="$TARGET_CFLAGS -m32"
+  TARGET_ASFLAGS="$TARGET_ASFLAGS -m32"
   TARGET_LDFLAGS="$TARGET_LDFLAGS -m32"
-  TARGET_MODULE_FORMAT="elf32"
 fi
 
 if test "x$target_m64" = x1; then
   # Force 64-bit mode.
   TARGET_CFLAGS="$TARGET_CFLAGS -m64"
+  TARGET_ASFLAGS="$TARGET_ASFLAGS -m64"
   TARGET_LDFLAGS="$TARGET_LDFLAGS -m64"
-  TARGET_MODULE_FORMAT="elf64"
 fi
 
 if test "$target_cpu"-"$platform" = x86_64-efi; then
-  # Use large model to support 4G memory
-  AC_CACHE_CHECK([whether option -mcmodel=large works], grub_cv_cc_mcmodel, [
-    SAVED_CFLAGS=$CFLAGS
-    CFLAGS="$CFLAGS -m64 -mcmodel=large"
-    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
-		      [grub_cv_cc_mcmodel=yes],
-		      [grub_cv_cc_mcmodel=no])
-  ])
-  if test "x$grub_cv_cc_mcmodel" = xno; then
-    CFLAGS="$SAVED_CFLAGS -m64 -DMCMODEL_SMALL=1"
-    TARGET_CFLAGS="$TARGET_CFLAGS -DMCMODEL_SMALL=1"
-    AC_MSG_WARN([-mcmodel=large not supported. You won't be able to use the memory over 4GiB. Upgrade your gcc])
-  else
-    TARGET_CFLAGS="$TARGET_CFLAGS -mcmodel=large"
-  fi
+  # mingw-w64 always generate PIC code, although it would issue a warning if
+  # -fPIC is used.
+  case "$target_os" in
+    mingw32) ;;
+    cygwin) ;;
+    *)
+    AC_CACHE_CHECK([whether option -fPIC works], grub_cv_cc_pic, [
+      CFLAGS="$CFLAGS -m64 -fPIC"
+      AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+			[grub_cv_cc_pic=yes],
+			[grub_cv_cc_pic=no])
+    ])
+    if test "x$grub_cv_cc_pic" = xno; then
+      AC_MSG_ERROR([-fPIC not supported, upgrade your gcc])
+    fi
+
+    TARGET_CFLAGS="$TARGET_CFLAGS -fPIC"
+    ;;
+  esac
 
   # EFI writes to stack below %rsp, we must not use the red zone
   AC_CACHE_CHECK([whether option -mno-red-zone works], grub_cv_cc_no_red_zone, [
@@ -404,8 +379,6 @@ if test x"$enable_werror" != xno ; then
 fi
 
 AC_SUBST(TARGET_CFLAGS)
-AC_SUBST(TARGET_MODULE_FORMAT)
-AC_SUBST(OBJCONV)
 AC_SUBST(TARGET_APPLE_CC)
 AC_SUBST(TARGET_ASFLAGS)
 AC_SUBST(TARGET_CPPFLAGS)
@@ -426,19 +399,12 @@ LDFLAGS="$TARGET_LDFLAGS"
 
 # Defined in aclocal.m4.
 grub_PROG_TARGET_CC
-if test "x$TARGET_APPLE_CC" != x1 ; then
-grub_PROG_OBJCOPY_ABSOLUTE
-fi
 grub_PROG_LD_BUILD_ID_NONE
 grub_ASM_USCORE
 if test "x$target_cpu" = xi386; then
   if test ! -z "$TARGET_IMG_LDSCRIPT"; then
     # Check symbols provided by linker script.
     CFLAGS="$TARGET_CFLAGS -nostdlib $TARGET_IMG_LDFLAGS_AC -Wl,-Ttext,8000,--defsym,___main=0x8100"
-  fi
-  if test "x$TARGET_APPLE_CC" != x1 ; then
-    grub_CHECK_BSS_START_SYMBOL
-    grub_CHECK_END_SYMBOL
   fi
   CFLAGS="$TARGET_CFLAGS"
   grub_I386_ASM_PREFIX_REQUIREMENT

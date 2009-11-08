@@ -23,9 +23,15 @@
 #define GRUB_TARGET_SIZEOF_VOID_P	8
 
 /* The size of long.  */
+#ifdef __MINGW32__
+#define GRUB_TARGET_SIZEOF_LONG		4
+#else
 #define GRUB_TARGET_SIZEOF_LONG		8
+#endif
 
 /* x86_64 is little-endian.  */
 #undef GRUB_TARGET_WORDS_BIGENDIAN
+
+#define GRUB_TARGET_X86_64		1
 
 #endif /* ! GRUB_TYPES_CPU_HEADER */

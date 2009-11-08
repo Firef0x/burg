@@ -22,6 +22,9 @@
 #include <grub/reader.h>
 #include <grub/parser.h>
 
+GRUB_EXPORT(grub_reader_class);
+GRUB_EXPORT(grub_reader_loop);
+
 struct grub_handler_class grub_reader_class =
   {
     .name = "reader"

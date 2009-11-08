@@ -126,58 +126,6 @@ read_dep_list (FILE *fp)
   return dep_list;
 }
 
-static char *
-get_module_name (const char *str)
-{
-  char *base;
-  char *ext;
-
-  base = strrchr (str, '/');
-  if (! base)
-    base = (char *) str;
-  else
-    base++;
-
-  ext = strrchr (base, '.');
-  if (ext && strcmp (ext, ".mod") == 0)
-    {
-      char *name;
-
-      name = xmalloc (ext - base + 1);
-      memcpy (name, base, ext - base);
-      name[ext - base] = '\0';
-      return name;
-    }
-
-  return xstrdup (base);
-}
-
-static char *
-get_module_path (const char *prefix, const char *str)
-{
-  char *dir;
-  char *base;
-  char *ext;
-  char *ret;
-
-  ext = strrchr (str, '.');
-  if (ext && strcmp (ext, ".mod") == 0)
-    base = xstrdup (str);
-  else
-    {
-      base = xmalloc (strlen (str) + 4 + 1);
-      sprintf (base, "%s.mod", str);
-    }
-
-  dir = strchr (str, '/');
-  if (dir)
-    return base;
-
-  ret = grub_util_get_path (prefix, base);
-  free (base);
-  return ret;
-}
-
 static void
 add_module (const char *dir,
 	    struct dep_list *dep_list,
@@ -190,7 +138,7 @@ add_module (const char *dir,
   struct mod_list *mod;
   struct dep_list *dep;
 
-  mod_name = get_module_name (name);
+  mod_name = grub_util_get_module_name (name);
 
   /* Check if the module has already been added.  */
   for (mod = *mod_head; mod; mod = mod->next)
@@ -218,7 +166,7 @@ add_module (const char *dir,
 
   /* Add this path.  */
   path = (struct grub_util_path_list *) xmalloc (sizeof (*path));
-  path->name = get_module_path (dir, name);
+  path->name = grub_util_get_module_path (dir, name);
   path->next = *path_head;
   *path_head = path;
 }

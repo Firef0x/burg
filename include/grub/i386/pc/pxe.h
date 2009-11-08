@@ -302,13 +302,11 @@ struct grub_pxenv_unload_stack
   grub_uint8_t reserved[10];
 } __attribute__ ((packed));
 
-struct grub_pxenv * EXPORT_FUNC(grub_pxe_scan) (void);
-int EXPORT_FUNC(grub_pxe_call) (int func, void * data);
+struct grub_pxenv * grub_pxe_scan (void);
+int grub_pxe_call (int func, void * data);
 
 extern struct grub_pxenv *grub_pxe_pxenv;
-extern grub_uint32_t grub_pxe_your_ip;
-extern grub_uint32_t grub_pxe_server_ip;
-extern grub_uint32_t grub_pxe_gateway_ip;
+extern struct grub_pxenv_boot_player grub_pxe_bootinfo;
 extern int grub_pxe_blksize;
 
 void grub_pxe_unload (void);

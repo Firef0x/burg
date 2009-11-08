@@ -43,12 +43,16 @@ struct grub_extcmd
 };
 typedef struct grub_extcmd *grub_extcmd_t;
 
-grub_extcmd_t grub_register_extcmd (const char *name,
-				    grub_extcmd_func_t func,
-				    unsigned flags,
-				    const char *summary,
-				    const char *description,
-				    const struct grub_arg_option *parser);
+grub_extcmd_t grub_reg_ecmd (const char *name,
+			     grub_extcmd_func_t func,
+			     unsigned flags,
+			     const char *summary,
+			     const char *description,
+			     const struct grub_arg_option *parser);
+
+#define grub_register_extcmd(name, func, flags, s, d, p) \
+  grub_reg_ecmd (name, func, flags, s, d, p); \
+  GRUB_MODATTR ("command", "*" name);
 
 void grub_unregister_extcmd (grub_extcmd_t cmd);
 

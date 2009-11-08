@@ -23,6 +23,6 @@
 #include <grub/symbol.h>
 #include <grub/types.h>
 
-void EXPORT_FUNC(grub_arch_sync_caches) (void *address, grub_size_t len);
+void grub_arch_sync_caches (void *address, grub_size_t len);
 
 #endif /* ! GRUB_CACHE_HEADER */

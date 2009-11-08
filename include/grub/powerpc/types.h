@@ -28,5 +28,6 @@
 /* powerpc is big-endian.  */
 #define GRUB_TARGET_WORDS_BIGENDIAN	1
 
+#define GRUB_TARGET_POWERPC		1
 
 #endif /* ! GRUB_TYPES_CPU_HEADER */

@@ -25,6 +25,8 @@
 #include <grub/mm.h>
 #include <grub/misc.h>
 
+GRUB_EXPORT(grub_machine_mmap_iterate);
+
 #define NEXT_MEMORY_DESCRIPTOR(desc, size)      \
   ((grub_efi_memory_descriptor_t *) ((char *) (desc) + (size)))
 

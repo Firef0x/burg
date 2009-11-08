@@ -44,9 +44,6 @@
    seems to cause relocation problems with OSes that link at 4 MiB */
 #define HEAP_MAX_ADDR		(unsigned long) (4 * 1024 * 1024)
 
-extern char _start[];
-extern char _end[];
-
 void
 grub_exit (void)
 {
@@ -153,7 +150,8 @@ static void grub_claim_heap (void)
        as a safeguard in case that doesn't happen.  However, it doesn't protect
        us from corrupting our module area, which extends up to a
        yet-undetermined region above _end.  */
-    if ((addr < (grub_addr_t) _end) && ((addr + len) > (grub_addr_t) _start))
+    if ((addr < (grub_addr_t) grub_bss_end) &&
+	((addr + len) > (grub_addr_t) grub_code_start))
       {
         grub_printf ("Warning: attempt to claim over our own code!\n");
         len = 0;
@@ -176,8 +174,13 @@ static void grub_claim_heap (void)
     return 0;
   }
 
-  if (grub_ieee1275_test_flag (GRUB_IEEE1275_FLAG_CANNOT_INTERPRET))
-    heap_init (HEAP_MAX_ADDR - HEAP_MIN_SIZE, HEAP_MIN_SIZE, 1);
+  if (grub_ieee1275_test_flag (GRUB_IEEE1275_FLAG_FORCE_CLAIM))
+    {
+      grub_addr_t start;
+
+      start = ALIGN_UP ((grub_addr_t) grub_bss_end, 4096);
+      heap_init (start, HEAP_MAX_ADDR - start, 1);
+    }
   else
     grub_machine_mmap_iterate (heap_init);
 }
@@ -282,10 +285,4 @@ grub_uint32_t
 grub_get_rtc (void)
 {
   return ieee1275_get_time_ms ();
-}
-
-grub_addr_t
-grub_arch_modules_addr (void)
-{
-  return ALIGN_UP((grub_addr_t) _end + GRUB_MOD_GAP, GRUB_MOD_ALIGN);
 }

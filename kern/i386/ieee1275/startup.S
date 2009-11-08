@@ -33,11 +33,10 @@
 
 	.file	"startup.S"
 	.text
-	.globl	start, _start
-
-start:
+	.globl	grub_code_start
+grub_code_start:
 _start:
-	jmp codestart
+	jmp L_codestart
 
 	/*
 	 *  This is a special data area at a fixed offset from the beginning.
@@ -54,7 +53,7 @@ VARIABLE(grub_prefix)
 
 	. = _start + GRUB_KERNEL_CPU_DATA_END
 
-codestart:
+L_codestart:
 	movl %eax, EXT_C(grub_ieee1275_entry_fn)
 	jmp EXT_C(grub_main)
 

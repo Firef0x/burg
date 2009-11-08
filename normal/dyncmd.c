@@ -130,9 +130,9 @@ read_command_list (void)
 		      continue;
 		    }
 
-		  cmd = grub_register_command_prio (name,
-						    grub_dyncmd_dispatcher,
-						    0, "not loaded", prio);
+		  cmd = grub_reg_cmd (name,
+				      grub_dyncmd_dispatcher,
+				      0, "not loaded", prio);
 		  if (! cmd)
 		    {
 		      grub_free (name);

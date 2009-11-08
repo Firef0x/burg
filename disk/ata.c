@@ -25,6 +25,10 @@
 #include <grub/pci.h>
 #include <grub/scsi.h>
 
+GRUB_EXPORT(grub_ata_pio_read);
+GRUB_EXPORT(grub_ata_wait_not_busy);
+GRUB_EXPORT(grub_ata_wait_drq);
+
 /* At the moment, only two IDE ports are supported.  */
 static const int grub_ata_ioaddress[] = { 0x1f0, 0x170 };
 static const int grub_ata_ioaddress2[] = { 0x3f6, 0x376 };

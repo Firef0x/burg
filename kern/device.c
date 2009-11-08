@@ -26,6 +26,10 @@
 #include <grub/env.h>
 #include <grub/partition.h>
 
+GRUB_EXPORT(grub_device_open);
+GRUB_EXPORT(grub_device_close);
+GRUB_EXPORT(grub_device_iterate);
+
 grub_device_t
 grub_device_open (const char *name)
 {

@@ -51,7 +51,9 @@ VARIABLE(grub_core_entry_addr)
 	/* Transition to protected mode.  We use pushl to force generation
 	   of a flat return address.  */
 	pushl	$1f
-	DATA32	jmp real_to_prot
+	/* jmp  real_to_prot  */
+	.byte	0xe9
+	.short	real_to_prot - 1f
 	.code32
 1:
 	movl	grub_core_entry_addr, %edx

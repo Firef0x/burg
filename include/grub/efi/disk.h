@@ -23,9 +23,8 @@
 #include <grub/symbol.h>
 #include <grub/disk.h>
 
-grub_efi_handle_t
-EXPORT_FUNC(grub_efidisk_get_device_handle) (grub_disk_t disk);
-char *EXPORT_FUNC(grub_efidisk_get_device_name) (grub_efi_handle_t *handle);
+grub_efi_handle_t grub_efidisk_get_device_handle (grub_disk_t disk);
+char *grub_efidisk_get_device_name (grub_efi_handle_t *handle);
 
 void grub_efidisk_init (void);
 void grub_efidisk_fini (void);

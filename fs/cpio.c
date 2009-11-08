@@ -76,6 +76,22 @@ struct grub_cpio_data
 
 static grub_dl_t my_mod;
 
+#ifndef MODE_USTAR
+
+static void
+grub_cpio_convert_header (struct head *head)
+{
+  if (head->magic != MAGIC_BCPIO)
+    {
+      head->magic = grub_swap_bytes16 (head->magic);
+      head->namesize = grub_swap_bytes16 (head->namesize);
+      head->filesize_1 = grub_swap_bytes16 (head->filesize_1);
+      head->filesize_2 = grub_swap_bytes16 (head->filesize_2);
+    }
+}
+
+#endif
+
 static grub_err_t
 grub_cpio_find_file (struct grub_cpio_data *data, char **name,
 		     grub_uint32_t * ofs)
@@ -86,6 +102,7 @@ grub_cpio_find_file (struct grub_cpio_data *data, char **name,
       if (grub_disk_read
 	  (data->disk, 0, data->hofs, sizeof (hd), &hd))
 	return grub_errno;
+      grub_cpio_convert_header (&hd);
 
       if (hd.magic != MAGIC_BCPIO)
 	return grub_error (GRUB_ERR_BAD_FS, "Invalid cpio archive");
@@ -153,6 +170,7 @@ grub_cpio_mount (grub_disk_t disk)
     goto fail;
 
 #ifndef MODE_USTAR
+  grub_cpio_convert_header (&hd);
   if (hd.magic != MAGIC_BCPIO)
 #else
   if (grub_memcmp (hd.magic, MAGIC_USTAR,

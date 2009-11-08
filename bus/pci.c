@@ -20,6 +20,9 @@
 #include <grub/dl.h>
 #include <grub/pci.h>
 
+GRUB_EXPORT(grub_pci_make_address);
+GRUB_EXPORT(grub_pci_iterate);
+
 grub_pci_address_t
 grub_pci_make_address (int bus, int device, int function, int reg)
 {

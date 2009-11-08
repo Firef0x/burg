@@ -61,7 +61,7 @@ struct grub_pe32_coff_header
   grub_uint32_t num_symbols;
   grub_uint16_t optional_header_size;
   grub_uint16_t characteristics;
-};
+} __attribute__ ((packed));
 
 #define GRUB_PE32_MACHINE_I386		0x14c
 #define GRUB_PE32_MACHINE_X86_64	0x8664
@@ -86,7 +86,7 @@ struct grub_pe32_data_directory
 {
   grub_uint32_t rva;
   grub_uint32_t size;
-};
+} __attribute__ ((packed));
 
 struct grub_pe32_optional_header
 {
@@ -157,7 +157,7 @@ struct grub_pe32_optional_header
   struct grub_pe32_data_directory delay_import_descriptor;
   struct grub_pe32_data_directory com_runtime_header;
   struct grub_pe32_data_directory reserved_entry;
-};
+} __attribute__ ((packed));
 
 #if GRUB_TARGET_SIZEOF_VOID_P == 4
 
@@ -185,10 +185,11 @@ struct grub_pe32_section_table
   grub_uint16_t num_relocations;
   grub_uint16_t num_line_numbers;
   grub_uint32_t characteristics;
-};
+} __attribute__ ((packed));
 
 #define GRUB_PE32_SCN_CNT_CODE			0x00000020
 #define GRUB_PE32_SCN_CNT_INITIALIZED_DATA	0x00000040
+#define GRUB_PE32_SCN_CNT_UNINITIALIZED_DATA	0x00000080
 #define GRUB_PE32_SCN_MEM_DISCARDABLE		0x02000000
 #define GRUB_PE32_SCN_MEM_EXECUTE		0x20000000
 #define GRUB_PE32_SCN_MEM_READ			0x40000000
@@ -219,14 +220,14 @@ struct grub_pe32_header
 
   /* The Optional header.  */
   struct grub_pe32_optional_header optional_header;
-};
+} __attribute__ ((packed));
 
 struct grub_pe32_fixup_block
 {
   grub_uint32_t page_rva;
   grub_uint32_t block_size;
   grub_uint16_t entries[0];
-};
+} __attribute__ ((packed));
 
 #define GRUB_PE32_FIXUP_ENTRY(type, offset)	(((type) << 12) | (offset))
 
@@ -270,7 +271,13 @@ struct grub_pe32_reloc
   grub_uint16_t type;
 } __attribute__ ((packed));
 
+#define GRUB_PE32_REL_I386_DIR16	0x1
+#define GRUB_PE32_REL_I386_REL16	0x2
 #define GRUB_PE32_REL_I386_DIR32	0x6
 #define GRUB_PE32_REL_I386_REL32	0x14
+
+#define GRUB_PE32_REL_X86_64_ADDR64	0x1
+#define GRUB_PE32_REL_X86_64_ADDR32	0x2
+#define GRUB_PE32_REL_X86_64_REL32	0x4
 
 #endif /* ! GRUB_EFI_PE32_HEADER */

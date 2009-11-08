@@ -30,22 +30,24 @@
 #include <grub/reader.h>
 #include <grub/parser.h>
 
+GRUB_EXPORT(grub_arch_sync_caches);
+GRUB_EXPORT(grub_module_iterate);
+GRUB_EXPORT(grub_machine_fini);
+
 void
 grub_module_iterate (int (*hook) (struct grub_module_header *header))
 {
-  struct grub_module_info *modinfo;
+  struct grub_module_info *info;
   struct grub_module_header *header;
-  grub_addr_t modbase;
 
-  modbase = grub_arch_modules_addr ();
-  modinfo = (struct grub_module_info *) modbase;
+  info = &grub_modinfo;
 
   /* Check if there are any modules.  */
-  if ((modinfo == 0) || modinfo->magic != GRUB_MODULE_MAGIC)
+  if (info->magic != GRUB_MODULE_MAGIC)
     return;
 
-  for (header = (struct grub_module_header *) (modbase + modinfo->offset);
-       header < (struct grub_module_header *) (modbase + modinfo->size);
+  for (header = (struct grub_module_header *) (info + 1);
+       header < (struct grub_module_header *) ((char *) info + info->size);
        header = (struct grub_module_header *) ((char *) header + header->size))
     {
       if (hook (header))
@@ -60,13 +62,49 @@ grub_load_modules (void)
   auto int hook (struct grub_module_header *);
   int hook (struct grub_module_header *header)
     {
-      /* Not an ELF module, skip.  */
-      if (header->type != OBJ_TYPE_ELF)
-        return 0;
+      grub_dl_t mod;
+      struct grub_module_object *obj;
+      char *code_start = &grub_code_start[0];
+      char *name, *sym;
 
-      if (! grub_dl_load_core ((char *) header + sizeof (struct grub_module_header),
-			       (header->size - sizeof (struct grub_module_header))))
-	grub_fatal ("%s", grub_errmsg);
+      /* Not a module, skip.  */
+      if (header->type != OBJ_TYPE_OBJECT)
+	return 0;
+
+      obj = (struct grub_module_object *) (header + 1);
+
+      mod = (grub_dl_t) grub_zalloc (sizeof (*mod));
+      if (! mod)
+	grub_fatal ("can't init module");
+
+      name = obj->name;
+      mod->name = grub_strdup (name);
+      mod->ref_count++;
+
+      grub_dl_resolve_dependencies (mod, name);
+
+      sym = name + obj->symbol_offset;
+      while (*sym)
+	{
+	  char *s;
+
+	  s = sym;
+	  sym += grub_strlen (sym) + 1;
+	  grub_dl_register_symbol (s, code_start + *((grub_uint32_t *) sym),
+				   mod);
+	  sym += 4;
+	}
+
+      if (obj->init_func)
+	{
+	  mod->init = (void (*) (grub_dl_t)) (code_start + obj->init_func);
+	  (mod->init) (mod);
+	}
+
+      if (obj->fini_func)
+	mod->fini = (void (*) (void)) (code_start + obj->fini_func);
+
+      grub_dl_add (mod);
 
       return 0;
     }
@@ -80,7 +118,7 @@ grub_load_config (void)
   auto int hook (struct grub_module_header *);
   int hook (struct grub_module_header *header)
     {
-      /* Not an ELF module, skip.  */
+      /* Not a config, skip.  */
       if (header->type != OBJ_TYPE_CONFIG)
 	return 0;
 
@@ -158,7 +196,6 @@ grub_main (void)
   grub_setcolorstate (GRUB_TERM_COLOR_STANDARD);
 
   /* Load pre-loaded modules and free the space.  */
-  grub_register_exported_symbols ();
   grub_load_modules ();
 
   /* It is better to set the root device as soon as possible,

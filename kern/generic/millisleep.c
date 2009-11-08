@@ -22,6 +22,8 @@
 #include <grub/misc.h>
 #include <grub/time.h>
 
+GRUB_EXPORT(grub_millisleep);
+
 void
 grub_millisleep (grub_uint32_t ms)
 {

@@ -143,6 +143,36 @@ xstrdup (const char *str)
   return dup;
 }
 
+void *
+xmalloc_zero (size_t size)
+{
+  void *p;
+
+  p = xmalloc (size);
+  memset (p, 0, size);
+
+  return p;
+}
+
+void *
+grub_list_reverse (grub_list_t head)
+{
+  grub_list_t prev;
+
+  prev = 0;
+  while (head)
+    {
+      grub_list_t temp;
+
+      temp = head->next;
+      head->next = prev;
+      prev = head;
+      head = temp;
+    }
+
+  return prev;
+}
+
 char *
 grub_util_get_path (const char *dir, const char *file)
 {
@@ -249,6 +279,58 @@ grub_util_write_image (const char *img, size_t size, FILE *out)
   grub_util_info ("writing 0x%x bytes", size);
   if (fwrite (img, 1, size, out) != size)
     grub_util_error ("write failed");
+}
+
+char *
+grub_util_get_module_name (const char *str)
+{
+  char *base;
+  char *ext;
+
+  base = strrchr (str, '/');
+  if (! base)
+    base = (char *) str;
+  else
+    base++;
+
+  ext = strrchr (base, '.');
+  if (ext && strcmp (ext, ".mod") == 0)
+    {
+      char *name;
+
+      name = xmalloc (ext - base + 1);
+      memcpy (name, base, ext - base);
+      name[ext - base] = '\0';
+      return name;
+    }
+
+  return xstrdup (base);
+}
+
+char *
+grub_util_get_module_path (const char *prefix, const char *str)
+{
+  char *dir;
+  char *base;
+  char *ext;
+  char *ret;
+
+  ext = strrchr (str, '.');
+  if (ext && strcmp (ext, ".mod") == 0)
+    base = xstrdup (str);
+  else
+    {
+      base = xmalloc (strlen (str) + 4 + 1);
+      sprintf (base, "%s.mod", str);
+    }
+
+  dir = strchr (str, '/');
+  if (dir)
+    return base;
+
+  ret = grub_util_get_path (prefix, base);
+  free (base);
+  return ret;
 }
 
 void *

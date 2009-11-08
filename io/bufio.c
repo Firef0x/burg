@@ -24,6 +24,9 @@
 #include <grub/fs.h>
 #include <grub/bufio.h>
 
+GRUB_EXPORT(grub_bufio_open);
+GRUB_EXPORT(grub_buffile_open);
+
 #define GRUB_BUFIO_DEF_SIZE	8192
 #define GRUB_BUFIO_MAX_SIZE	1048576
 

@@ -152,27 +152,13 @@ include $(srcdir)/conf/$(target_cpu)-$(platform).mk
 
 ### General targets.
 
-CLEANFILES += $(pkglib_DATA) $(pkgdata_DATA)
-pkglib_DATA += moddep.lst command.lst fs.lst partmap.lst parttool.lst handler.lst
-moddep.lst: $(DEFSYMFILES) $(UNDSYMFILES) genmoddep.awk
-	cat $(DEFSYMFILES) /dev/null \
-	  | $(AWK) -f $(srcdir)/genmoddep.awk $(UNDSYMFILES) > $@ \
-	  || (rm -f $@; exit 1)
+LISTFILES = modsym.lst moddep.lst command.lst fs.lst partmap.lst \
+	    parttool.lst handler.lst
+CLEANFILES += $(pkglib_DATA) $(pkgdata_DATA) $(LISTFILES)
+pkglib_DATA += $(LISTFILES)
 
-command.lst: $(COMMANDFILES)
-	cat $^ /dev/null | sort > $@
-
-fs.lst: $(FSFILES)
-	cat $^ /dev/null | sort > $@
-
-partmap.lst: $(PARTMAPFILES)
-	cat $^ /dev/null | sort > $@
-
-handler.lst: $(HANDLERFILES)
-	cat $^ /dev/null | sort > $@
-
-parttool.lst: $(PARTTOOLFILES)
-	cat $^ /dev/null | sort | uniq > $@
+$(LISTFILES): $(MODFILES) grub-symdb
+	$(builddir)/grub-symdb -d . update $?
 
 ifneq (true, $(MAKEINFO))
 info_INFOS += docs/grub.info

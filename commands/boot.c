@@ -24,6 +24,12 @@
 #include <grub/kernel.h>
 #include <grub/mm.h>
 
+GRUB_EXPORT(grub_loader_is_loaded);
+GRUB_EXPORT(grub_loader_set);
+GRUB_EXPORT(grub_loader_register_preboot_hook);
+GRUB_EXPORT(grub_loader_unregister_preboot_hook);
+GRUB_EXPORT(grub_loader_unset);
+
 static grub_err_t (*grub_loader_boot_func) (void);
 static grub_err_t (*grub_loader_unload_func) (void);
 static int grub_loader_noreturn;
