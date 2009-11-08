@@ -39,6 +39,7 @@ struct grub_auth_user
 
 struct grub_auth_user *users = NULL;
 
+#if 0
 int
 grub_auth_strcmp (const char *user_input, const char *template)
 {
@@ -51,6 +52,19 @@ grub_auth_strcmp (const char *user_input, const char *template)
       ok = 0;
 
   return !ok;
+}
+#endif
+
+int
+grub_auth_strcmp (const char *user_input, const char *template)
+{
+  if (! user_input)
+    user_input = "";
+
+  if (! template)
+    template = "";
+
+  return (grub_strcmp (user_input, template) != 0);
 }
 
 static int
