@@ -72,8 +72,7 @@ struct grub_widget_class
 		int x, int y, int width, int height);
   void (*draw_cursor) (grub_widget_t widget);
   int (*onkey) (grub_widget_t widget, int key);
-  grub_err_t (*call_method) (grub_widget_t widget, const char *method,
-			     void *param);
+  void (*set_timeout) (grub_widget_t widget, int total, int left);
 };
 typedef struct grub_widget_class *grub_widget_class_t;
 
@@ -102,7 +101,7 @@ void grub_widget_draw (grub_uitree_t node);
 void grub_widget_draw_region (grub_menu_region_update_list_t *head,
 			      grub_uitree_t node, int x, int y,
 			      int width, int height);
-grub_uitree_t grub_widget_scroll (grub_uitree_t node);
+void grub_widget_select_node (grub_uitree_t node, int selected);
 int grub_widget_input (grub_uitree_t root, int nested);
 char *grub_widget_get_prop (grub_uitree_t node, const char *name);
 

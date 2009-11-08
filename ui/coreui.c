@@ -818,6 +818,99 @@ static struct grub_widget_class password_widget_class =
     .onkey = password_onkey,
   };
 
+struct progressbar_data
+{
+  grub_menu_region_common_t bar;
+  grub_menu_region_common_t bg_bar;
+};
+
+static int
+progressbar_get_data_size (void)
+{
+  return sizeof (struct progressbar_data);
+}
+
+static void
+progressbar_fini_size (grub_widget_t widget)
+{
+  struct progressbar_data *data = widget->data;
+  grub_video_color_t color;
+  grub_uint32_t fill;
+  grub_video_color_t bg_color;
+  grub_video_color_t bg_fill;
+  char *p;
+
+  p = grub_widget_get_prop (widget->node, "color");
+  if (! p)
+    p = "";
+      
+  color = grub_menu_parse_color (p, &fill, &bg_color, &bg_fill);
+
+  data->bar = (grub_menu_region_common_t)
+    grub_menu_region_create_rect (0, widget->height, color, fill);
+  if (color != bg_color)
+    data->bg_bar = (grub_menu_region_common_t)
+      grub_menu_region_create_rect (0, widget->height, bg_color, bg_fill);
+}
+
+static void
+progressbar_free (grub_widget_t widget)
+{
+  struct progressbar_data *data = widget->data;
+
+  grub_menu_region_free (data->bar);
+  grub_menu_region_free (data->bg_bar);
+}
+
+static void
+progressbar_draw (grub_widget_t widget, grub_menu_region_update_list_t *head,
+	    int x, int y, int width, int height)
+{
+  struct progressbar_data *data = widget->data;
+
+  grub_menu_region_add_update (head, data->bar,
+			       widget->org_x, widget->org_y,
+			       x, y, width, height);
+  grub_menu_region_add_update (head, data->bg_bar,
+			       widget->org_x, widget->org_y,
+			       x, y, width, height);
+}
+
+static void
+progressbar_set_timeout (grub_widget_t widget, int total, int left)
+{
+  struct progressbar_data *data = widget->data;
+
+  if (left > 0)
+    {
+      int width;
+
+      width = (total - left) * widget->width / total;
+      data->bar->width = width;
+      if (data->bg_bar)
+	{
+	  data->bg_bar->ofs_x = width;
+	  data->bg_bar->width = widget->width - width;
+	}
+    }
+  else
+    {
+      data->bar->width = 0;
+      if (data->bg_bar)
+	data->bg_bar->width = 0;
+    }
+}
+
+static struct grub_widget_class progressbar_widget_class =
+  {
+    .name = "progressbar",
+    .get_data_size = progressbar_get_data_size,
+    .fini_size = progressbar_fini_size,
+    .free = progressbar_free,
+    .draw = progressbar_draw,
+    .set_timeout = progressbar_set_timeout
+  };
+
 struct edit_data
 {
   grub_menu_region_text_t *lines;
@@ -1924,6 +2017,7 @@ GRUB_MOD_INIT(coreui)
   grub_widget_class_register (&image_widget_class);
   grub_widget_class_register (&text_widget_class);
   grub_widget_class_register (&password_widget_class);
+  grub_widget_class_register (&progressbar_widget_class);
   grub_widget_class_register (&edit_widget_class);
   grub_widget_class_register (&term_widget_class);
   grub_term_register_output ("gfxmenu", &grub_gfxmenu_term);
@@ -1936,6 +2030,7 @@ GRUB_MOD_FINI(coreui)
   grub_widget_class_unregister (&image_widget_class);
   grub_widget_class_unregister (&text_widget_class);
   grub_widget_class_unregister (&password_widget_class);
+  grub_widget_class_unregister (&progressbar_widget_class);
   grub_widget_class_unregister (&edit_widget_class);
   grub_widget_class_unregister (&term_widget_class);
   grub_term_unregister_output (&grub_gfxmenu_term);

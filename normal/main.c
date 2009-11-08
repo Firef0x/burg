@@ -161,7 +161,7 @@ free_menu_entry_classes (struct grub_menu_entry_class *head)
 }
 
 static grub_err_t
-uitree_append (grub_menu_entry_t entry)
+uitree_append (grub_menu_entry_t entry, int save)
 {
   grub_uitree_t root, node;
 
@@ -183,6 +183,14 @@ uitree_append (grub_menu_entry_t entry)
     grub_uitree_set_prop (node, "class", entry->classes->next->name);
   if (entry->users)
     grub_uitree_set_prop (node, "users", entry->users);
+  if (save != -1)
+    {
+      char v[2];
+      
+      v[0] = '0' + save;
+      v[1] = 0;
+      grub_uitree_set_prop (node, "save", v);
+    }
   grub_uitree_set_prop (node, "command", entry->sourcecode);
   grub_tree_add_child (GRUB_AS_TREE (root), GRUB_AS_TREE (node), -1);
 
@@ -205,6 +213,7 @@ grub_normal_add_menu_entry (int argc, const char **args,
   struct grub_menu_entry_class *classes_head;  /* Dummy head node for list.  */
   struct grub_menu_entry_class *classes_tail;
   char *users = NULL;
+  int save = -1;
 
   /* Allocate dummy head node for class list.  */
   classes_head = grub_zalloc (sizeof (struct grub_menu_entry_class));
@@ -271,6 +280,16 @@ grub_normal_add_menu_entry (int argc, const char **args,
 
 	      continue;
 	    }
+	  else if (grub_strcmp(arg, "save") == 0)
+	    {
+	      save = 1;
+	      continue;
+	    }
+	  else if (grub_strcmp(arg, "nosave") == 0)
+	    {
+	      save = 0;
+	      continue;
+	    }	    
 	  else
 	    {
 	      /* Handle invalid argument.  */
@@ -335,7 +354,7 @@ grub_normal_add_menu_entry (int argc, const char **args,
 
   menu->size++;
 
-  return uitree_append (*last);
+  return uitree_append (*last, save);
 }
 
 static grub_menu_t

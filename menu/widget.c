@@ -17,8 +17,10 @@
  */
 
 #include <grub/mm.h>
+#include <grub/env.h>
 #include <grub/err.h>
 #include <grub/misc.h>
+#include <grub/time.h>
 #include <grub/widget.h>
 #include <grub/dialog.h>
 #include <grub/menu_data.h>
@@ -32,8 +34,8 @@ GRUB_EXPORT(grub_widget_create);
 GRUB_EXPORT(grub_widget_init);
 GRUB_EXPORT(grub_widget_draw);
 GRUB_EXPORT(grub_widget_draw_region);
-GRUB_EXPORT(grub_widget_scroll);
 GRUB_EXPORT(grub_widget_free);
+GRUB_EXPORT(grub_widget_select_node);
 GRUB_EXPORT(grub_widget_input);
 GRUB_EXPORT(grub_widget_get_prop);
 GRUB_EXPORT(grub_widget_current_node);
@@ -726,7 +728,7 @@ scroll_node (grub_uitree_t node, int dx, int dy)
     }
 }
 
-grub_uitree_t
+static grub_uitree_t
 grub_widget_scroll (grub_uitree_t node)
 {
   grub_uitree_t save;
@@ -852,13 +854,13 @@ get_dir_cmd (grub_uitree_t node, int k)
     dir ^= DIR_NEXT;
 
   if (dir == 0)
-    return "menu_prev_node";
+    return "ui_prev_node";
   else if (dir == DIR_NEXT)
-    return "menu_next_node";
+    return "ui_next_node";
   else if (dir == DIR_ANCHOR)
-    return "menu_prev_anchor";
+    return "ui_prev_anchor";
   else
-    return "menu_next_anchor";
+    return "ui_next_anchor";
 }
 
 static grub_uitree_t
@@ -881,31 +883,6 @@ find_selected_node (grub_uitree_t root)
     }
 
   return 0;
-}
-
-static void
-update_screen (void)
-{
-  grub_uitree_t screen, child;
-  grub_widget_t widget;
-  grub_menu_region_update_list_t head;
-
-  screen = grub_uitree_find (&grub_uitree_root, "screen");
-  if (! screen)
-    return;
-
-  head = 0;
-  widget = screen->data;
-  widget->class->draw (widget, &head, 0, 0, widget->width, widget->height);
-  child = screen->child;
-  while (child)
-    {
-      grub_widget_draw_region (&head, child, 0, 0,
-			       ((grub_widget_t) child->data)->width,
-			       ((grub_widget_t) child->data)->height);
-      child = child->next;
-    }
-  grub_menu_region_apply_update (head);
 }
 
 static int
@@ -943,45 +920,282 @@ onkey (int key)
   return grub_uitree_get_prop (map, name);
 }
 
+void
+grub_widget_select_node (grub_uitree_t node, int selected)
+{
+  grub_uitree_t child;
+
+  child = node->child;
+  while (child)
+    {
+      if (selected)
+	child->flags |= GRUB_WIDGET_FLAG_SELECTED;
+      else
+	child->flags &= ~GRUB_WIDGET_FLAG_SELECTED;
+      child = grub_tree_next_node (GRUB_AS_TREE (node), GRUB_AS_TREE (child));
+    }
+
+  while (node)
+    {
+      if (selected)
+	node->flags |= GRUB_WIDGET_FLAG_SELECTED;
+      else
+	node->flags &= ~GRUB_WIDGET_FLAG_SELECTED;
+      node = node->parent;
+    }
+}
+
+static void
+change_node (grub_uitree_t prev, grub_uitree_t node)
+{
+  grub_uitree_t child, parent, scroll;
+
+  child = node;
+  while (child->data)
+    {
+      child->flags |= GRUB_WIDGET_FLAG_MARKED;
+      child = child->parent;
+    }
+
+  parent = prev;
+  prev = 0;
+  while (! (parent->flags & GRUB_WIDGET_FLAG_MARKED))
+    {
+      prev = parent;
+      parent = parent->parent;
+    }
+
+  child = node;
+  while (child->data)
+    {
+      child->flags &= ~GRUB_WIDGET_FLAG_MARKED;
+      child = child->parent;
+    }
+
+  scroll = grub_widget_scroll (node);
+  while (1)
+    {
+      grub_uitree_t p;
+
+      if (node == scroll)
+	scroll = 0;
+      p = node->parent;
+      if (p == parent)
+	break;
+      node = p;
+    }
+
+  if (scroll)
+    grub_widget_draw (scroll);
+  else if (! prev)
+    grub_widget_draw (parent);
+  else
+    {
+      grub_widget_draw (prev);
+      grub_widget_draw (node);
+    }
+}
+
+static grub_uitree_t
+find_next_node (grub_uitree_t anchor, grub_uitree_t node)
+{
+  grub_uitree_t n;
+
+  n = node;
+  do
+    {
+      n = grub_tree_next_node (GRUB_AS_TREE (anchor), GRUB_AS_TREE (n));
+
+      if (! n)
+	n = anchor;
+
+      if (n == node)
+	return 0;
+    }
+  while (! (n->flags & GRUB_WIDGET_FLAG_NODE));
+
+  return n;
+}
+
+static grub_uitree_t
+find_prev_node (grub_uitree_t anchor, grub_uitree_t node)
+{
+  grub_uitree_t save, n;
+
+  save = 0;
+  n = anchor;
+  while (n)
+    {
+      if (n == node)
+	{
+	  if (save)
+	    break;
+	}
+      else
+	{
+	  if (n->flags & GRUB_WIDGET_FLAG_NODE)
+	    save = n;
+	}
+
+      n = grub_tree_next_node (GRUB_AS_TREE (anchor), GRUB_AS_TREE (n));
+    }
+
+  return save;
+}
+
+static grub_uitree_t
+run_dir_cmd (char *name)
+{
+  grub_uitree_t root, next, node, anchor, save;
+
+  root = grub_widget_current_node;
+  anchor = 0;
+  while (root)
+    {
+      if ((root->flags & GRUB_WIDGET_FLAG_ANCHOR) && (! anchor))
+	anchor = root;
+
+      if (root->flags & GRUB_WIDGET_FLAG_ROOT)
+	break;
+
+      root = root->parent;
+    }
+
+  if ((name[8] == 'a') && (root != anchor))
+    {
+      save = anchor->child;
+      anchor->child = 0;
+      node = anchor;
+      anchor = root;
+    }
+  else
+    {
+      save = 0;
+      node = grub_widget_current_node;
+    }
+
+  next = (name[3] == 'n') ? find_next_node (anchor, node) :
+    find_prev_node (anchor, node);
+
+  if (save)
+    node->child = save;
+
+  return next;
+}
+
+/* Check every 0.5 second.  */
+#define WAIT_TIME	5
+
+static int
+check_timeout (grub_uitree_t root)
+{
+  char *p;
+  int total, left, has_key, key;
+
+  p = grub_env_get ("timeout");
+  if (! p)
+    return 0;
+
+  total = grub_strtoul (p, 0, 0);
+  has_key = (grub_checkkey () != -1);
+  if ((has_key) || (! total))
+    return (has_key) ? GRUB_TERM_ASCII_CHAR (grub_getkey ()) : '\r';
+
+  grub_widget_draw (root);
+  total *= 10;
+  left = total;
+  key = '\r';
+  while (1)
+    {
+      grub_uitree_t child;
+      grub_menu_region_update_list_t head;
+
+      head = 0;
+      child = root;
+      while (child)
+	{
+	  grub_widget_t widget;
+
+	  widget = child->data;
+	  if ((widget) && (widget->class->set_timeout))
+	    {
+	      widget->class->set_timeout (widget, total, left);
+	      if (left > 0)
+		widget->class->draw (widget, &head, 0, 0,
+				     widget->width, widget->height);
+	    }
+
+	  child = grub_tree_next_node (GRUB_AS_TREE (root),
+				       GRUB_AS_TREE (child));
+	}
+      grub_menu_region_apply_update (head);
+
+      if (left <= 0)
+	break;
+
+      grub_millisleep (WAIT_TIME * 100);
+      left -= WAIT_TIME;
+
+      if (grub_checkkey () != -1)
+	{
+	  key = GRUB_TERM_ASCII_CHAR (grub_getkey ());
+	  left = 0;
+	}      
+    }
+
+  return key;
+}
+
+static void
+save_default (void)
+{
+  char *p, *parm, *title, *save;
+  int savedefault;
+
+  p = grub_env_get ("savedefault");
+  savedefault = ((p) && (*p == '1'));
+
+  parm = grub_uitree_get_prop (grub_widget_current_node, "parameters");
+  title = grub_dialog_get_parm (grub_widget_current_node, parm, "title");
+  if (! title)
+    return;
+
+  save = grub_dialog_get_parm (grub_widget_current_node, parm, "save");
+  if (save)
+    savedefault = (*save == '1');
+
+  if (savedefault)
+    {
+      char *args[1];
+
+      args[0] = "default";
+      grub_env_set ("default", title);
+      grub_command_execute ("save_env", 1, args);
+      grub_errno = 0;
+    }
+}
+
 int
 grub_widget_input (grub_uitree_t root, int nested)
 {
+  int init = 0, c;
+
   root->flags |= (GRUB_WIDGET_FLAG_ROOT | GRUB_WIDGET_FLAG_ANCHOR);
 
   grub_widget_current_node = find_selected_node (root);
   if (! grub_widget_current_node)
     {
-      grub_widget_current_node = root;
-      grub_command_execute ("menu_next_node", 0, 0);
-      grub_errno = 0;
-      if (grub_widget_current_node == root)
-	grub_widget_draw (root);
+      grub_widget_current_node = find_next_node (root, root);
+      if (! grub_widget_current_node)
+	grub_widget_current_node = root;
+      else
+	grub_widget_select_node (grub_widget_current_node, 1);
     }
-  else
-    grub_widget_draw (root);
 
+  c = (nested) ? 0 : check_timeout (root);
   while (1)
     {
-      grub_widget_t widget;
-      int c;
       char *cmd, *users;
-
-      widget = grub_widget_current_node->data;
-      if (widget->class->draw_cursor)
-	widget->class->draw_cursor (widget);
-
-      c = map_key (GRUB_TERM_ASCII_CHAR (grub_getkey ()));
-
-      if (widget->class->onkey)
-	{
-	  int r;
-
-	  r = widget->class->onkey (widget, c);
-	  if ((r >= 0) && (nested))
-	    return r;
-	  else if (r != GRUB_WIDGET_RESULT_SKIP)
-	    continue;
-	}
 
       users = 0;
       cmd = onkey (c);
@@ -991,14 +1205,12 @@ grub_widget_input (grub_uitree_t root, int nested)
 	    {
 	      cmd = grub_widget_get_prop (grub_widget_current_node, "command");
 	      users = grub_widget_get_prop (grub_widget_current_node, "users");
+	      c = 0;
 	    }
 	  else if (c == GRUB_TERM_ESC)
-	    {
-	      if (nested)
-		return GRUB_ERR_MENU_ESCAPE;
-	    }
+	    cmd = "ui_escape";
 	  else if (c == GRUB_TERM_TAB)
-	    cmd = "menu_next_anchor";
+	    cmd = "ui_next_anchor";
 	  else
 	    cmd = get_dir_cmd (grub_widget_current_node, c);
 	}
@@ -1010,40 +1222,79 @@ grub_widget_input (grub_uitree_t root, int nested)
 
       if ((cmd) && (*cmd))
 	{
-	  int r;
-
-	  if (users)
+	  if ((users) && (! grub_dialog_password (users)))
 	    {
-	      r = grub_dialog_password (users);
-	      if (r > 0)
+	      grub_errno = 0;
+	    }
+	  else if (! grub_strcmp (cmd, "ui_escape"))
+	    {
+	      if (nested)
+		return GRUB_ERR_MENU_ESCAPE;
+	    }
+	  else if ((! grub_strcmp (cmd, "ui_next_node")) ||
+		   (! grub_strcmp (cmd, "ui_prev_node")) ||
+		   (! grub_strcmp (cmd, "ui_next_anchor")) ||
+		   (! grub_strcmp (cmd, "ui_prev_anchor")))
+	    {
+	      grub_uitree_t next;
+
+	      next = run_dir_cmd (cmd);
+	      if (next)
 		{
-		  grub_errno = 0;
-		  update_screen ();
+		  grub_widget_select_node (grub_widget_current_node, 0);
+		  grub_widget_select_node (next, 1);
+
+		  if (init)
+		    change_node (grub_widget_current_node, next);
+		  grub_widget_current_node = next;
 		}
 	    }
 	  else
-	    r = 1;
-
-	  if (r > 0)
 	    {
+	      int r;
+
+	      if ((! c) && (! nested))
+		save_default ();
+
 	      r = grub_parser_execute (cmd);
-	      if (r == GRUB_ERR_MENU_CONTINUE)
-		{
-		  grub_errno = 0;
-		  continue;
-		}
 
 	      if (grub_errno == GRUB_ERR_NONE && grub_loader_is_loaded ())
 		grub_command_execute ("boot", 0, 0);
 
 	      if ((r >= 0) && (r != GRUB_ERR_MENU_ESCAPE) && (nested))
 		return r;
-	    }
-	  else if (r == 0)
-	    grub_dialog_message ("Access denied.");
 
-	  grub_errno = 0;
-	  update_screen ();
+	      grub_errno = 0;
+	    }
+	}
+
+      if (! init)
+	{
+	  grub_widget_draw (root);
+	  init++;
+	}
+
+      while (1)
+	{
+	  grub_widget_t widget;
+
+	  widget = grub_widget_current_node->data;
+	  if (widget->class->draw_cursor)
+	    widget->class->draw_cursor (widget);
+
+	  c = map_key (GRUB_TERM_ASCII_CHAR (grub_getkey ()));
+	  if (widget->class->onkey)
+	    {
+	      int r;
+
+	      r = widget->class->onkey (widget, c);
+	      if ((r >= 0) && (nested))
+		return r;
+	      else if (r == GRUB_WIDGET_RESULT_SKIP)
+		break;
+	    }
+	  else
+	    break;
 	}
     }
 }

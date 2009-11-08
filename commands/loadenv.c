@@ -40,8 +40,12 @@ open_envblk_file (char *filename)
 
   if (! filename)
     {
-      char *prefix;
+      char *e, *prefix;
 
+      e = grub_env_get ("envfile");
+      if (e)
+	return grub_file_open (e);
+      
       prefix = grub_env_get ("prefix");
       if (prefix)
         {

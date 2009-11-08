@@ -18,6 +18,7 @@
 
 #include <grub/dl.h>
 #include <grub/mm.h>
+#include <grub/env.h>
 #include <grub/misc.h>
 #include <grub/term.h>
 #include <grub/extcmd.h>
@@ -226,6 +227,10 @@ create_node (grub_uitree_t menu, grub_uitree_t tree, int *num,
   if (p)
     grub_dialog_set_parm (node, parm, "users", p);
 
+  p = grub_uitree_get_prop (menu, "save");
+  if (p)
+    grub_dialog_set_parm (node, parm, "save", p);
+
   if (menu->child)
     {
       char buf[sizeof ("menu_popup -ri XXXXX menu_tree")];
@@ -268,6 +273,7 @@ grub_cmd_create (grub_command_t cmd __attribute__ ((unused)),
 		 int argc, char **args)
 {
   grub_uitree_t menu, node, tree;
+  char *def;
   int num;
 
   if (argc < 2)
@@ -297,6 +303,10 @@ grub_cmd_create (grub_command_t cmd __attribute__ ((unused)),
   grub_tree_add_child (GRUB_AS_TREE (&grub_uitree_root), GRUB_AS_TREE (tree),
 		       -1);
 
+  def = grub_env_get ("default");
+  if (! def)
+    def = "";
+  
   num = 1;
   menu = menu->child;
   while (menu)
@@ -309,6 +319,9 @@ grub_cmd_create (grub_command_t cmd __attribute__ ((unused)),
 	return grub_errno;
 
       grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (n), -1);
+      if (! grub_strcmp (menu->name, def))
+	grub_widget_select_node (n, 1);
+      
       child = menu->child;
       while (child)
 	{
@@ -328,6 +341,7 @@ grub_cmd_create (grub_command_t cmd __attribute__ ((unused)),
 	}
       menu = menu->next;
     }
+
   return grub_errno;
 }
 
@@ -345,6 +359,7 @@ grub_cmd_refresh (grub_command_t cmd __attribute__ ((unused)),
   grub_widget_free (node);
   grub_widget_create (node);
   grub_widget_init (node);
+  grub_widget_draw (node);
 
   return grub_errno;
 }
@@ -369,198 +384,13 @@ grub_cmd_toggle_mode (grub_command_t cmd __attribute__ ((unused)),
   grub_command_execute (p, 0, 0);
   grub_widget_create (node);
   grub_widget_init (node);
+  grub_widget_draw (node);
 
   return grub_errno;
 }
 
-static void
-select_node (grub_uitree_t node, int selected)
-{
-  grub_uitree_t child;
-
-  child = node->child;
-  while (child)
-    {
-      if (child->data)
-	{
-	  if (selected)
-	    child->flags |= GRUB_WIDGET_FLAG_SELECTED;
-	  else
-	    child->flags &= ~GRUB_WIDGET_FLAG_SELECTED;
-	}
-      child = grub_tree_next_node (GRUB_AS_TREE (node), GRUB_AS_TREE (child));
-    }
-
-  while (node)
-    {
-      if (node->data)
-	{
-	  if (selected)
-	    node->flags |= GRUB_WIDGET_FLAG_SELECTED;
-	  else
-	    node->flags &= ~GRUB_WIDGET_FLAG_SELECTED;
-	}
-      node = node->parent;
-    }
-}
-
-static void
-change_node (grub_uitree_t prev, grub_uitree_t node)
-{
-  grub_uitree_t child, parent, scroll;
-
-  select_node (prev, 0);
-  select_node (node, 1);
-
-  child = node;
-  while (child->data)
-    {
-      child->flags |= GRUB_WIDGET_FLAG_MARKED;
-      child = child->parent;
-    }
-
-  parent = prev;
-  prev = 0;
-  while (! (parent->flags & GRUB_WIDGET_FLAG_MARKED))
-    {
-      prev = parent;
-      parent = parent->parent;
-    }
-
-  child = node;
-  while (child->data)
-    {
-      child->flags &= ~GRUB_WIDGET_FLAG_MARKED;
-      child = child->parent;
-    }
-
-  scroll = grub_widget_scroll (node);
-  while (1)
-    {
-      grub_uitree_t p;
-
-      if (node == scroll)
-	scroll = 0;
-      p = node->parent;
-      if (p == parent)
-	break;
-      node = p;
-    }
-
-  if (scroll)
-    grub_widget_draw (scroll);
-  else if (! prev)
-    grub_widget_draw (parent);
-  else
-    {
-      grub_widget_draw (prev);
-      grub_widget_draw (node);
-    }
-}
-
-static grub_uitree_t
-find_next_node (grub_uitree_t anchor, grub_uitree_t node)
-{
-  grub_uitree_t n;
-
-  n = node;
-  do
-    {
-      n = grub_tree_next_node (GRUB_AS_TREE (anchor), GRUB_AS_TREE (n));
-
-      if (! n)
-	n = anchor;
-
-      if (n == node)
-	return 0;
-    }
-  while (! (n->flags & GRUB_WIDGET_FLAG_NODE));
-
-  return n;
-}
-
-static grub_uitree_t
-find_prev_node (grub_uitree_t anchor, grub_uitree_t node)
-{
-  grub_uitree_t save, n;
-
-  save = 0;
-  n = anchor;
-  while (n)
-    {
-      if (n == node)
-	{
-	  if (save)
-	    break;
-	}
-      else
-	{
-	  if (n->flags & GRUB_WIDGET_FLAG_NODE)
-	    save = n;
-	}
-
-      n = grub_tree_next_node (GRUB_AS_TREE (anchor), GRUB_AS_TREE (n));
-    }
-
-  return save;
-}
-
-static grub_err_t
-grub_cmd_next_node (grub_command_t cmd,
-		    int argc __attribute__ ((unused)),
-		    char **args __attribute__ ((unused)))
-{
-  grub_uitree_t root, next, node, anchor, save;
-
-  root = grub_widget_current_node;
-  anchor = 0;
-  while (root)
-    {
-      if ((root->flags & GRUB_WIDGET_FLAG_ANCHOR) && (! anchor))
-	anchor = root;
-
-      if (root->flags & GRUB_WIDGET_FLAG_ROOT)
-	break;
-
-      root = root->parent;
-    }
-
-  if (! root)
-    return grub_error (GRUB_ERR_BAD_ARGUMENT, "can\'t find root");
-
-  if ((cmd->name[10] == 'a') && (root != anchor))
-    {
-      save = anchor->child;
-      anchor->child = 0;
-      node = anchor;
-      anchor = root;
-    }
-  else
-    {
-      save = 0;
-      node = grub_widget_current_node;
-    }
-
-  next = (cmd->name[5] == 'n') ? find_next_node (anchor, node) :
-    find_prev_node (anchor, node);
-
-  if (save)
-    node->child = save;
-
-  if (next)
-    {
-      change_node (grub_widget_current_node, next);
-      grub_widget_current_node = next;
-    }
-
-  grub_errno = GRUB_ERR_MENU_CONTINUE;
-  return GRUB_ERR_MENU_CONTINUE;
-}
-
 static grub_extcmd_t cmd_popup, cmd_edit;
 static grub_command_t cmd_start, cmd_create, cmd_refresh, cmd_toggle_mode;
-static grub_command_t cmd_next_node, cmd_prev_node, cmd_next_anchor;
-static grub_command_t cmd_prev_anchor;
 
 GRUB_MOD_INIT(menucmd)
 {
@@ -583,18 +413,6 @@ GRUB_MOD_INIT(menucmd)
   cmd_toggle_mode =
     grub_register_command ("menu_toggle_mode", grub_cmd_toggle_mode,
 			   0, "toggle mode");
-  cmd_next_node =
-    grub_register_command ("menu_next_node", grub_cmd_next_node,
-			   0, "next node");
-  cmd_prev_node =
-    grub_register_command ("menu_prev_node", grub_cmd_next_node,
-			   0, "prev node");
-  cmd_next_anchor =
-    grub_register_command ("menu_next_anchor", grub_cmd_next_node,
-			   0, "next anchor");
-  cmd_prev_anchor =
-    grub_register_command ("menu_prev_anchor", grub_cmd_next_node,
-			   0, "prev anchor");
 }
 
 GRUB_MOD_FINI(menucmd)
@@ -605,8 +423,4 @@ GRUB_MOD_FINI(menucmd)
   grub_unregister_command (cmd_create);
   grub_unregister_command (cmd_refresh);
   grub_unregister_command (cmd_toggle_mode);
-  grub_unregister_command (cmd_next_node);
-  grub_unregister_command (cmd_prev_node);
-  grub_unregister_command (cmd_next_anchor);
-  grub_unregister_command (cmd_prev_anchor);
 }
