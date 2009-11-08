@@ -20,6 +20,7 @@
 #include <grub/err.h>
 #include <grub/misc.h>
 #include <grub/widget.h>
+#include <grub/dialog.h>
 #include <grub/menu_data.h>
 #include <grub/term.h>
 #include <grub/loader.h>
@@ -963,7 +964,7 @@ grub_widget_input (grub_uitree_t root, int nested)
     {
       grub_widget_t widget;
       int c;
-      char *cmd;
+      char *cmd, *users;
 
       widget = grub_widget_current_node->data;
       if (widget->class->draw_cursor)
@@ -982,11 +983,15 @@ grub_widget_input (grub_uitree_t root, int nested)
 	    continue;
 	}
 
+      users = 0;
       cmd = onkey (c);
       if (! cmd)
 	{
 	  if (c == '\r')
-	    cmd = grub_widget_get_prop (grub_widget_current_node, "command");
+	    {
+	      cmd = grub_widget_get_prop (grub_widget_current_node, "command");
+	      users = grub_widget_get_prop (grub_widget_current_node, "users");
+	    }
 	  else if (c == GRUB_TERM_ESC)
 	    {
 	      if (nested)
@@ -997,81 +1002,50 @@ grub_widget_input (grub_uitree_t root, int nested)
 	  else
 	    cmd = get_dir_cmd (grub_widget_current_node, c);
 	}
+      else if (*cmd == '*')
+	{
+	  cmd++;
+	  users = "";
+	}
 
       if ((cmd) && (*cmd))
 	{
 	  int r;
 
-	  r = grub_parser_execute (cmd);
-	  if (r == GRUB_ERR_MENU_CONTINUE)
+	  if (users)
 	    {
-	      grub_errno = 0;
-	      continue;
+	      r = grub_dialog_password (users);
+	      if (r > 0)
+		{
+		  grub_errno = 0;
+		  update_screen ();
+		}
 	    }
+	  else
+	    r = 1;
 
-	  if (grub_errno == GRUB_ERR_NONE && grub_loader_is_loaded ())
-	    grub_command_execute ("boot", 0, 0);
+	  if (r > 0)
+	    {
+	      r = grub_parser_execute (cmd);
+	      if (r == GRUB_ERR_MENU_CONTINUE)
+		{
+		  grub_errno = 0;
+		  continue;
+		}
 
-	  if ((r >= 0) && (r != GRUB_ERR_MENU_ESCAPE) && (nested))
-	    return r;
+	      if (grub_errno == GRUB_ERR_NONE && grub_loader_is_loaded ())
+		grub_command_execute ("boot", 0, 0);
+
+	      if ((r >= 0) && (r != GRUB_ERR_MENU_ESCAPE) && (nested))
+		return r;
+	    }
+	  else if (r == 0)
+	    grub_dialog_message ("Access denied.");
 
 	  grub_errno = 0;
 	  update_screen ();
 	}
     }
-
-#if 0
-      if (c == GRUB_TERM_ESC)
-	{
-	  if (nested)
-	    return GRUB_ERR_MENU_ESCAPE;
-	  else
-	    continue;
-	}
-
-      c = map_dir_key (node, c);
-      if (! c)
-	continue;
-
-      next = node;
-      if (root == anchor)
-	{
-	  if (c == 'N')
-	    c = 'n';
-	  else if (c == 'P')
-	    c = 'p';
-	}
-
-      if (c == 'n')
-	next = find_next_node (anchor, node, 0);
-      else if (c == 'p')
-	next = find_prev_node (anchor, node);
-      else if (c == 'N')
-	{
-	  next = find_next_node (root, anchor, 1);
-	  anchor = root;
-	}
-      else if (c == 'P')
-	{
-	  next = find_prev_node (root, anchor);
-	  anchor = root;
-	}
-
-      if (next == root)
-	{
-	  if ((c == 'n') || (c == 'N'))
-	    next = find_next_node (root, next, 0);
-	  else if ((c == 'p') || (c == 'P'))
-	    next = find_prev_node (root, next);
-	}
-
-      if (next != node)
-	{
-	  change_node (node, next);
-	  node = next;
-	  anchor = get_anchor (node);
-	}
-#endif
 }
 
 static grub_uitree_t

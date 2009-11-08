@@ -26,6 +26,7 @@
 GRUB_EXPORT(grub_auth_authenticate);
 GRUB_EXPORT(grub_auth_strcmp);
 GRUB_EXPORT(grub_auth_register_authentication);
+GRUB_EXPORT(grub_auth_check_password);
 
 struct grub_auth_user
 {
@@ -72,14 +73,14 @@ grub_auth_strword (const char *haystack, const char *needle)
       int ok = 1;
       /* Crawl both the needle and the haystack word we're on.  */
       while(*haystack && !grub_iswordseparator (*haystack))
-        {
+	{
 	  if (*haystack == *n_pos && ok)
 	    n_pos++;
 	  else
 	    ok = 0;
 
-          haystack++;
-        }
+	  haystack++;
+	}
 
       if (ok)
 	found = 1;
@@ -206,12 +207,11 @@ is_authenticated (const char *userlist)
   return grub_list_iterate (GRUB_AS_LIST (users), hook);
 }
 
-grub_err_t
-grub_auth_check_authentication (const char *userlist)
+int
+grub_auth_check_password (const char *userlist, const char *login,
+			  const char *password)
 {
-  char login[1024];
   struct grub_auth_user *cur = NULL;
-  grub_err_t err;
 
   auto int hook (grub_list_t item);
   int hook (grub_list_t item)
@@ -221,40 +221,18 @@ grub_auth_check_authentication (const char *userlist)
     return 0;
   }
 
-  auto int hook_any (grub_list_t item);
-  int hook_any (grub_list_t item)
-  {
-    if (((struct grub_auth_user *) item)->callback)
-      cur = (struct grub_auth_user *) item;
-    return 0;
-  }
-
-  grub_memset (login, 0, sizeof (login));
-
   if (is_authenticated (userlist))
-    return GRUB_ERR_NONE;
+    return 1;
 
-  if (!grub_cmdline_get ("Enter username: ", login, sizeof (login) - 1,
-			 0, 0, 0))
-    return GRUB_ACCESS_DENIED;
+  if (! login)
+    return 0;
 
   grub_list_iterate (GRUB_AS_LIST (users), hook);
-
-  if (!cur || ! cur->callback)
+  if ((cur) && (cur->callback (login, password, cur->arg)))
     {
-      grub_list_iterate (GRUB_AS_LIST (users), hook_any);
-
-      /* No users present at all.  */
-      if (!cur)
-	return GRUB_ACCESS_DENIED;
-
-      /* Display any of available authentication schemes.  */
-      err = cur->callback (login, 0);
-
-      return GRUB_ACCESS_DENIED;
+      grub_auth_authenticate (login);
+      return (is_authenticated (userlist));
     }
-  err = cur->callback (login, cur->arg);
-  if (is_authenticated (userlist))
-    return GRUB_ERR_NONE;
-  return GRUB_ACCESS_DENIED;
+
+  return 0;
 }

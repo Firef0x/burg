@@ -26,6 +26,8 @@
 #include <grub/extcmd.h>
 #include <grub/i386/cpuid.h>
 
+GRUB_EXPORT(grub_cpuid_has_longmode);
+
 #define cpuid(num,a,b,c,d) \
   asm volatile ("xchgl %%ebx, %1; cpuid; xchgl %%ebx, %1" \
 		: "=a" (a), "=r" (b), "=c" (c), "=d" (d)  \

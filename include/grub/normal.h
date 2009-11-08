@@ -53,6 +53,7 @@ grub_err_t grub_normal_add_menu_entry (int argc, const char **args,
 				       const char *sourcecode);
 char *grub_file_getline (grub_file_t file);
 void grub_cmdline_run (int nested);
+grub_err_t grub_normal_check_authentication (const char *userlist);
 
 /* Defined in `cmdline.c'.  */
 int grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,

@@ -22,16 +22,13 @@
 
 /* Macros for indistinguishibility.  */
 #define GRUB_ACCESS_DENIED grub_error (GRUB_ERR_ACCESS_DENIED, "Access denied.")
-#define GRUB_GET_PASSWORD(string, len) grub_cmdline_get ("Enter password: ", \
-							 string, len,	\
-							 '*', 0, 0)
 
 /* Like strcmp but untimeable. Accepts NULL as second argument.  */
 int grub_auth_strcmp (const char *user_input, const char *template);
 /* Like strcmp but untimeable and ignores commas in needle.  */
 int grub_auth_strword (const char *haystack, const char *needle);
 
-typedef grub_err_t (*grub_auth_callback_t) (const char*, void *);
+typedef int (*grub_auth_callback_t) (const char*, const char *, void *);
 
 grub_err_t grub_auth_register_authentication (const char *user,
 					      grub_auth_callback_t callback,
@@ -40,6 +37,7 @@ grub_err_t grub_auth_unregister_authentication (const char *user);
 
 grub_err_t grub_auth_authenticate (const char *user);
 grub_err_t grub_auth_deauthenticate (const char *user);
-grub_err_t grub_auth_check_authentication (const char *userlist);
+int grub_auth_check_password (const char *userlist, const char *login,
+			      const char *password);
 
 #endif /* ! GRUB_AUTH_HEADER */

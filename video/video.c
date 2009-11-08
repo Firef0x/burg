@@ -30,6 +30,7 @@ GRUB_EXPORT(grub_video_fill_rect);
 GRUB_EXPORT(grub_video_get_active_render_target);
 GRUB_EXPORT(grub_video_get_blit_format);
 GRUB_EXPORT(grub_video_get_info);
+GRUB_EXPORT(grub_video_get_info_and_fini);
 GRUB_EXPORT(grub_video_set_viewport);
 GRUB_EXPORT(grub_video_get_viewport);
 GRUB_EXPORT(grub_video_map_color);

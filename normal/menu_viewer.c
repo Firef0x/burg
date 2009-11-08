@@ -22,6 +22,7 @@
 #include <grub/menu_viewer.h>
 #include <grub/menu.h>
 #include <grub/auth.h>
+#include <grub/normal.h>
 
 /* The list of menu viewers.  */
 static grub_menu_viewer_t menu_viewer_list;
@@ -65,7 +66,7 @@ grub_menu_viewer_show_menu (grub_menu_t menu, int nested)
       err1 = cur->show_menu (menu, nested);
       grub_print_error ();
 
-      err2 = grub_auth_check_authentication (NULL);
+      err2 = grub_normal_check_authentication (NULL);
       if (err2)
 	{
 	  grub_print_error ();

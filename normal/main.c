@@ -39,7 +39,6 @@ GRUB_EXPORT(grub_normal_print_device_info);
 GRUB_EXPORT(grub_unixtime2datetime);
 GRUB_EXPORT(grub_wait_after_message);
 GRUB_EXPORT(grub_cmdline_run);
-GRUB_EXPORT(grub_cmdline_get);
 
 #define GRUB_DEFAULT_HISTORY_SIZE	50
 
@@ -182,6 +181,8 @@ uitree_append (grub_menu_entry_t entry)
 
   if (entry->classes->next)
     grub_uitree_set_prop (node, "class", entry->classes->next->name);
+  if (entry->users)
+    grub_uitree_set_prop (node, "users", entry->users);
   grub_uitree_set_prop (node, "command", entry->sourcecode);
   grub_tree_add_child (GRUB_AS_TREE (root), GRUB_AS_TREE (node), -1);
 
@@ -517,13 +518,35 @@ quit:
   return 0;
 }
 
+grub_err_t
+grub_normal_check_authentication (const char *userlist)
+{
+  char login[1024], entered[1024];
+
+  if (grub_auth_check_password (userlist, 0, 0))
+    return GRUB_ERR_NONE;
+
+  grub_memset (login, 0, sizeof (login));
+  if (!grub_cmdline_get ("Enter username: ", login, sizeof (login) - 1,
+			 0, 0, 0))
+    return GRUB_ACCESS_DENIED;
+
+  grub_memset (&entered, 0, sizeof (entered));
+  if (!grub_cmdline_get ("Enter password: ",  entered, sizeof (entered) - 1,
+			 '*', 0, 0))
+    return GRUB_ACCESS_DENIED;
+
+  return (grub_auth_check_password (userlist, 0, 0)) ?
+    GRUB_ERR_NONE : GRUB_ACCESS_DENIED;
+}
+
 void
 grub_cmdline_run (int nested)
 {
   grub_reader_t reader;
   grub_err_t err = GRUB_ERR_NONE;
 
-  err = grub_auth_check_authentication (NULL);
+  err = grub_normal_check_authentication (NULL);
 
   if (err)
     {

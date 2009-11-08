@@ -133,7 +133,7 @@ grub_menu_execute_entry(grub_menu_entry_t entry)
   grub_err_t err = GRUB_ERR_NONE;
 
   if (entry->restricted)
-    err = grub_auth_check_authentication (entry->users);
+    err = grub_normal_check_authentication (entry->users);
 
   if (err)
     {

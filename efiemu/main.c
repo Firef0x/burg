@@ -32,6 +32,12 @@
 #include <grub/machine/efiemu.h>
 #include <grub/command.h>
 
+GRUB_EXPORT(grub_efiemu_prepare);
+GRUB_EXPORT(grub_efiemu_sizeof_uintn_t);
+GRUB_EXPORT(grub_efiemu_system_table32);
+GRUB_EXPORT(grub_efiemu_system_table64);
+GRUB_EXPORT(grub_efiemu_finish_boot_services);
+
 /* System table. Two version depending on mode */
 grub_efi_system_table32_t *grub_efiemu_system_table32 = 0;
 grub_efi_system_table64_t *grub_efiemu_system_table64 = 0;

@@ -26,23 +26,11 @@
 
 static grub_dl_t my_mod;
 
-static grub_err_t
-check_password (const char *user,
-		void *password)
+static int
+check_password (const char *user __attribute__ ((unused)),
+		const char *entered, void *password)
 {
-  char entered[1024];
-
-  grub_memset (entered, 0, sizeof (entered));
-
-  if (!GRUB_GET_PASSWORD (entered, sizeof (entered) - 1))
-    return GRUB_ACCESS_DENIED;
-
-  if (grub_auth_strcmp (entered, password) != 0)
-    return GRUB_ACCESS_DENIED;
-
-  grub_auth_authenticate (user);
-
-  return GRUB_ERR_NONE;
+  return (grub_auth_strcmp (entered, password) == 0);
 }
 
 static grub_err_t

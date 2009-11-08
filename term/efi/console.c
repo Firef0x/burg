@@ -340,16 +340,16 @@ static void
 set_mode (void)
 {
   grub_efi_simple_text_output_interface_t *o;
-  grub_efi_uintn_t mode, saved_columns, columns, rows;
+  grub_efi_uintn_t mode, columns, rows, saved_rows;
 
   o = grub_efi_system_table->con_out;
-  if (efi_call_4 (o->query_mode, o, 0, &saved_columns, &rows))
+  if (efi_call_4 (o->query_mode, o, 0, &columns, &saved_rows))
     return;
 
   mode = 1;
-  columns = 0;
+  rows = 0;
   while ((! efi_call_4 (o->query_mode, o, mode, &columns, &rows)) &&
-	 (columns != saved_columns))
+	 (rows != saved_rows))
     mode++;
   if (mode > 1)
     efi_call_2 (o->set_mode, o, mode - 1);

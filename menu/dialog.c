@@ -21,12 +21,15 @@
 #include <grub/widget.h>
 #include <grub/dialog.h>
 #include <grub/menu_data.h>
+#include <grub/auth.h>
 
 GRUB_EXPORT(grub_dialog_create);
 GRUB_EXPORT(grub_dialog_set_parm);
 GRUB_EXPORT(grub_dialog_get_parm);
 GRUB_EXPORT(grub_dialog_popup);
 GRUB_EXPORT(grub_dialog_free);
+GRUB_EXPORT(grub_dialog_message);
+GRUB_EXPORT(grub_dialog_password);
 
 static grub_uitree_t
 copy_node (grub_uitree_t node)
@@ -115,6 +118,7 @@ find_prop (grub_uitree_t node, char *path, char **out)
   while (1)
     {
       char *n;
+      grub_uitree_t child;
 
       n = grub_menu_next_field (path, '.');
       if (! n)
@@ -123,7 +127,8 @@ find_prop (grub_uitree_t node, char *path, char **out)
 	  return node;
 	}
 
-      node = grub_uitree_find (node, path);
+      child = grub_uitree_find (node, path);
+      node = (child) ? child : grub_uitree_find_id (node, path);
       grub_menu_restore_field (n, '.');
       if (! node)
 	return 0;
@@ -216,4 +221,72 @@ grub_dialog_free (grub_uitree_t node, grub_uitree_t menu, grub_uitree_t save)
     }
   else
     grub_uitree_free (node);
+}
+
+static grub_uitree_t
+create_dialog (const char *name)
+{
+  grub_uitree_t root, node;
+
+  root = grub_uitree_find (&grub_uitree_root, "screen");
+  if (! root)
+    return 0;
+
+  node = grub_dialog_create (name, 1, 0, 0, 0);
+  if (! node)
+    return 0;
+
+  grub_tree_add_child (GRUB_AS_TREE (root), GRUB_AS_TREE (node), -1);
+  return node;
+}
+
+void
+grub_dialog_message (const char *text)
+{
+  grub_uitree_t node;
+
+  node = create_dialog ("dialog_message");
+  if (! node)
+    return;
+
+  if (text)
+    {
+      char *parm;
+
+      parm = grub_uitree_get_prop (node, "parameters");
+      grub_dialog_set_parm (node, parm, "text", text);
+    }
+  grub_dialog_popup (node);
+  grub_dialog_free (node, 0, 0);
+}
+
+int
+grub_dialog_password (const char *userlist)
+{
+  grub_uitree_t node;
+  int result = 0;
+
+  if (grub_auth_check_password (userlist, 0, 0))
+    return 1;
+
+  node = create_dialog ("dialog_password");
+  if (! node)
+    return 0;
+
+  grub_errno = 0;
+  if (grub_dialog_popup (node) == 0)
+    {
+      char *parm, *user, *pass;
+
+      parm = grub_uitree_get_prop (node, "parameters");
+      user = grub_dialog_get_parm (node, parm, "username");
+      pass = grub_dialog_get_parm (node, parm, "password");
+      if (user)
+	result = grub_auth_check_password (userlist, user, pass);
+    }
+  else
+    result = -1;
+
+  grub_dialog_free (node, 0, 0);
+  return result;
 }

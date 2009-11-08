@@ -1029,7 +1029,7 @@ grub_menu_entry_run (grub_menu_entry_t entry)
   int prev_c;
   grub_err_t err = GRUB_ERR_NONE;
 
-  err = grub_auth_check_authentication (NULL);
+  err = grub_normal_check_authentication (NULL);
 
   if (err)
     {

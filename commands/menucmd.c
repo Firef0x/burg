@@ -222,6 +222,10 @@ create_node (grub_uitree_t menu, grub_uitree_t tree, int *num,
   if (p)
     grub_dialog_set_parm (node, parm, "class", p);
 
+  p = grub_uitree_get_prop (menu, "users");
+  if (p)
+    grub_dialog_set_parm (node, parm, "users", p);
+
   if (menu->child)
     {
       char buf[sizeof ("menu_popup -ri XXXXX menu_tree")];

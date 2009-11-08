@@ -29,5 +29,7 @@ char *grub_dialog_get_parm (grub_uitree_t node, char *parm, char *name);
 grub_err_t grub_dialog_popup (grub_uitree_t node);
 void grub_dialog_free (grub_uitree_t node, grub_uitree_t menu,
 		       grub_uitree_t save);
+void grub_dialog_message (const char *text);
+int grub_dialog_password (const char *userlist);
 
 #endif
