@@ -112,7 +112,7 @@ parse_color (char *name, grub_uint32_t *fill)
     {
       grub_video_color_t gfxcolor;
 
-      gfxcolor = grub_strtoul (name + 1, &name, 16);
+      gfxcolor = grub_strtoul (name + 1, &name, 16) | 0xff000000;
       if (grub_menu_region_gfx_mode ())
 	{
 	  grub_menu_restore_field (n, ',');

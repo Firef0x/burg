@@ -207,7 +207,6 @@ grub_menu_region_add_update (grub_menu_region_update_list_t *head,
   u->height = height;
 
   if ((! grub_menu_region_gfx_mode ()) ||
-      (region->type == GRUB_MENU_REGION_TYPE_BITMAP) ||
       ((region->type == GRUB_MENU_REGION_TYPE_RECT) &&
        (! ((grub_menu_region_rect_t) region)->fill)))
     {

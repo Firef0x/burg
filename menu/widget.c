@@ -793,7 +793,14 @@ grub_widget_scroll (grub_uitree_t node)
       if ((dx) || (dy))
 	{
 	  save = node->parent;
-	  scroll_node (save, dx, dy);
+	  if (node->flags & GRUB_WIDGET_FLAG_FIXED_XY)
+	    {
+	      widget->x += dx;
+	      widget->y += dy;
+	      update_position (save, node);
+	    }
+	  else
+	    scroll_node (save, dx, dy);
 	}
 
       if (! grub_menu_region_check_rect (&x, &y, &width, &height,

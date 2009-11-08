@@ -485,6 +485,15 @@ grub_video_vbe_setup (unsigned int width, unsigned int height,
 
       framebuffer.mode_info.blit_format = grub_video_get_blit_format (&framebuffer.mode_info);
 
+      if ((framebuffer.mode_info.blit_format ==
+	   GRUB_VIDEO_BLIT_FORMAT_RGBA_8888) ||
+	  (framebuffer.mode_info.blit_format ==
+	    GRUB_VIDEO_BLIT_FORMAT_BGRA_8888))
+	{
+	  framebuffer.mode_info.reserved_mask_size = 8;
+	  framebuffer.mode_info.reserved_field_pos = 24;
+	}
+
       err = grub_video_fb_create_render_target_from_pointer (&framebuffer.render_target, &framebuffer.mode_info, framebuffer.ptr);
 
       if (err)

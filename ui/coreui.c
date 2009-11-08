@@ -914,14 +914,15 @@ edit_handle_key (grub_widget_t widget, int key)
       text_width = data->lines[data->line]->common.width;
       data->pos = grub_strlen (line);
     }
-  else if ((key == GRUB_TERM_UP) || (key == GRUB_TERM_PPAGE))
+  else if ((key == GRUB_TERM_UP) || (key == GRUB_TERM_CTRL_P) ||
+	   (key == GRUB_TERM_PPAGE))
     {
       int n;
 
       if (! data->line)
 	return GRUB_WIDGET_RESULT_DONE;
 
-      n = (key == GRUB_TERM_UP) ? 1 : widget->height / data->font_height;
+      n = (key == GRUB_TERM_PPAGE) ? widget->height / data->font_height : 1;
       if (n > data->line)
 	n = data->line;
 
@@ -939,7 +940,7 @@ edit_handle_key (grub_widget_t widget, int key)
       data->line -= n;
       scroll_y = 1;
     }
-  else if (key == GRUB_TERM_DOWN)
+  else if ((key == GRUB_TERM_DOWN) || (key == GRUB_TERM_CTRL_N))
     {
       data->line++;
       data->y += data->font_height;
@@ -1028,7 +1029,7 @@ edit_handle_key (grub_widget_t widget, int key)
 	      int size;
 
 	      size = (sizeof (struct grub_menu_region_text) + data->pos +
-		      1 + len) & ~15;
+		      1 + len + 15) & ~15;
 
 	      data->lines[data->line] =
 		grub_realloc (data->lines[data->line], size);
@@ -1190,13 +1191,46 @@ static struct grub_widget_class edit_widget_class =
 static grub_widget_t cur_term;
 
 #define GRUB_PROMPT	"grub> "
+#define DEFAULT_MAX_HISTORY	20
+
+struct term_data
+{
+  struct edit_data edit;
+  char **history;
+  int cur_history;
+  int num_history;
+  int max_history;
+};
+
+static int
+term_get_data_size (void)
+{
+  return sizeof (struct term_data);
+}
+
+static void
+term_init_size (grub_widget_t widget)
+{
+  struct term_data *data = widget->data;
+  char *p;
+
+  edit_init_size (widget);
+  p = grub_widget_get_prop (widget->node, "history");
+  data->max_history = (p) ? grub_strtoul (p, 0, 0) : DEFAULT_MAX_HISTORY;
+}
 
 static void
 term_free (grub_widget_t widget)
 {
+  struct term_data *data = widget->data;
+  int i;
+
   if (cur_term == widget)
     cur_term = 0;
 
+  for (i = 0; i < data->num_history; i++)
+    grub_free (data->history[i]);
+  grub_free (data->history);
   edit_free (widget);
 }
 
@@ -1316,33 +1350,103 @@ print_completion (const char *item, grub_completion_type_t type, int count)
 static int
 term_onkey (grub_widget_t widget, int key)
 {
-  struct edit_data *data = widget->data;
+  struct term_data *data = widget->data;
   int has_prompt;
 
-  has_prompt = (! grub_strncmp (data->lines[data->line]->text, GRUB_PROMPT,
-				sizeof (GRUB_PROMPT) - 1));
+  has_prompt = (! grub_strncmp (data->edit.lines[data->edit.line]->text,
+				GRUB_PROMPT, sizeof (GRUB_PROMPT) - 1));
 
-  if (key == '\r')
+  if ((key == '\r') && (has_prompt))
     {
       char *cmd;
 
-      if (has_prompt)
+      clear_rest (widget);
+      cmd = data->edit.lines[data->edit.line]->text +
+	sizeof (GRUB_PROMPT) - 1;
+      edit_handle_key (widget, GRUB_TERM_DOWN);
+      if (*cmd)
 	{
-	  clear_rest (widget);
-	  cmd = data->lines[data->line]->text + sizeof (GRUB_PROMPT) - 1;
-	  edit_handle_key (widget, GRUB_TERM_DOWN);
-	  if (*cmd)
+	  if ((data->num_history & (LINE_INC_STEP - 1)) == 0)
 	    {
-	      grub_parser_execute (cmd);
-	      if (data->pos)
-		edit_handle_key (widget, GRUB_TERM_DOWN);
-	      if (grub_errno)
-		{
-		  grub_print_error ();
-		  grub_errno = 0;
-		}
+	      data->history =
+		grub_realloc (data->history,
+			      (data->num_history + LINE_INC_STEP) *
+			      sizeof (void *));
+	      if (! data->history)
+		return grub_errno;
+
+	      grub_memset (data->history + data->num_history, 0,
+			   LINE_INC_STEP * sizeof (void *));
+	    }
+
+	  if ((data->num_history) &&
+	      (data->num_history == data->max_history))
+	    {
+	      int i;
+
+	      grub_free (data->history[0]);
+	      for (i = 0; i < data->num_history - 1; i++)
+		data->history[i] = data->history[i + 1];
+	      data->num_history--;
+	    }
+
+	  data->history[data->num_history++] = grub_strdup (cmd);
+	  data->cur_history = data->num_history;
+
+	  grub_parser_execute (cmd);
+	  if (data->edit.pos)
+	    edit_handle_key (widget, GRUB_TERM_DOWN);
+	  if (grub_errno)
+	    {
+	      grub_print_error ();
+	      grub_errno = 0;
 	    }
 	}
+      return GRUB_WIDGET_RESULT_DONE;
+    }
+  else if (((key == GRUB_TERM_UP) || (key == GRUB_TERM_DOWN)) && (has_prompt))
+    {
+      int size, text_width;
+      char *line;
+
+      if (key == GRUB_TERM_UP)
+	{
+	  if (data->cur_history > 0)
+	    data->cur_history--;
+	  else
+	    return GRUB_WIDGET_RESULT_DONE;
+	}
+      else
+	{
+	  if (data->cur_history < data->num_history)
+	    data->cur_history++;
+	  else
+	    return GRUB_WIDGET_RESULT_DONE;
+	}
+
+      line = (data->cur_history < data->num_history) ?
+	data->history[data->cur_history] : "";
+
+      size = (sizeof (struct grub_menu_region_text) + sizeof (GRUB_PROMPT)
+	      + grub_strlen (line) + 15) & ~15;
+      data->edit.lines[data->edit.line] =
+	grub_realloc (data->edit.lines[data->edit.line], size);
+
+      if (! data->edit.lines[data->edit.line])
+	return grub_errno;
+
+      grub_strcpy (data->edit.lines[data->edit.line]->text
+		   + sizeof (GRUB_PROMPT) - 1, line);
+      line = data->edit.lines[data->edit.line]->text;
+      data->edit.pos = grub_strlen (line);
+      text_width = data->edit.lines[data->edit.line]->common.width =
+	grub_menu_region_get_text_width (data->edit.lines[0]->font, line,
+					 0, 0);
+      data->edit.lines[data->edit.line]->common.ofs_x = 0;
+      edit_scroll_x (&data->edit, text_width, widget->width);
+      draw_region (widget->node, 0, data->edit.y, widget->width,
+		   data->edit.font_height);
+
       return GRUB_WIDGET_RESULT_DONE;
     }
   else if (key == GRUB_TERM_TAB)
@@ -1352,25 +1456,25 @@ term_onkey (grub_widget_t widget, int key)
       int update_x, update_y, update_width, update_height, text_width;
       char *line;
 
-      update_x = data->x;
-      update_y = data->y;
+      update_x = data->edit.x;
+      update_y = data->edit.y;
 
-      pos = data->pos;
-      line = data->lines[data->line]->text;
+      pos = data->edit.pos;
+      line = data->edit.lines[data->edit.line]->text;
       backup = line[pos];
       line[pos] = 0;
 
       insert = grub_normal_do_completion (line, &restore, print_completion);
 
-      for (i = data->line; i >= 0; i--)
-	if (data->lines[i]->text == line)
+      for (i = data->edit.line; i >= 0; i--)
+	if (data->edit.lines[i]->text == line)
 	  break;
 
       if (i < 0)
 	return GRUB_WIDGET_RESULT_DONE;
 
-      data->line = i;
-      data->pos = pos;
+      data->edit.line = i;
+      data->edit.pos = pos;
       line[pos] = backup;
 
       if (insert)
@@ -1380,11 +1484,11 @@ term_onkey (grub_widget_t widget, int key)
 	  ilen = grub_strlen (insert);
 	  size = (sizeof (struct grub_menu_region_text) + len + ilen
 		  + 1 + 15) & ~15;
-	  data->lines[i] = grub_realloc (data->lines[i], size);
-	  if (! data->lines[i])
+	  data->edit.lines[i] = grub_realloc (data->edit.lines[i], size);
+	  if (! data->edit.lines[i])
 	    return grub_errno;
 
-	  line = data->lines[i]->text;
+	  line = data->edit.lines[i]->text;
 
 	  for (i = len - 1; i >= pos; i--)
 	    line[i + ilen] = line[i];
@@ -1396,29 +1500,31 @@ term_onkey (grub_widget_t widget, int key)
 
 	  grub_free (insert);
 
-	  data->lines[data->line]->common.width =
-	    grub_menu_region_get_text_width (data->lines[0]->font, line, 0, 0);
+	  data->edit.lines[data->edit.line]->common.width =
+	    grub_menu_region_get_text_width (data->edit.lines[0]->font,
+					     line, 0, 0);
 	}
       else
 	ilen = 0;
 
-      text_width = update_x - data->lines[data->line]->common.ofs_x;
-      update_width = data->lines[data->line]->common.width - text_width;
+      text_width = update_x - data->edit.lines[data->edit.line]->common.ofs_x;
+      update_width = data->edit.lines[data->edit.line]->common.width
+	- text_width;
       if (ilen)
 	{
 	  text_width +=
-	    grub_menu_region_get_text_width (data->lines[0]->font,
+	    grub_menu_region_get_text_width (data->edit.lines[0]->font,
 					     line + pos, ilen, 0);
-	  data->pos += ilen;
+	  data->edit.pos += ilen;
 	}
 
-      if (edit_scroll_x (data, text_width, widget->width))
+      if (edit_scroll_x (&data->edit, text_width, widget->width))
 	{
 	  update_x = 0;
 	  update_width = widget->width;
 	}
 
-      if (edit_scroll_y (data, widget->height))
+      if (edit_scroll_y (&data->edit, widget->height))
 	{
 	  update_x = 0;
 	  update_y = 0;
@@ -1426,7 +1532,7 @@ term_onkey (grub_widget_t widget, int key)
 	  update_height = widget->height;
 	}
       else
-	update_height = data->font_height;
+	update_height = data->edit.font_height;
 
       draw_region (widget->node, update_x, update_y,
 		   update_width, update_height);
@@ -1436,7 +1542,8 @@ term_onkey (grub_widget_t widget, int key)
     return GRUB_WIDGET_RESULT_SKIP;
   else
     {
-      if (((has_prompt) && (data->pos <= (int) sizeof (GRUB_PROMPT) - 1)) &&
+      if (((has_prompt) &&
+	   (data->edit.pos <= (int) sizeof (GRUB_PROMPT) - 1)) &&
 	  (key == GRUB_TERM_BACKSPACE))
 	return GRUB_WIDGET_RESULT_DONE;
 
@@ -1447,8 +1554,8 @@ term_onkey (grub_widget_t widget, int key)
 static struct grub_widget_class term_widget_class =
   {
     .name = "term",
-    .get_data_size = edit_get_data_size,
-    .init_size = edit_init_size,
+    .get_data_size = term_get_data_size,
+    .init_size = term_init_size,
     .free = term_free,
     .draw = term_draw,
     .draw_cursor = term_draw_cursor,
@@ -1571,7 +1678,22 @@ grub_gfxmenu_putchar (grub_uint32_t c)
   if (! cur_term)
     return;
 
-  edit_handle_key (cur_term, (c == '\n') ? GRUB_TERM_DOWN : c);
+  if (c == '\n')
+    edit_handle_key (cur_term, GRUB_TERM_DOWN);
+  else
+    {
+      int width;
+      struct edit_data *data;
+
+      data = cur_term->data;
+      width = data->x + data->font_width +
+	grub_menu_region_get_text_width (data->lines[0]->font,
+					 (char *) &c, 1, 0);
+      if (width > cur_term->width)
+	edit_handle_key (cur_term, GRUB_TERM_DOWN);
+
+      edit_handle_key (cur_term, c);
+    }
 }
 
 static struct grub_term_output grub_gfxmenu_term =

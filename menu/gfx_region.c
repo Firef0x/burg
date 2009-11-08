@@ -229,7 +229,7 @@ grub_gfx_region_update_bitmap (struct grub_menu_region_bitmap *bitmap,
 			       int x, int y, int width, int height,
 			       int scn_x, int scn_y)
 {
-  grub_video_blit_bitmap (bitmap->bitmap, GRUB_VIDEO_BLIT_REPLACE,
+  grub_video_blit_bitmap (bitmap->bitmap, GRUB_VIDEO_BLIT_BLEND,
 			  scn_x, scn_y, x, y, width, height);
 }
 

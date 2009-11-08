@@ -225,7 +225,7 @@ create_node (grub_uitree_t menu, grub_uitree_t tree, int *num,
   if (menu->child)
     {
       char buf[sizeof ("menu_popup -ri XXXXX menu_tree")];
-      grub_uitree_t sub;
+      grub_uitree_t sub, child;
 
       sub = grub_dialog_create (menu_template, 1, 0, 0, 0);
       if (! sub)
@@ -234,12 +234,16 @@ create_node (grub_uitree_t menu, grub_uitree_t tree, int *num,
 	  return 0;
 	}
 
-      grub_sprintf (buf, "menu_popup -ri %d menu_tree",
-		    *num - menu->parent->flags - 1);
+      grub_strcpy (buf, "menu_popup -");
+      p = buf + sizeof ("menu_popup -") - 1;
+      if (grub_uitree_get_prop (sub, "absolute") == 0)
+	*(p++) = 'r';
+      grub_sprintf (p, "i %d menu_tree", *num - menu->parent->flags - 1);
       grub_uitree_set_prop (node, "command", buf);
 
       grub_tree_add_child (GRUB_AS_TREE (tree), GRUB_AS_TREE (sub), -1);
-      menu->data = sub;
+      child = grub_uitree_find_id (sub, "__child__");
+      menu->data = (child) ? child : sub;
       menu->flags = *num;
       (*num)++;
     }

@@ -22,8 +22,8 @@
 /* Internal codes used by GRUB to represent terminal input.  */
 #define GRUB_TERM_LEFT		2	/* ctrl-b  */
 #define GRUB_TERM_RIGHT		6	/* ctrl-f  */
-#define GRUB_TERM_UP		16	/* ctrl-p  */
-#define GRUB_TERM_DOWN		14	/* ctrl-n  */
+#define GRUB_TERM_UP		0xfa
+#define GRUB_TERM_DOWN		0xfb
 #define GRUB_TERM_HOME		1	/* ctrl-a  */
 #define GRUB_TERM_END		5	/* ctrl-e  */
 #define GRUB_TERM_DC		4	/* ctrl-d  */
