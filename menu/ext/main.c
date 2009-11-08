@@ -387,6 +387,33 @@ add_user_menu (grub_uitree_t node, grub_menu_t menu)
     }
 }
 
+static void
+check_default (grub_uitree_t node)
+{
+  grub_uitree_t child;
+  char *default_item;
+
+  default_item = grub_env_get ("default");
+  if (! default_item)
+    return;
+
+  child = node->child;
+  while (child)
+    {
+      char *parm, *title;
+
+      parm = grub_uitree_get_prop (child, "parameters");
+      title = grub_dialog_get_parm (child, parm, "title");
+      if ((title) && (! grub_strcmp (title, default_item)))
+	{
+	  grub_widget_select_node (child, 1);
+	  return;
+	}
+
+      child = grub_tree_next_node (GRUB_AS_TREE (node), GRUB_AS_TREE (child));
+    }
+}
+
 static grub_err_t
 show_menu (grub_menu_t menu, int nested)
 {
@@ -407,6 +434,7 @@ show_menu (grub_menu_t menu, int nested)
 
       add_user_menu (node, menu);
       add_sys_menu (node);
+      check_default (node);
 
       if (! grub_menu_region_get_current ())
 	{
