@@ -80,8 +80,18 @@ grub_video_color_t
 grub_video_fb_map_color (grub_uint32_t color_name);
 
 grub_video_color_t
+grub_video_fbblit_map_rgb (struct grub_video_mode_info *mode_info,
+			   grub_uint8_t red, grub_uint8_t green,
+			   grub_uint8_t blue);
+
+grub_video_color_t
 grub_video_fb_map_rgb (grub_uint8_t red, grub_uint8_t green,
 		       grub_uint8_t blue);
+
+grub_video_color_t
+grub_video_fbblit_map_rgba (struct grub_video_mode_info *mode_info,
+			    grub_uint8_t red, grub_uint8_t green,
+			    grub_uint8_t blue, grub_uint8_t alpha);
 
 grub_video_color_t
 grub_video_fb_map_rgba (grub_uint8_t red, grub_uint8_t green,

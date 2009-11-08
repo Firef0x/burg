@@ -119,6 +119,11 @@ bin_UTILITIES += grub-editenv
 grub_editenv_SOURCES = util/grub-editenv.c lib/envblk.c util/misc.c kern/misc.c kern/err.c
 CLEANFILES += grub-editenv
 
+# for grub-mkpasswd
+bin_UTILITIES += grub-mkpasswd
+grub_mkpasswd_SOURCES = util/grub-mkpasswd.c lib/md5_password.c util/misc.c kern/misc.c kern/err.c
+CLEANFILES += grub-mkpasswd
+
 # Needed for genmk.rb to work
 ifeq (0,1)
 bin_UTILITIES += grub-macho2img grub-pe2elf
@@ -393,7 +398,7 @@ pkglib_MODULES += minicmd.mod extcmd.mod hello.mod handler.mod	\
 	coreui.mod loadcfg.mod
 
 # For password.mod.
-password_mod_SOURCES = commands/password.c
+password_mod_SOURCES = commands/password.c lib/md5_password.c
 password_mod_CFLAGS = $(COMMON_CFLAGS)
 password_mod_LDFLAGS = $(COMMON_LDFLAGS)
 

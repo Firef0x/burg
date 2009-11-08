@@ -19,7 +19,7 @@
 
 #include <grub/mm.h>
 #include <grub/misc.h>
-#include <grub/video.h>
+#include <grub/video_fb.h>
 #include <grub/bitmap.h>
 #include <grub/bitmap_scale.h>
 #include <grub/fbutil.h>
@@ -87,6 +87,16 @@ grub_video_bitmap_create_scaled_internal (struct grub_video_bitmap **dst,
     }
 }
 
+static grub_video_color_t
+map_color (struct grub_video_mode_info *mode_info, grub_video_color_t color)
+{
+  grub_uint8_t red, green, blue, alpha;
+
+  red = green = blue = alpha = 0;  
+  grub_video_unmap_color (color, &red, &green, &blue, &alpha);
+  return grub_video_fbblit_map_rgba (mode_info, red, green, blue, alpha);
+}
+
 grub_err_t
 grub_video_bitmap_create_scaled (struct grub_video_bitmap **dst,
 				 int dst_width, int dst_height,
@@ -140,9 +150,10 @@ grub_video_bitmap_create_scaled (struct grub_video_bitmap **dst,
 				  src->mode_info.blit_format);
   if (ret != GRUB_ERR_NONE)
     return ret;                 /* Error. */
-
+  
   dst_info.mode_info = &(*dst)->mode_info;
   dst_info.data = (*dst)->data;
+  color = map_color (dst_info.mode_info, color);
 
   switch (type)
     {

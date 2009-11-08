@@ -85,7 +85,7 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	commands/handler.c commands/ls.c commands/test.c 		\
 	commands/search.c commands/blocklist.c commands/hexdump.c	\
 	commands/gptsync.c commands/probe.c commands/xnu_uuid.c		\
-	commands/password.c commands/keystatus.c			\
+	commands/password.c lib/md5_password.c commands/keystatus.c	\
 	lib/hexdump.c menu/tree.c menu/uitree.c				\
 	lib/envblk.c commands/loadenv.c					\
 	disk/host.c disk/loopback.c					\

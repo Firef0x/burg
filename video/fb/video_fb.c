@@ -40,7 +40,9 @@ GRUB_EXPORT(grub_video_fb_get_viewport);
 GRUB_EXPORT(grub_video_fb_init);
 GRUB_EXPORT(grub_video_fb_map_color);
 GRUB_EXPORT(grub_video_fb_map_rgb);
+GRUB_EXPORT(grub_video_fbblit_map_rgb);
 GRUB_EXPORT(grub_video_fb_map_rgba);
+GRUB_EXPORT(grub_video_fbblit_map_rgba);
 GRUB_EXPORT(grub_video_fb_scroll);
 GRUB_EXPORT(grub_video_fb_set_active_render_target);
 GRUB_EXPORT(grub_video_fb_set_palette);
@@ -210,11 +212,11 @@ grub_video_fb_map_color (grub_uint32_t color_name)
 
 /* Maps RGB to target optimized color format.  */
 grub_video_color_t
-grub_video_fb_map_rgb (grub_uint8_t red, grub_uint8_t green,
-		       grub_uint8_t blue)
+grub_video_fbblit_map_rgb (struct grub_video_mode_info *mode_info,
+			   grub_uint8_t red, grub_uint8_t green,
+			   grub_uint8_t blue)
 {
-  if ((render_target->mode_info.mode_type
-       & GRUB_VIDEO_MODE_TYPE_INDEX_COLOR) != 0)
+  if ((mode_info->mode_type & GRUB_VIDEO_MODE_TYPE_INDEX_COLOR) != 0)
     {
       int minindex = 0;
       int delta = 0;
@@ -246,12 +248,11 @@ grub_video_fb_map_rgb (grub_uint8_t red, grub_uint8_t green,
 
       return minindex;
     }
-  else if ((render_target->mode_info.mode_type
-            & GRUB_VIDEO_MODE_TYPE_1BIT_BITMAP) != 0)
+  else if ((mode_info->mode_type & GRUB_VIDEO_MODE_TYPE_1BIT_BITMAP) != 0)
     {
-       if (red == render_target->mode_info.fg_red
-           && green == render_target->mode_info.fg_green
-           && blue == render_target->mode_info.fg_blue)
+       if (red == mode_info->fg_red
+           && green == mode_info->fg_green
+           && blue == mode_info->fg_blue)
          return 1;
        else
          return 0;
@@ -261,38 +262,45 @@ grub_video_fb_map_rgb (grub_uint8_t red, grub_uint8_t green,
       grub_uint32_t value;
       grub_uint8_t alpha = 255; /* Opaque color.  */
 
-      red >>= 8 - render_target->mode_info.red_mask_size;
-      green >>= 8 - render_target->mode_info.green_mask_size;
-      blue >>= 8 - render_target->mode_info.blue_mask_size;
-      alpha >>= 8 - render_target->mode_info.reserved_mask_size;
+      red >>= 8 - mode_info->red_mask_size;
+      green >>= 8 - mode_info->green_mask_size;
+      blue >>= 8 - mode_info->blue_mask_size;
+      alpha >>= 8 - mode_info->reserved_mask_size;
 
-      value = red << render_target->mode_info.red_field_pos;
-      value |= green << render_target->mode_info.green_field_pos;
-      value |= blue << render_target->mode_info.blue_field_pos;
-      value |= alpha << render_target->mode_info.reserved_field_pos;
+      value = red << mode_info->red_field_pos;
+      value |= green << mode_info->green_field_pos;
+      value |= blue << mode_info->blue_field_pos;
+      value |= alpha << mode_info->reserved_field_pos;
 
       return value;
     }
 
 }
 
+grub_video_color_t
+grub_video_fb_map_rgb (grub_uint8_t red, grub_uint8_t green,
+		       grub_uint8_t blue)
+{
+  return grub_video_fbblit_map_rgb (&render_target->mode_info,
+				    red, green, blue);
+}
+
 /* Maps RGBA to target optimized color format.  */
 grub_video_color_t
-grub_video_fb_map_rgba (grub_uint8_t red, grub_uint8_t green,
-			grub_uint8_t blue, grub_uint8_t alpha)
+grub_video_fbblit_map_rgba (struct grub_video_mode_info *mode_info,
+			    grub_uint8_t red, grub_uint8_t green,
+			    grub_uint8_t blue, grub_uint8_t alpha)
 {
-  if ((render_target->mode_info.mode_type
-       & GRUB_VIDEO_MODE_TYPE_INDEX_COLOR) != 0)
+  if ((mode_info->mode_type & GRUB_VIDEO_MODE_TYPE_INDEX_COLOR) != 0)
     /* No alpha available in index color modes, just use
        same value as in only RGB modes.  */
-    return grub_video_fb_map_rgb (red, green, blue);
-  else if ((render_target->mode_info.mode_type
-            & GRUB_VIDEO_MODE_TYPE_1BIT_BITMAP) != 0)
+    return grub_video_fbblit_map_rgb (mode_info, red, green, blue);
+  else if ((mode_info->mode_type & GRUB_VIDEO_MODE_TYPE_1BIT_BITMAP) != 0)
     {
-      if (red == render_target->mode_info.fg_red
-          && green == render_target->mode_info.fg_green
-          && blue == render_target->mode_info.fg_blue
-          && alpha == render_target->mode_info.fg_alpha)
+      if (red == mode_info->fg_red
+          && green == mode_info->fg_green
+          && blue == mode_info->fg_blue
+          && alpha == mode_info->fg_alpha)
         return 1;
       else
         return 0;
@@ -301,18 +309,26 @@ grub_video_fb_map_rgba (grub_uint8_t red, grub_uint8_t green,
     {
       grub_uint32_t value;
 
-      red >>= 8 - render_target->mode_info.red_mask_size;
-      green >>= 8 - render_target->mode_info.green_mask_size;
-      blue >>= 8 - render_target->mode_info.blue_mask_size;
-      alpha >>= 8 - render_target->mode_info.reserved_mask_size;
+      red >>= 8 - mode_info->red_mask_size;
+      green >>= 8 - mode_info->green_mask_size;
+      blue >>= 8 - mode_info->blue_mask_size;
+      alpha >>= 8 - mode_info->reserved_mask_size;
 
-      value = red << render_target->mode_info.red_field_pos;
-      value |= green << render_target->mode_info.green_field_pos;
-      value |= blue << render_target->mode_info.blue_field_pos;
-      value |= alpha << render_target->mode_info.reserved_field_pos;
+      value = red << mode_info->red_field_pos;
+      value |= green << mode_info->green_field_pos;
+      value |= blue << mode_info->blue_field_pos;
+      value |= alpha << mode_info->reserved_field_pos;
 
       return value;
     }
+}
+
+grub_video_color_t
+grub_video_fb_map_rgba (grub_uint8_t red, grub_uint8_t green,
+			grub_uint8_t blue, grub_uint8_t alpha)
+{
+  return grub_video_fbblit_map_rgba (&render_target->mode_info,
+				     red, green, blue, alpha);
 }
 
 /* Splits target optimized format to components.  */

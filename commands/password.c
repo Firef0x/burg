@@ -23,14 +23,36 @@
 #include <grub/env.h>
 #include <grub/normal.h>
 #include <grub/dl.h>
+#include <grub/lib/md5_password.h>
+
+#define PASSWORD_PLAIN	1
+#define PASSWORD_MD5	2
 
 static grub_dl_t my_mod;
 
 static int
 check_password (const char *user __attribute__ ((unused)),
-		const char *entered, void *password)
+		const char *entered, void *data)
 {
-  return (grub_auth_strcmp (entered, password) == 0);
+  char *password = data;
+  
+  if (! entered)
+    entered = "";
+
+  if (! password)
+    return 0;
+  
+  switch (password[0])
+    {
+    case PASSWORD_PLAIN:
+      return (grub_strcmp (entered, password + 1) == 0);
+
+    case PASSWORD_MD5:
+      return (grub_check_md5_password (entered, password + 1) == 0);
+      
+    default:
+      return 0;
+    }
 }
 
 static grub_err_t
@@ -39,13 +61,26 @@ grub_cmd_password (grub_command_t cmd __attribute__ ((unused)),
 {
   grub_err_t err;
   char *pass;
+  int type;
 
+  if ((argc > 0) && (! grub_strcmp (args[0], "--md5")))
+    {
+      type = PASSWORD_MD5;
+      argc--;
+      args++;
+    }
+  else
+    type = PASSWORD_PLAIN;
+    
   if (argc != 2)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, "Two arguments expected.");
 
-  pass = grub_strdup (args[1]);
+  pass = grub_malloc (grub_strlen (args[1]) + 2);
   if (!pass)
     return grub_errno;
+
+  pass[0] = type;
+  grub_strcpy (pass + 1, args[1]);  
 
   err = grub_auth_register_authentication (args[0], check_password, pass);
   if (err)
@@ -63,7 +98,7 @@ GRUB_MOD_INIT(password)
 {
   my_mod = mod;
   cmd = grub_register_command ("password", grub_cmd_password,
-			       "password USER PASSWORD",
+			       "password [--md5] USER PASSWORD",
 			       "Set user password (plaintext). "
 			       "Unrecommended and insecure.");
 }

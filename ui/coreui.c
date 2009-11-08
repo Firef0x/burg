@@ -843,7 +843,8 @@ progressbar_fini_size (grub_widget_t widget)
   p = grub_widget_get_prop (widget->node, "color");
   if (! p)
     p = "";
-      
+
+  fill = bg_fill = 0;
   color = grub_menu_parse_color (p, &fill, &bg_color, &bg_fill);
 
   data->bar = (grub_menu_region_common_t)
@@ -1266,6 +1267,52 @@ edit_handle_key (grub_widget_t widget, int key)
 	}
 
       scroll_y = 1;
+    }
+  else if (key == '\r')
+    {
+      int i;
+      
+      if (data->max_lines == 1)
+	return GRUB_WIDGET_RESULT_DONE;
+
+      data->line++;
+      data->num_lines++;
+      if ((data->num_lines & (LINE_INC_STEP - 1)) == 0)
+	{
+	  data->lines = grub_realloc (data->lines,
+				      (data->num_lines + LINE_INC_STEP) *
+				      sizeof (void *));
+	  if (! data->lines)
+	    return grub_errno;
+
+	  grub_memset (data->lines + data->num_lines, 0,
+		       LINE_INC_STEP * sizeof (void *));
+	}
+
+      for (i = data->num_lines - 1; i > data->line; i--)
+	{
+	  data->lines[i] = data->lines[i - 1];
+	  data->lines[i]->common.ofs_y += data->font_height;
+	}
+
+      data->y += data->font_height;
+      data->lines[data->line] =
+	grub_menu_region_create_text (font, 0, line + data->pos);
+      data->lines[data->line]->common.ofs_y = data->y;
+      
+      line[data->pos] = 0;
+      data->lines[data->line - 1]->common.width =
+	grub_menu_region_get_text_width (font, line, 0, 0);
+      data->lines[data->line - 1]->common.ofs_x = 0;
+      data->x = 0;
+      data->pos = 0;
+	
+      update_x = 0;
+      update_width = widget->width;
+      update_height = (data->num_lines - data->line + 1) * data->font_height;
+      
+      scroll_y = 1;
+      data->modified = 1;
     }
   else if (key == GRUB_TERM_NPAGE)
     {
@@ -1976,7 +2023,7 @@ grub_gfxmenu_putchar (grub_uint32_t c)
 
   if (c == '\n')
     edit_handle_key (cur_term, GRUB_TERM_DOWN);
-  else
+  else if (c != '\r')
     {
       int width;
       struct edit_data *data;
