@@ -25,6 +25,7 @@
 #include <grub/command.h>
 #include <grub/handler.h>
 #include <grub/normal.h>
+#include <grub/lib.h>
 
 struct grub_handler_list
 {
@@ -186,7 +187,7 @@ read_handler_list (void)
 		{
 		  char *p;
 
-		  buf = grub_file_getline (file);
+		  buf = grub_getline (file);
 
 		  if (! buf)
 		    break;

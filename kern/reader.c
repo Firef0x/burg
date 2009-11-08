@@ -22,13 +22,7 @@
 #include <grub/reader.h>
 #include <grub/parser.h>
 
-GRUB_EXPORT(grub_reader_class);
 GRUB_EXPORT(grub_reader_loop);
-
-struct grub_handler_class grub_reader_class =
-  {
-    .name = "reader"
-  };
 
 grub_err_t
 grub_reader_loop (grub_reader_getline_t getline)
@@ -36,17 +30,15 @@ grub_reader_loop (grub_reader_getline_t getline)
   while (1)
     {
       char *line;
-      grub_reader_getline_t func;
 
       /* Print an error, if any.  */
       grub_print_error ();
       grub_errno = GRUB_ERR_NONE;
 
-      func = (getline) ? : grub_reader_get_current ()->read_line;
-      if ((func (&line, 0)) || (! line))
+      if ((getline (&line, 0)) || (! line))
 	return grub_errno;
 
-      grub_parser_get_current ()->parse_line (line, func);
+      grub_parser_get_current ()->parse_line (line, getline);
       grub_free (line);
     }
 }

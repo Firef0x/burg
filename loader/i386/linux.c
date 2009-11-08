@@ -20,7 +20,6 @@
 #include <grub/machine/machine.h>
 #include <grub/machine/memory.h>
 #include <grub/machine/loader.h>
-#include <grub/normal.h>
 #include <grub/file.h>
 #include <grub/disk.h>
 #include <grub/err.h>
@@ -34,6 +33,8 @@
 #include <grub/video_fb.h>
 #include <grub/command.h>
 #include <grub/i386/pc/vbe.h>
+#include <grub/env.h>
+#include <grub/lib.h>
 
 #define GRUB_LINUX_CL_OFFSET		0x1000
 #define GRUB_LINUX_CL_END_OFFSET	0x2000

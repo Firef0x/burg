@@ -24,7 +24,7 @@
 #include <grub/command.h>
 #include <grub/menu.h>
 #include <grub/lib/arg.h>
-#include <grub/normal.h>
+#include <grub/lib.h>
 
 static grub_err_t
 grub_script_execute_cmd (struct grub_script_cmd *cmd)
@@ -229,8 +229,8 @@ grub_script_execute_menuentry (struct grub_script_cmd *cmd)
 	}
     }
 
-  grub_normal_add_menu_entry (argcount, (const char **) args,
-			      cmd_menuentry->sourcecode);
+  grub_menu_entry_add (argcount, (const char **) args,
+		       cmd_menuentry->sourcecode);
 
   /* Free arguments.  */
   for (i = 0; i < argcount; i++)

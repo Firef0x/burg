@@ -17,17 +17,31 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/normal.h>
 #include <grub/disk.h>
 #include <grub/fs.h>
 #include <grub/err.h>
 #include <grub/misc.h>
 #include <grub/mm.h>
 #include <grub/datetime.h>
+#include <grub/lib.h>
+#include <grub/term.h>
+
+GRUB_EXPORT(grub_wait_after_message);
+GRUB_EXPORT(grub_print_device_info);
+
+/* Wait until the user pushes any key so that the user
+   can see what happened.  */
+void
+grub_wait_after_message (void)
+{
+  grub_printf ("\nPress any key to continue...");
+  (void) grub_getkey ();
+  grub_putchar ('\n');
+}
 
 /* Print the information on the device NAME.  */
 grub_err_t
-grub_normal_print_device_info (const char *name)
+grub_print_device_info (const char *name)
 {
   grub_device_t dev;
   char *p;

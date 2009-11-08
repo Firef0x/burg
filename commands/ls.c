@@ -27,7 +27,7 @@
 #include <grub/term.h>
 #include <grub/partition.h>
 #include <grub/file.h>
-#include <grub/normal.h>
+#include <grub/lib.h>
 #include <grub/extcmd.h>
 #include <grub/datetime.h>
 
@@ -48,7 +48,7 @@ grub_ls_list_devices (int longlist)
   int grub_ls_print_devices (const char *name)
     {
       if (longlist)
-	grub_normal_print_device_info (name);
+	grub_print_device_info (name);
       else
 	grub_printf ("(%s) ", name);
 
@@ -187,7 +187,7 @@ grub_ls_list_files (char *dirname, int longlist, int all, int human)
       if (grub_errno == GRUB_ERR_UNKNOWN_FS)
 	grub_errno = GRUB_ERR_NONE;
 
-      grub_normal_print_device_info (device_name);
+      grub_print_device_info (device_name);
     }
   else if (fs)
     {

@@ -17,7 +17,6 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/normal.h>
 #include <grub/dl.h>
 #include <grub/env.h>
 #include <grub/misc.h>
@@ -25,6 +24,7 @@
 #include <grub/machine/init.h>
 #include <grub/machine/vbe.h>
 #include <grub/err.h>
+#include <grub/command.h>
 
 static grub_err_t
 grub_cmd_vbetest (grub_command_t cmd __attribute__ ((unused)),

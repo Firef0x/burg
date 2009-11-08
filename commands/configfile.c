@@ -20,7 +20,7 @@
 #include <grub/dl.h>
 #include <grub/term.h>
 #include <grub/env.h>
-#include <grub/normal.h>
+#include <grub/menu.h>
 #include <grub/command.h>
 
 static grub_err_t
@@ -39,7 +39,7 @@ grub_cmd_source (grub_command_t cmd, int argc, char **args)
       grub_env_context_open (1);
     }
 
-  grub_normal_execute (args[0], 1, ! new_env);
+  grub_menu_execute (args[0], 1, ! new_env);
 
   if (new_env)
     grub_env_context_close ();

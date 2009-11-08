@@ -74,15 +74,9 @@ grub_rescue_read_line (char **line, int cont)
   return 0;
 }
 
-static struct grub_reader grub_rescue_reader =
-  {
-    .name = "rescue",
-    .init = grub_rescue_init,
-    .read_line = grub_rescue_read_line
-  };
-
 void
-grub_register_rescue_reader (void)
+grub_rescue_reader (void)
 {
-  grub_reader_register ("rescue", &grub_rescue_reader);
+  grub_rescue_init ();
+  grub_reader_loop (grub_rescue_read_line);
 }

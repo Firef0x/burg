@@ -22,7 +22,7 @@
 #include <grub/mm.h>
 #include <grub/misc.h>
 #include <grub/efiemu/efiemu.h>
-#include <grub/lib/crc.h>
+#include <grub/lib.h>
 
 grub_err_t
 SUFFIX (grub_efiemu_prepare) (struct grub_efiemu_prepare_hook *prepare_hooks,

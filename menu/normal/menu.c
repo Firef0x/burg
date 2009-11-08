@@ -17,7 +17,7 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/normal.h>
+#include <grub/normal_menu.h>
 #include <grub/misc.h>
 #include <grub/loader.h>
 #include <grub/mm.h>

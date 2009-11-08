@@ -18,7 +18,7 @@
 
 #include <grub/types.h>
 #include <grub/util/misc.h>
-#include <grub/lib/md5_password.h>
+#include <grub/lib.h>
 #include <grub/handler.h>
 
 #include <stdio.h>

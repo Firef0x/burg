@@ -23,6 +23,7 @@
 #include <grub/misc.h>
 #include <grub/command.h>
 #include <grub/normal.h>
+#include <grub/lib.h>
 
 static grub_err_t
 grub_dyncmd_dispatcher (struct grub_command *cmd,
@@ -90,7 +91,7 @@ read_command_list (void)
 		  grub_command_t cmd;
 		  int prio = 0;
 
-		  buf = grub_file_getline (file);
+		  buf = grub_getline (file);
 
 		  if (! buf)
 		    break;

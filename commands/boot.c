@@ -17,12 +17,12 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/normal.h>
 #include <grub/dl.h>
 #include <grub/misc.h>
 #include <grub/loader.h>
 #include <grub/kernel.h>
 #include <grub/mm.h>
+#include <grub/command.h>
 
 GRUB_EXPORT(grub_loader_is_loaded);
 GRUB_EXPORT(grub_loader_set);

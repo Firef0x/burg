@@ -1140,7 +1140,7 @@ check_timeout (grub_uitree_t root)
 	{
 	  key = GRUB_TERM_ASCII_CHAR (grub_getkey ());
 	  left = 0;
-	}      
+	}
     }
 
   return key;

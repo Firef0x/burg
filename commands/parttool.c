@@ -23,7 +23,8 @@
 #include <grub/mm.h>
 #include <grub/err.h>
 #include <grub/dl.h>
-#include <grub/normal.h>
+#include <grub/env.h>
+#include <grub/lib.h>
 #include <grub/device.h>
 #include <grub/disk.h>
 #include <grub/partition.h>
@@ -199,7 +200,7 @@ grub_cmd_parttool (grub_command_t cmd __attribute__ ((unused)),
 		  {
 		    char *p, *name;
 
-		    buf = grub_file_getline (file);
+		    buf = grub_getline (file);
 
 		    if (! buf)
 		      break;

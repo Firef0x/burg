@@ -17,13 +17,18 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/normal.h>
+#include <grub/dl.h>
 #include <grub/term.h>
 #include <grub/misc.h>
 #include <grub/loader.h>
 #include <grub/mm.h>
 #include <grub/time.h>
 #include <grub/env.h>
+#include <grub/lib.h>
+#include <grub/auth.h>
+#include <grub/reader.h>
+#include <grub/parser.h>
+#include <grub/normal_menu.h>
 #include <grub/menu_viewer.h>
 
 /* Time to delay after displaying an error message about a default/fallback
@@ -32,16 +37,6 @@
 
 static grub_uint8_t grub_color_menu_normal;
 static grub_uint8_t grub_color_menu_highlight;
-
-/* Wait until the user pushes any key so that the user
-   can see what happened.  */
-void
-grub_wait_after_message (void)
-{
-  grub_printf ("\nPress any key to continue...");
-  (void) grub_getkey ();
-  grub_putchar ('\n');
-}
 
 static void
 draw_border (void)
@@ -124,7 +119,7 @@ print_entry (int y, int highlight, grub_menu_entry_t entry)
     return;
 
   len = grub_utf8_to_ucs4 (unicode_title, title_len,
-                           (grub_uint8_t *) title, -1, 0);
+			   (grub_uint8_t *) title, -1, 0);
   if (len < 0)
     {
       /* It is an invalid sequence.  */
@@ -348,7 +343,7 @@ run_menu (grub_menu_t menu, int nested, int *auto_boot)
       if (timeout == 0)
 	{
 	  grub_env_unset ("timeout");
-          *auto_boot = 1;
+	  *auto_boot = 1;
 	  return default_entry;
 	}
 
@@ -359,8 +354,8 @@ run_menu (grub_menu_t menu, int nested, int *auto_boot)
 	  if (timeout >= 0)
 	    {
 	      grub_gotoxy (0, GRUB_TERM_HEIGHT - 3);
-              grub_printf ("\
-                                                                        ");
+	      grub_printf ("\
+									");
 	      grub_env_unset ("timeout");
 	      grub_env_unset ("fallback");
 	      grub_gotoxy (GRUB_TERM_CURSOR_X, GRUB_TERM_FIRST_ENTRY_Y + offset);
@@ -476,7 +471,7 @@ run_menu (grub_menu_t menu, int nested, int *auto_boot)
 	    case '\r':
 	    case 6:
 	      grub_setcursor (1);
-              *auto_boot = 0;
+	      *auto_boot = 0;
 	      return first + offset;
 
 	    case '\e':
@@ -556,6 +551,12 @@ static struct grub_menu_execute_callback execution_callback =
 static grub_err_t
 show_text_menu (grub_menu_t menu, int nested)
 {
+  if ((! menu) && (! nested))
+    {
+      grub_cmdline_run (0);
+      return 0;
+    }
+
   while (1)
     {
       int boot_entry;
@@ -574,20 +575,20 @@ show_text_menu (grub_menu_t menu, int nested)
       grub_setcursor (1);
 
       if (auto_boot)
-        {
-          grub_menu_execute_with_fallback (menu, e, &execution_callback, 0);
-        }
+	{
+	  grub_menu_execute_with_fallback (menu, e, &execution_callback, 0);
+	}
       else
-        {
-          grub_errno = GRUB_ERR_NONE;
-          grub_menu_execute_entry (e);
-          if (grub_errno != GRUB_ERR_NONE)
-            {
-              grub_print_error ();
-              grub_errno = GRUB_ERR_NONE;
-              grub_wait_after_message ();
-            }
-        }
+	{
+	  grub_errno = GRUB_ERR_NONE;
+	  grub_menu_execute_entry (e);
+	  if (grub_errno != GRUB_ERR_NONE)
+	    {
+	      grub_print_error ();
+	      grub_errno = GRUB_ERR_NONE;
+	      grub_wait_after_message ();
+	    }
+	}
     }
 
   return GRUB_ERR_NONE;
@@ -595,6 +596,140 @@ show_text_menu (grub_menu_t menu, int nested)
 
 struct grub_menu_viewer grub_normal_text_menu_viewer =
 {
-  .name = "text",
+  .name = "normal",
   .show_menu = show_text_menu
 };
+
+/* Initialize the screen.  */
+void
+grub_normal_init_page (void)
+{
+  grub_uint8_t width, margin;
+
+#define TITLE ("GNU GRUB  version " PACKAGE_VERSION)
+
+  width = grub_getwh () >> 8;
+  margin = (width - (sizeof(TITLE) + 7)) / 2;
+
+  grub_cls ();
+  grub_putchar ('\n');
+
+  while (margin--)
+    grub_putchar (' ');
+
+  grub_printf ("%s\n\n", TITLE);
+
+#undef TITLE
+}
+
+grub_err_t
+grub_normal_check_authentication (const char *userlist)
+{
+  char login[1024], entered[1024];
+
+  if (grub_auth_check_password (userlist, 0, 0))
+    return GRUB_ERR_NONE;
+
+  grub_memset (login, 0, sizeof (login));
+  if (!grub_cmdline_get ("Enter username: ", login, sizeof (login) - 1,
+			 0, 0, 0))
+    return GRUB_ACCESS_DENIED;
+
+  grub_memset (&entered, 0, sizeof (entered));
+  if (!grub_cmdline_get ("Enter password: ",  entered, sizeof (entered) - 1,
+			 '*', 0, 0))
+    return GRUB_ACCESS_DENIED;
+
+  return (grub_auth_check_password (userlist, login, entered)) ?
+    GRUB_ERR_NONE : GRUB_ACCESS_DENIED;
+}
+
+static char cmdline[GRUB_MAX_CMDLINE];
+
+int reader_nested;
+
+static grub_err_t
+grub_normal_read_line (char **line, int cont)
+{
+  grub_parser_t parser = grub_parser_get_current ();
+  char prompt[8 + grub_strlen (parser->name)];
+
+  grub_sprintf (prompt, "%s:%s> ", parser->name, (cont) ? "" : "grub");
+
+  while (1)
+    {
+      cmdline[0] = 0;
+      if (grub_cmdline_get (prompt, cmdline, sizeof (cmdline), 0, 1, 1))
+	break;
+
+      if ((reader_nested) || (cont))
+	{
+	  *line = 0;
+	  return grub_errno;
+	}
+    }
+
+  *line = grub_strdup (cmdline);
+  return 0;
+}
+
+void
+grub_cmdline_run (int nested)
+{
+  grub_err_t err = GRUB_ERR_NONE;
+
+  err = grub_normal_check_authentication (NULL);
+
+  if (err)
+    {
+      grub_print_error ();
+      grub_errno = GRUB_ERR_NONE;
+      return;
+    }
+
+  grub_normal_init_page ();
+  grub_setcursor (1);
+
+  grub_printf ("\
+ [ Minimal BASH-like line editing is supported. For the first word, TAB\n\
+   lists possible command completions. Anywhere else TAB lists possible\n\
+   device/file completions.%s ]\n\n",
+	       nested ? " ESC at any time exits." : "");
+
+  reader_nested = nested;
+  grub_reader_loop (grub_normal_read_line);
+}
+
+static char *
+grub_env_write_pager (struct grub_env_var *var __attribute__ ((unused)),
+		      const char *val)
+{
+  grub_set_more ((*val == '1'));
+  return grub_strdup (val);
+}
+
+GRUB_MOD_INIT(nmenu)
+{
+  grub_menu_viewer_register ("normal", &grub_normal_text_menu_viewer);
+
+  grub_register_variable_hook ("pager", 0, grub_env_write_pager);
+
+  /* Reload terminal colors when these variables are written to.  */
+  grub_register_variable_hook ("color_normal", NULL,
+			       grub_env_write_color_normal);
+  grub_register_variable_hook ("color_highlight", NULL,
+			       grub_env_write_color_highlight);
+
+  /* Preserve hooks after context changes.  */
+  grub_env_export ("color_normal");
+  grub_env_export ("color_highlight");
+}
+
+GRUB_MOD_FINI(nmenu)
+{
+  grub_menu_viewer_unregister (&grub_normal_text_menu_viewer);
+
+  grub_register_variable_hook ("pager", 0, 0);
+  grub_register_variable_hook ("color_normal", 0, 0);
+  grub_register_variable_hook ("color_highlight", 0, 0);
+}

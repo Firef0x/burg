@@ -18,8 +18,9 @@
 
 #include <grub/misc.h>
 #include <grub/mm.h>
-#include <grub/normal.h>
+#include <grub/normal_menu.h>
 #include <grub/term.h>
+#include <grub/lib.h>
 
 /* Borrowed from GRUB Legacy */
 static char *color_list[16] =

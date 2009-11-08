@@ -24,7 +24,7 @@
 
 #include <grub/file.h>
 #include <grub/err.h>
-#include <grub/normal.h>
+#include <grub/env.h>
 #include <grub/mm.h>
 #include <grub/dl.h>
 #include <grub/misc.h>

@@ -21,9 +21,9 @@
 #include <grub/mm.h>
 #include <grub/misc.h>
 #include <grub/env.h>
-#include <grub/normal.h>
 #include <grub/dl.h>
-#include <grub/lib/md5_password.h>
+#include <grub/lib.h>
+#include <grub/command.h>
 
 #define PASSWORD_PLAIN	1
 #define PASSWORD_MD5	2

@@ -25,6 +25,8 @@
 #include <grub/widget.h>
 #include <grub/dialog.h>
 #include <grub/menu_data.h>
+#include <grub/menu_region.h>
+#include <grub/menu_viewer.h>
 
 static const struct grub_arg_option options[] =
   {
@@ -176,176 +178,6 @@ grub_cmd_popup (grub_extcmd_t cmd, int argc, char **args)
 }
 
 static grub_err_t
-grub_cmd_start (grub_command_t cmd __attribute__ ((unused)),
-		int argc __attribute__ ((unused)),
-		char **args __attribute__ ((unused)))
-{
-  grub_uint8_t c1, c2;
-  grub_uitree_t node;
-  grub_term_output_t output;
-
-  node = get_screen ();
-  if (! node)
-    return grub_errno;
-
-  grub_getcolor (&c1, &c2);
-  output = grub_term_get_current_output ();
-  grub_command_execute ("terminal_output.gfxmenu", 0, 0);
-  if (grub_widget_create (node) == GRUB_ERR_NONE)
-    {
-      grub_widget_init (node);
-      grub_widget_input (node, 0);
-    }
-  grub_widget_free (node);
-
-  grub_term_set_current_output (output);
-  grub_setcolor (c1, c2);
-  grub_setcolorstate (GRUB_TERM_COLOR_NORMAL);
-
-  return grub_errno;
-}
-
-static grub_uitree_t
-create_node (grub_uitree_t menu, grub_uitree_t tree, int *num,
-	     const char *menu_template, const char *item_template)
-{
-  grub_uitree_t node;
-  char *parm, *p;
-
-  node = grub_dialog_create (item_template, 1, 0, 0, 0);
-  if (! node)
-    return 0;
-
-  parm = grub_uitree_get_prop (node, "parameters");
-
-  grub_dialog_set_parm (node, parm, "title", menu->name);
-  p = grub_uitree_get_prop (menu, "class");
-  if (p)
-    grub_dialog_set_parm (node, parm, "class", p);
-
-  p = grub_uitree_get_prop (menu, "users");
-  if (p)
-    grub_dialog_set_parm (node, parm, "users", p);
-
-  p = grub_uitree_get_prop (menu, "save");
-  if (p)
-    grub_dialog_set_parm (node, parm, "save", p);
-
-  if (menu->child)
-    {
-      char buf[sizeof ("menu_popup -ri XXXXX menu_tree")];
-      grub_uitree_t sub, child;
-
-      sub = grub_dialog_create (menu_template, 1, 0, 0, 0);
-      if (! sub)
-	{
-	  grub_uitree_free (node);
-	  return 0;
-	}
-
-      grub_strcpy (buf, "menu_popup -");
-      p = buf + sizeof ("menu_popup -") - 1;
-      if (grub_uitree_get_prop (sub, "absolute") == 0)
-	*(p++) = 'r';
-      grub_sprintf (p, "i %d menu_tree", *num - menu->parent->flags - 1);
-      grub_uitree_set_prop (node, "command", buf);
-
-      grub_tree_add_child (GRUB_AS_TREE (tree), GRUB_AS_TREE (sub), -1);
-      child = grub_uitree_find_id (sub, "__child__");
-      menu->data = (child) ? child : sub;
-      menu->flags = *num;
-      (*num)++;
-    }
-  else
-    {
-      char *cmd;
-
-      cmd = grub_uitree_get_prop (menu, "command");
-      if (cmd)
-	grub_uitree_set_prop (node, "command", cmd);
-    }
-
-  return node;
-}
-
-static grub_err_t
-grub_cmd_create (grub_command_t cmd __attribute__ ((unused)),
-		 int argc, char **args)
-{
-  grub_uitree_t menu, node, tree;
-  char *def;
-  int num;
-
-  if (argc < 2)
-    grub_error (GRUB_ERR_BAD_ARGUMENT, "not enough parameters");
-
-  menu = grub_uitree_find (&grub_uitree_root, "menu");
-  if (! menu)
-    grub_error (GRUB_ERR_BAD_ARGUMENT, "menu not found");
-
-  node = get_screen ();
-  if (! node)
-    return grub_errno;
-
-  node = grub_uitree_find_id (node, "__menu__");
-  if (! node)
-    grub_error (GRUB_ERR_BAD_ARGUMENT, "id not found");
-
-  tree = grub_uitree_find (&grub_uitree_root, "menu_tree");
-  if (tree)
-    {
-      grub_tree_remove_node (GRUB_AS_TREE (tree));
-      grub_uitree_free (tree);
-    }
-  tree = grub_uitree_create_node ("menu_tree");
-  if (! tree)
-    return grub_errno;
-  grub_tree_add_child (GRUB_AS_TREE (&grub_uitree_root), GRUB_AS_TREE (tree),
-		       -1);
-
-  def = grub_env_get ("default");
-  if (! def)
-    def = "";
-  
-  num = 1;
-  menu = menu->child;
-  while (menu)
-    {
-      grub_uitree_t child;
-      grub_uitree_t n;
-
-      n = create_node (menu, tree, &num, args[0], args[1]);
-      if (! n)
-	return grub_errno;
-
-      grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (n), -1);
-      if (! grub_strcmp (menu->name, def))
-	grub_widget_select_node (n, 1);
-      
-      child = menu->child;
-      while (child)
-	{
-	  grub_uitree_t parent;
-
-	  n = create_node (child, tree, &num, args[0], args[1]);
-	  if (! n)
-	    return grub_errno;
-
-	  parent = child->parent->data;
-	  if (! parent)
-	    grub_error (GRUB_ERR_BAD_ARGUMENT, "parant shouldn't be null");
-
-	  grub_tree_add_child (GRUB_AS_TREE (parent), GRUB_AS_TREE (n), -1);
-	  child = grub_tree_next_node (GRUB_AS_TREE (menu),
-				       GRUB_AS_TREE (child));
-	}
-      menu = menu->next;
-    }
-
-  return grub_errno;
-}
-
-static grub_err_t
 grub_cmd_refresh (grub_command_t cmd __attribute__ ((unused)),
 		  int argc __attribute__ ((unused)),
 		  char **args __attribute__ ((unused)))
@@ -389,11 +221,244 @@ grub_cmd_toggle_mode (grub_command_t cmd __attribute__ ((unused)),
   return grub_errno;
 }
 
-static grub_extcmd_t cmd_popup, cmd_edit;
-static grub_command_t cmd_start, cmd_create, cmd_refresh, cmd_toggle_mode;
-
-GRUB_MOD_INIT(menucmd)
+static grub_uitree_t
+create_node (grub_uitree_t menu, grub_uitree_t tree, int *num)
 {
+  grub_uitree_t node;
+  char *parm, *p;
+
+  node = grub_dialog_create ("template_menuitem", 1, 0, 0, 0);
+  if (! node)
+    return 0;
+
+  parm = grub_uitree_get_prop (node, "parameters");
+
+  grub_dialog_set_parm (node, parm, "title", menu->name);
+  p = grub_uitree_get_prop (menu, "class");
+  if (p)
+    grub_dialog_set_parm (node, parm, "class", p);
+
+  p = grub_uitree_get_prop (menu, "users");
+  if (p)
+    grub_dialog_set_parm (node, parm, "users", p);
+
+  p = grub_uitree_get_prop (menu, "save");
+  if (p)
+    grub_dialog_set_parm (node, parm, "save", p);
+
+  if (menu->child)
+    {
+      char buf[sizeof ("menu_popup -ri XXXXX menu_tree")];
+      grub_uitree_t sub, child;
+
+      sub = grub_dialog_create ("template_submenu", 1, 0, 0, 0);
+      if (! sub)
+	{
+	  grub_uitree_free (node);
+	  return 0;
+	}
+
+      grub_strcpy (buf, "menu_popup -");
+      p = buf + sizeof ("menu_popup -") - 1;
+      if (grub_uitree_get_prop (sub, "absolute") == 0)
+	*(p++) = 'r';
+      grub_sprintf (p, "i %d menu_tree", *num - menu->parent->flags - 1);
+      grub_uitree_set_prop (node, "command", buf);
+
+      grub_tree_add_child (GRUB_AS_TREE (tree), GRUB_AS_TREE (sub), -1);
+      child = grub_uitree_find_id (sub, "__child__");
+      menu->data = (child) ? child : sub;
+      menu->flags = *num;
+      (*num)++;
+    }
+  else
+    {
+      char *cmd;
+
+      cmd = grub_uitree_get_prop (menu, "command");
+      if (cmd)
+	grub_uitree_set_prop (node, "command", cmd);
+    }
+
+  return node;
+}
+
+static void
+add_sys_menu (grub_uitree_t node)
+{
+  grub_uitree_t menu, tree;
+  int num;
+
+  menu = grub_uitree_find (&grub_uitree_root, "menu");
+  if (! menu)
+    return;
+
+  tree = grub_uitree_find (&grub_uitree_root, "menu_tree");
+  if (tree)
+    {
+      grub_tree_remove_node (GRUB_AS_TREE (tree));
+      grub_uitree_free (tree);
+    }
+  tree = grub_uitree_create_node ("menu_tree");
+  if (! tree)
+    return;
+  grub_tree_add_child (GRUB_AS_TREE (&grub_uitree_root), GRUB_AS_TREE (tree),
+		       -1);
+
+  num = 1;
+  menu = menu->child;
+  while (menu)
+    {
+      grub_uitree_t child;
+      grub_uitree_t n;
+
+      n = create_node (menu, tree, &num);
+      if (! n)
+	return;
+
+      grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (n), -1);
+
+      child = menu->child;
+      while (child)
+	{
+	  grub_uitree_t parent;
+
+	  n = create_node (child, tree, &num);
+	  if (! n)
+	    return;
+
+	  parent = child->parent->data;
+	  if (! parent)
+	    {
+	      grub_error (GRUB_ERR_BAD_ARGUMENT, "parant shouldn't be null");
+	      return;
+	    }
+
+	  grub_tree_add_child (GRUB_AS_TREE (parent), GRUB_AS_TREE (n), -1);
+	  child = grub_tree_next_node (GRUB_AS_TREE (menu),
+				       GRUB_AS_TREE (child));
+	}
+      menu = menu->next;
+    }
+}
+
+static void
+add_user_menu (grub_uitree_t node, grub_menu_t menu)
+{
+  grub_menu_entry_t entry;
+
+  if (! menu)
+    return;
+
+  entry = menu->entry_list;
+  while (entry)
+    {
+      grub_uitree_t item;
+      char *parm;
+
+      item = grub_dialog_create ("template_menuitem", 1, 0, 0, 0);
+      if (! item)
+	return;
+
+      parm = grub_uitree_get_prop (item, "parameters");
+      if (entry->title)
+	grub_dialog_set_parm (item, parm, "title", entry->title);
+
+      if (entry->classes->next)
+	grub_dialog_set_parm (item, parm, "class", entry->classes->next->name);
+
+      if (entry->users)
+	grub_uitree_set_prop (item, "users", entry->users);
+
+      if (entry->save != -1)
+	{
+	  char v[2];
+
+	  v[0] = '0' + entry->save;
+	  v[1] = 0;
+	  grub_uitree_set_prop (item, "save", v);
+	}
+
+      if (entry->sourcecode)
+	grub_uitree_set_prop (item, "command", entry->sourcecode);
+
+      grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (item), -1);
+      entry = entry->next;
+    }
+}
+
+static grub_err_t
+show_menu (grub_menu_t menu, int nested)
+{
+  grub_uitree_t root;
+
+  root = get_screen ();
+  if (! root)
+    return grub_errno;
+
+  if (! nested)
+    {
+      grub_uitree_t node;
+      grub_term_output_t output;
+
+      node = grub_uitree_find_id (root, "__menu__");
+      if (! node)
+	grub_error (GRUB_ERR_BAD_ARGUMENT, "menu not found");
+
+      add_user_menu (node, menu);
+      add_sys_menu (node);
+
+      if (! grub_menu_region_get_current ())
+	{
+	  grub_command_execute ("menu_region.text", 0, 0);
+	  if (grub_env_get ("gfxmode"))
+	    grub_command_execute ("menu_region.gfx", 0, 0);
+	}
+
+      output = grub_term_get_current_output ();
+      grub_command_execute ("terminal_output.gfxmenu", 0, 0);
+      if (grub_widget_create (root) == GRUB_ERR_NONE)
+	{
+	  grub_widget_init (root);
+	  grub_widget_input (root, 0);
+	}
+      grub_widget_free (root);
+      grub_term_set_current_output (output);
+    }
+  else
+    {
+      grub_uitree_t node, child;
+
+      node = grub_dialog_create ("template_submenu", 1, 0, 0, 0);
+      if (! node)
+	return grub_errno;
+
+      grub_tree_add_child (GRUB_AS_TREE (root), GRUB_AS_TREE (node), -1);
+      child = grub_uitree_find_id (node, "__child__");
+      if (! child)
+	child = node;
+      add_user_menu (child, menu);
+      set_position (root, node);
+      grub_dialog_popup (node);
+      grub_dialog_free (node, 0, 0);
+    }
+
+  return 0;
+}
+
+struct grub_menu_viewer grub_ext_menu_viewer =
+{
+  .name = "ext",
+  .show_menu = show_menu
+};
+
+static grub_extcmd_t cmd_popup, cmd_edit;
+static grub_command_t cmd_refresh, cmd_toggle_mode;
+
+GRUB_MOD_INIT(emenu)
+{
+  grub_menu_viewer_register ("ext", &grub_ext_menu_viewer);
+
   cmd_popup = grub_register_extcmd ("menu_popup", grub_cmd_popup,
 				    GRUB_COMMAND_FLAG_BOTH,
 				    "menu_popup [OPTIONS] NAME [PARM=VALUE]..",
@@ -402,12 +467,6 @@ GRUB_MOD_INIT(menucmd)
 				   GRUB_COMMAND_FLAG_BOTH,
 				   "menu_edit [OPTIONS] NAME [PARM=PARM1]..",
 				   "popup edit window", options);
-
-  cmd_start = grub_register_command ("menu_start", grub_cmd_start,
-				     0, "start menu");
-  cmd_create = grub_register_command ("menu_create", grub_cmd_create,
-				      "menu_create MENU_TEMP ITEM_TEMP",
-				      "create menu");
   cmd_refresh = grub_register_command ("menu_refresh", grub_cmd_refresh,
 				       0, "refresh menu");
   cmd_toggle_mode =
@@ -415,12 +474,12 @@ GRUB_MOD_INIT(menucmd)
 			   0, "toggle mode");
 }
 
-GRUB_MOD_FINI(menucmd)
+GRUB_MOD_FINI(emenu)
 {
+  grub_menu_viewer_unregister (&grub_ext_menu_viewer);
+
   grub_unregister_extcmd (cmd_popup);
   grub_unregister_extcmd (cmd_edit);
-  grub_unregister_command (cmd_start);
-  grub_unregister_command (cmd_create);
   grub_unregister_command (cmd_refresh);
   grub_unregister_command (cmd_toggle_mode);
 }

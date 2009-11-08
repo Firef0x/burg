@@ -20,61 +20,6 @@
 #ifndef GRUB_NORMAL_HEADER
 #define GRUB_NORMAL_HEADER	1
 
-#include <grub/symbol.h>
-#include <grub/err.h>
-#include <grub/env.h>
-#include <grub/menu.h>
-#include <grub/command.h>
-#include <grub/file.h>
-
-/* The maximum size of a command-line.  */
-#define GRUB_MAX_CMDLINE	1600
-
-/* The type of a completion item.  */
-enum grub_completion_type
-  {
-    GRUB_COMPLETION_TYPE_COMMAND,
-    GRUB_COMPLETION_TYPE_DEVICE,
-    GRUB_COMPLETION_TYPE_PARTITION,
-    GRUB_COMPLETION_TYPE_FILE,
-    GRUB_COMPLETION_TYPE_ARGUMENT
-  };
-typedef enum grub_completion_type grub_completion_type_t;
-
-extern struct grub_menu_viewer grub_normal_text_menu_viewer;
-
-
-/* Defined in `main.c'.  */
-void grub_enter_normal_mode (const char *config);
-void grub_normal_execute (const char *config, int nested, int batch);
-void grub_normal_init_page (void);
-void grub_menu_init_page (int nested, int edit);
-grub_err_t grub_normal_add_menu_entry (int argc, const char **args,
-				       const char *sourcecode);
-char *grub_file_getline (grub_file_t file);
-void grub_cmdline_run (int nested);
-grub_err_t grub_normal_check_authentication (const char *userlist);
-
-/* Defined in `cmdline.c'.  */
-int grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
-		      int echo_char, int readline, int history);
-grub_err_t grub_set_history (int newsize);
-
-/* Defined in `completion.c'.  */
-char *grub_normal_do_completion (char *buf, int *restore,
-				 void (*hook) (const char *item, grub_completion_type_t type, int count));
-
-/* Defined in `misc.c'.  */
-grub_err_t grub_normal_print_device_info (const char *name);
-
-/* Defined in `color.c'.  */
-char *grub_env_write_color_normal (struct grub_env_var *var, const char *val);
-char *grub_env_write_color_highlight (struct grub_env_var *var, const char *val);
-void grub_parse_color_name_pair (grub_uint8_t *ret, const char *name);
-
-/* Defined in `menu_text.c'.  */
-void grub_wait_after_message (void);
-
 /* Defined in `handler.c'.  */
 void read_handler_list (void);
 void free_handler_list (void);
@@ -84,7 +29,6 @@ void read_command_list (void);
 
 /* Defined in `autofs.c'.  */
 void read_fs_list (void);
-
 
 #ifdef GRUB_UTIL
 void grub_normal_init (void);

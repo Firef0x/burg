@@ -16,7 +16,7 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/normal.h>
+#include <grub/normal_menu.h>
 #include <grub/misc.h>
 #include <grub/term.h>
 #include <grub/err.h>
@@ -26,111 +26,9 @@
 #include <grub/disk.h>
 #include <grub/file.h>
 #include <grub/env.h>
+#include <grub/lib.h>
 
 static char *kill_buf;
-
-static int hist_size;
-static char **hist_lines = 0;
-static int hist_pos = 0;
-static int hist_end = 0;
-static int hist_used = 0;
-
-grub_err_t
-grub_set_history (int newsize)
-{
-  char **old_hist_lines = hist_lines;
-  hist_lines = grub_malloc (sizeof (char *) * newsize);
-
-  /* Copy the old lines into the new buffer.  */
-  if (old_hist_lines)
-    {
-      /* Remove the lines that don't fit in the new buffer.  */
-      if (newsize < hist_used)
-	{
-	  int i;
-	  int delsize = hist_used - newsize;
-	  hist_used = newsize;
-
-	  for (i = 1; i <= delsize; i++)
-	    {
-	      int pos = hist_end - i;
-	      if (pos < 0)
-		pos += hist_size;
-	      grub_free (old_hist_lines[pos]);
-	    }
-
-	  hist_end -= delsize;
-	  if (hist_end < 0)
-	    hist_end += hist_size;
-	}
-
-      if (hist_pos < hist_end)
-	grub_memmove (hist_lines, old_hist_lines + hist_pos,
-		      (hist_end - hist_pos) * sizeof (char *));
-      else if (hist_used)
-	{
-	  /* Copy the older part.  */
-	  grub_memmove (hist_lines, old_hist_lines + hist_pos,
- 			(hist_size - hist_pos) * sizeof (char *));
-
-	  /* Copy the newer part. */
-	  grub_memmove (hist_lines + hist_size - hist_pos, old_hist_lines,
-			hist_end * sizeof (char *));
-	}
-    }
-
-  grub_free (old_hist_lines);
-
-  hist_size = newsize;
-  hist_pos = 0;
-  hist_end = hist_used;
-  return 0;
-}
-
-/* Get the entry POS from the history where `0' is the newest
-   entry.  */
-static char *
-grub_history_get (int pos)
-{
-  pos = (hist_pos + pos) % hist_size;
-  return hist_lines[pos];
-}
-
-
-/* Insert a new history line S on the top of the history.  */
-static void
-grub_history_add (char *s)
-{
-  /* Remove the oldest entry in the history to make room for a new
-     entry.  */
-  if (hist_used + 1 > hist_size)
-    {
-      hist_end--;
-      if (hist_end < 0)
-	hist_end = hist_size + hist_end;
-
-      grub_free (hist_lines[hist_end]);
-    }
-  else
-    hist_used++;
-
-  /* Move to the next position.  */
-  hist_pos--;
-  if (hist_pos < 0)
-    hist_pos = hist_size + hist_pos;
-
-  /* Insert into history.  */
-  hist_lines[hist_pos] = grub_strdup (s);
-}
-
-/* Replace the history entry on position POS with the string S.  */
-static void
-grub_history_replace (int pos, char *s)
-{
-  pos = (hist_pos + pos) % hist_size;
-  grub_free (hist_lines[pos]);
-  hist_lines[pos] = grub_strdup (s);
-}
 
 /* A completion hook to print items.  */
 static void
@@ -168,7 +66,7 @@ print_completion (const char *item, grub_completion_type_t type, int count)
 
   if (type == GRUB_COMPLETION_TYPE_PARTITION)
     {
-      grub_normal_print_device_info (item);
+      grub_print_device_info (item);
       grub_errno = GRUB_ERR_NONE;
     }
   else
@@ -280,7 +178,7 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 
   cl_insert (cmdline);
 
-  if (history && hist_used == 0)
+  if (history && grub_history_used () == 0)
     grub_history_add (buf);
 
   while ((key = GRUB_TERM_ASCII_CHAR (grub_getkey ())) != '\n' && key != '\r')
@@ -325,9 +223,7 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 		char backup = buf[lpos];
 		buf[lpos] = '\0';
 
-
-		insert = grub_normal_do_completion (buf, &restore,
-						    print_completion);
+		insert = grub_complete (buf, &restore, print_completion);
 		/* Restore the original string.  */
 		buf[lpos] = backup;
 
@@ -384,7 +280,7 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 
 		lpos = 0;
 
-		if (histpos < hist_used - 1)
+		if (histpos < grub_history_used () - 1)
 		  {
 		    grub_history_replace (histpos, buf);
 		    histpos++;

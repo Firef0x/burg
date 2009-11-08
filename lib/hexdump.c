@@ -19,7 +19,7 @@
 
 #include <grub/types.h>
 #include <grub/misc.h>
-#include <grub/lib/hexdump.h>
+#include <grub/lib.h>
 
 GRUB_EXPORT(hexdump);
 

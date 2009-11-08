@@ -21,6 +21,7 @@
 
 GRUB_EXPORT(grub_get_weekday);
 GRUB_EXPORT(grub_get_weekday_name);
+GRUB_EXPORT(grub_unixtime2datetime);
 
 static char *grub_weekday_names[] =
 {

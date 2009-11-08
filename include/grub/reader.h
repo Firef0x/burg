@@ -26,57 +26,8 @@
 
 typedef grub_err_t (*grub_reader_getline_t) (char **, int);
 
-struct grub_reader
-{
-  /* The next reader.  */
-  struct grub_parser *next;
-
-  /* The reader name.  */
-  const char *name;
-
-  /* Initialize the reader.  */
-  grub_err_t (*init) (void);
-
-  /* Clean up the reader.  */
-  grub_err_t (*fini) (void);
-
-  grub_reader_getline_t read_line;
-};
-typedef struct grub_reader *grub_reader_t;
-
-extern struct grub_handler_class grub_reader_class;
-
 grub_err_t grub_reader_loop (grub_reader_getline_t getline);
 
-#define grub_reader_register(name, reader) \
-  grub_reader_register_internal (reader); \
-  GRUB_MODATTR ("handler", "reader." name);
-
-static inline void
-grub_reader_register_internal (grub_reader_t reader)
-{
-  grub_handler_register (&grub_reader_class, GRUB_AS_HANDLER (reader));
-}
-
-static inline void
-grub_reader_unregister (grub_reader_t reader)
-{
-  grub_handler_unregister (&grub_reader_class, GRUB_AS_HANDLER (reader));
-}
-
-static inline grub_reader_t
-grub_reader_get_current (void)
-{
-  return (grub_reader_t) grub_reader_class.cur_handler;
-}
-
-static inline grub_err_t
-grub_reader_set_current (grub_reader_t reader)
-{
-  return grub_handler_set_current (&grub_reader_class,
-				   GRUB_AS_HANDLER (reader));
-}
-
-void grub_register_rescue_reader (void);
+void grub_rescue_reader (void);
 
 #endif /* ! GRUB_READER_HEADER */

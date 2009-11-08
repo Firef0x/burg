@@ -21,7 +21,7 @@
 #include <grub/disk.h>
 #include <grub/file.h>
 #include <grub/misc.h>
-#include <grub/lib/crc.h>
+#include <grub/lib.h>
 #include <grub/command.h>
 
 static grub_err_t

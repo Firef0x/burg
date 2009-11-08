@@ -22,7 +22,9 @@
  */
 
 #include <grub/misc.h>
-#include <grub/lib/md5_password.h>
+#include <grub/lib.h>
+
+GRUB_EXPORT(grub_md5_password);
 
 typedef unsigned int UINT4;
 

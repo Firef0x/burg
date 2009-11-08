@@ -33,7 +33,7 @@ util/grub-fstest.c_DEPENDENCIES = grub_fstest_init.h
 grub_fstest_SOURCES = util/grub-fstest.c util/hostfs.c util/misc.c 	\
 	kern/file.c kern/device.c kern/disk.c kern/err.c kern/misc.c	\
 	disk/host.c disk/loopback.c kern/list.c kern/command.c		\
-	lib/arg.c commands/extcmd.c normal/datetime.c normal/misc.c	\
+	lib/arg.c commands/extcmd.c lib/datetime.c lib/misc.c		\
 	lib/hexdump.c lib/crc.c commands/blocklist.c commands/ls.c 	\
 	\
 	fs/affs.c fs/cpio.c fs/fat.c fs/ext2.c fs/hfs.c			\
@@ -116,12 +116,14 @@ DISTCLEANFILES += grub_fstest_init.c
 
 # for grub-editenv
 bin_UTILITIES += grub-editenv
-grub_editenv_SOURCES = util/grub-editenv.c lib/envblk.c util/misc.c kern/misc.c kern/err.c
+grub_editenv_SOURCES = util/grub-editenv.c lib/envblk.c util/misc.c \
+	kern/misc.c kern/err.c
 CLEANFILES += grub-editenv
 
 # for grub-mkpasswd
 bin_UTILITIES += grub-mkpasswd
-grub_mkpasswd_SOURCES = util/grub-mkpasswd.c lib/md5_password.c util/misc.c kern/misc.c kern/err.c
+grub_mkpasswd_SOURCES = util/grub-mkpasswd.c lib/md5_password.c util/misc.c \
+	kern/misc.c kern/err.c
 CLEANFILES += grub-mkpasswd
 
 # Needed for genmk.rb to work
@@ -394,11 +396,11 @@ pkglib_MODULES += minicmd.mod extcmd.mod hello.mod handler.mod	\
 	read.mod sleep.mod loadenv.mod crc.mod parttool.mod	\
 	msdospart.mod memrw.mod normal.mod sh.mod 		\
 	gptsync.mod true.mod probe.mod password.mod		\
-	keystatus.mod menu.mod textmenu.mod gfxmenu.mod menucmd.mod \
-	coreui.mod loadcfg.mod
+	keystatus.mod lib.mod emenu.mod widget.mod txtrgn.mod	\
+	gfxrgn.mod coreui.mod loadcfg.mod nmenu.mod
 
 # For password.mod.
-password_mod_SOURCES = commands/password.c lib/md5_password.c
+password_mod_SOURCES = commands/password.c
 password_mod_CFLAGS = $(COMMON_CFLAGS)
 password_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
@@ -422,21 +424,40 @@ hello_mod_SOURCES = hello/hello.c
 hello_mod_CFLAGS = $(COMMON_CFLAGS)
 hello_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
-# For menu.mod.
-menu_mod_SOURCES = menu/region.c menu/tree.c menu/uitree.c menu/widget.c \
-	menu/data_type.c menu/dialog.c lib/auth.c
-menu_mod_CFLAGS = $(COMMON_CFLAGS)
-menu_mod_LDFLAGS = $(COMMON_LDFLAGS)
+# For lib.mod.
+lib_mod_SOURCES = lib/tree.c lib/uitree.c lib/auth.c lib/md5_password.c \
+	lib/datetime.c lib/completion.c lib/misc.c lib/crc.c \
+	lib/hexdump.c lib/getline.c lib/history.c lib/menu_entry.c \
+	lib/menu_viewer.c
+lib_mod_CFLAGS = $(COMMON_CFLAGS)
+lib_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
-# For textmenu.mod
-textmenu_mod_SOURCES = menu/text_region.c
-textmenu_mod_CFLAGS = $(COMMON_CFLAGS)
-textmenu_mod_LDFLAGS = $(COMMON_LDFLAGS)
+# For nmenu.mod.
+nmenu_mod_SOURCES = menu/normal/main.c menu/normal/color.c menu/normal/menu.c \
+	menu/normal/menu_entry.c menu/normal/cmdline.c 
+nmenu_mod_CFLAGS = $(COMMON_CFLAGS)
+nmenu_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
-# For gfxmenu.mod
-gfxmenu_mod_SOURCES = menu/gfx_region.c
-gfxmenu_mod_CFLAGS = $(COMMON_CFLAGS)
-gfxmenu_mod_LDFLAGS = $(COMMON_LDFLAGS)
+# For emenu.mod.
+emenu_mod_SOURCES = menu/ext/main.c
+emenu_mod_CFLAGS = $(COMMON_CFLAGS)
+emenu_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For widget.mod.
+widget_mod_SOURCES = menu/ext/region.c menu/ext/widget.c menu/ext/data_type.c \
+	menu/ext/dialog.c
+widget_mod_CFLAGS = $(COMMON_CFLAGS)
+widget_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For txtrgn.mod
+txtrgn_mod_SOURCES = menu/ext/text_region.c
+txtrgn_mod_CFLAGS = $(COMMON_CFLAGS)
+txtrgn_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For gfxrgn.mod
+gfxrgn_mod_SOURCES = menu/ext/gfx_region.c
+gfxrgn_mod_CFLAGS = $(COMMON_CFLAGS)
+gfxrgn_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For menucmd.mod
 menucmd_mod_SOURCES = commands/menucmd.c
@@ -452,27 +473,6 @@ loadcfg_mod_LDFLAGS = $(COMMON_LDFLAGS)
 coreui_mod_SOURCES = ui/coreui.c
 coreui_mod_CFLAGS = $(COMMON_CFLAGS)
 coreui_mod_LDFLAGS = $(COMMON_LDFLAGS)
-
-# For gfxmenu.mod.
-#gfxmenu_mod_SOURCES = \
-#	gfxmenu/gfxmenu.c \
-#	gfxmenu/model.c \
-#	gfxmenu/view.c \
-#	gfxmenu/icon_manager.c \
-#	gfxmenu/theme_loader.c \
-#	gfxmenu/widget-box.c \
-#	gfxmenu/gui_canvas.c \
-#	gfxmenu/gui_circular_progress.c \
-#	gfxmenu/gui_box.c \
-#	gfxmenu/gui_label.c \
-#	gfxmenu/gui_list.c \
-#	gfxmenu/gui_image.c \
-#	gfxmenu/gui_progress_bar.c \
-#	gfxmenu/gui_util.c \
-#	gfxmenu/gui_string_util.c \
-#	gfxmenu/named_colors.c
-#gfxmenu_mod_CFLAGS = $(COMMON_CFLAGS)
-#gfxmenu_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For parttool.mod.
 parttool_mod_SOURCES = commands/parttool.c
@@ -555,7 +555,7 @@ blocklist_mod_CFLAGS = $(COMMON_CFLAGS)
 blocklist_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For hexdump.mod.
-hexdump_mod_SOURCES = commands/hexdump.c lib/hexdump.c
+hexdump_mod_SOURCES = commands/hexdump.c
 hexdump_mod_CFLAGS = $(COMMON_CFLAGS)
 hexdump_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
@@ -575,7 +575,7 @@ loadenv_mod_CFLAGS = $(COMMON_CFLAGS)
 loadenv_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For crc.mod.
-crc_mod_SOURCES = commands/crc.c lib/crc.c
+crc_mod_SOURCES = commands/crc.c
 crc_mod_CFLAGS = $(COMMON_CFLAGS)
 crc_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
@@ -600,11 +600,8 @@ keystatus_mod_CFLAGS = $(COMMON_CFLAGS)
 keystatus_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For normal.mod.
-normal_mod_SOURCES = normal/main.c normal/cmdline.c normal/dyncmd.c \
-	normal/autofs.c normal/handler.c \
-	normal/color.c normal/completion.c normal/datetime.c normal/menu.c \
-	normal/menu_entry.c normal/menu_text.c normal/menu_viewer.c \
-	normal/misc.c
+normal_mod_SOURCES = normal/main.c normal/dyncmd.c normal/autofs.c \
+	normal/handler.c
 normal_mod_CFLAGS = $(COMMON_CFLAGS)
 normal_mod_LDFLAGS = $(COMMON_LDFLAGS)
 

@@ -17,7 +17,6 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/normal.h>
 #include <grub/misc.h>
 #include <grub/err.h>
 #include <grub/mm.h>
@@ -26,6 +25,9 @@
 #include <grub/file.h>
 #include <grub/parser.h>
 #include <grub/extcmd.h>
+#include <grub/lib.h>
+
+GRUB_EXPORT(grub_complete);
 
 /* The current word.  */
 static char *current_word;
@@ -392,8 +394,8 @@ get_state (const char *cmdline)
    completions by calling HOOK, in that case set RESTORE to 1 so the
    caller can restore the prompt.  */
 char *
-grub_normal_do_completion (char *buf, int *restore,
-			   void (*hook) (const char *, grub_completion_type_t, int))
+grub_complete (char *buf, int *restore,
+	       void (*hook) (const char *, grub_completion_type_t, int))
 {
   int argc;
   char **argv;

@@ -22,7 +22,7 @@
 #include <grub/dl.h>
 #include <grub/misc.h>
 #include <grub/mm.h>
-#include <grub/lib/hexdump.h>
+#include <grub/lib.h>
 #include <grub/extcmd.h>
 
 static const struct grub_arg_option options[] = {

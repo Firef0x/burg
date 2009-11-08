@@ -23,6 +23,7 @@
 #include <grub/misc.h>
 #include <grub/fs.h>
 #include <grub/normal.h>
+#include <grub/lib.h>
 
 /* This is used to store the names of filesystem modules for auto-loading.  */
 struct grub_fs_module_list
@@ -86,7 +87,7 @@ read_fs_list (void)
 		  char *q;
 		  grub_fs_module_list_t fs_mod;
 
-		  buf = grub_file_getline (file);
+		  buf = grub_getline (file);
 		  if (! buf)
 		    break;
 

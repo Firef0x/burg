@@ -28,8 +28,7 @@
 #include <grub/env.h>
 #include <grub/term.h>
 #include <grub/mm.h>
-#include <grub/lib/hexdump.h>
-#include <grub/lib/crc.h>
+#include <grub/lib.h>
 #include <grub/command.h>
 
 #include <grub_fstest_init.h>

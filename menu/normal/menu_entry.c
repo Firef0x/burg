@@ -16,7 +16,7 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/normal.h>
+#include <grub/normal_menu.h>
 #include <grub/term.h>
 #include <grub/misc.h>
 #include <grub/mm.h>
@@ -24,6 +24,7 @@
 #include <grub/command.h>
 #include <grub/parser.h>
 #include <grub/auth.h>
+#include <grub/lib.h>
 
 enum update_mode
   {
@@ -893,7 +894,7 @@ complete (struct screen *screen, int continuous, int update)
   saved_char = linep->buf[screen->column];
   linep->buf[screen->column] = '\0';
 
-  insert = grub_normal_do_completion (linep->buf, &restore, store_completion);
+  insert = grub_complete (linep->buf, &restore, store_completion);
 
   linep->buf[screen->column] = saved_char;
 

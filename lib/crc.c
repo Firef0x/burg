@@ -19,7 +19,7 @@
 
 #include <grub/types.h>
 #include <grub/symbol.h>
-#include <grub/lib/crc.h>
+#include <grub/lib.h>
 
 GRUB_EXPORT(grub_getcrc32);
 
