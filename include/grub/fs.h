@@ -71,6 +71,11 @@ struct grub_fs
 
   /* Get writing time of filesystem. */
   grub_err_t (*mtime) (grub_device_t device, grub_int32_t *timebuf);
+
+#ifdef GRUB_UTIL
+  /* Whether this filesystem reserves first sector for DOS-style boot.  */
+  int reserved_first_sector;
+#endif
 };
 typedef struct grub_fs *grub_fs_t;
 

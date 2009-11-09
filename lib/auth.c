@@ -21,7 +21,7 @@
 #include <grub/mm.h>
 #include <grub/misc.h>
 #include <grub/env.h>
-#include <grub/normal.h>
+#include <grub/time.h>
 
 GRUB_EXPORT(grub_auth_authenticate);
 GRUB_EXPORT(grub_auth_strcmp);
@@ -221,11 +221,14 @@ is_authenticated (const char *userlist)
   return grub_list_iterate (GRUB_AS_LIST (users), hook);
 }
 
+static unsigned long punishment_delay = 1;
+
 int
 grub_auth_check_password (const char *userlist, const char *login,
 			  const char *password)
 {
   struct grub_auth_user *cur = NULL;
+  int result = 0;
 
   auto int hook (grub_list_t item);
   int hook (grub_list_t item)
@@ -245,8 +248,17 @@ grub_auth_check_password (const char *userlist, const char *login,
   if ((cur) && (cur->callback (login, password, cur->arg)))
     {
       grub_auth_authenticate (login);
-      return (is_authenticated (userlist));
+      result = (is_authenticated (userlist));
     }
 
-  return 0;
+  if (result)
+    punishment_delay = 1;
+  else
+    {
+      grub_sleep (punishment_delay);
+      if (punishment_delay < GRUB_ULONG_MAX / 2)
+	punishment_delay *= 2;
+    }
+
+  return result;
 }
