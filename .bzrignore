@@ -1,0 +1,6 @@
+./conf/*.mk
+./DISTLIST
+./autom4te.cache
+./configure
+./stamp-h.in
+./config.h.in
