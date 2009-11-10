@@ -147,11 +147,7 @@ FDECL2(stat_filter, char *, path, struct stat *, st)
 int
 FDECL2(lstat_filter, char *, path, struct stat *, st)
 {
-#ifdef __MINGW32__
-  int result = stat(path, st);
-#else
   int result = lstat(path, st);
-#endif
   if (result >= 0 && rationalize)
     stat_fix(st);
   return result;
@@ -1884,13 +1880,8 @@ void init_fstatbuf()
 	}
       else
 	{
-#ifdef __MINGW32__
-	  fstatbuf.st_uid = 0;
-	  fstatbuf.st_gid = 0;
-#else
 	  fstatbuf.st_uid = getuid();
 	  fstatbuf.st_gid = getgid();
-#endif
 	}
       fstatbuf.st_ctime = current_time;
       fstatbuf.st_mtime = current_time;

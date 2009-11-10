@@ -58,13 +58,19 @@ grub_auth_strcmp (const char *user_input, const char *template)
 int
 grub_auth_strcmp (const char *user_input, const char *template)
 {
-  if (! user_input)
-    user_input = "";
+  char result = 0;
 
-  if (! template)
-    template = "";
+  while (1)
+    {
+      result |= (*user_input ^ *template);
+      if (*user_input == 0)
+	break;
 
-  return (grub_strcmp (user_input, template) != 0);
+      user_input++;
+      template++;
+    }
+
+  return (result != 0);
 }
 
 static int
@@ -221,13 +227,12 @@ is_authenticated (const char *userlist)
   return grub_list_iterate (GRUB_AS_LIST (users), hook);
 }
 
-static unsigned long punishment_delay = 1;
-
 int
 grub_auth_check_password (const char *userlist, const char *login,
 			  const char *password)
 {
   struct grub_auth_user *cur = NULL;
+  static unsigned long punishment_delay = 1;
   int result = 0;
 
   auto int hook (grub_list_t item);
@@ -239,7 +244,10 @@ grub_auth_check_password (const char *userlist, const char *login,
   }
 
   if (is_authenticated (userlist))
-    return 1;
+    {
+      punishment_delay = 1;
+      return 1;
+    }
 
   if (! login)
     return 0;

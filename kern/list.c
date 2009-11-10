@@ -19,6 +19,7 @@
 
 #include <grub/list.h>
 #include <grub/misc.h>
+#include <grub/mm.h>
 
 GRUB_EXPORT(grub_list_push);
 GRUB_EXPORT(grub_list_pop);
@@ -90,7 +91,7 @@ grub_list_insert (grub_list_t *head, grub_list_t item,
 void *
 grub_named_list_find (grub_named_list_t head, const char *name)
 {
-  grub_named_list_t result = 0;
+  grub_named_list_t result = NULL;
 
   auto int list_find (grub_named_list_t item);
   int list_find (grub_named_list_t item)

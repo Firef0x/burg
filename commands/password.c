@@ -45,7 +45,7 @@ check_password (const char *user __attribute__ ((unused)),
   switch (password[0])
     {
     case PASSWORD_PLAIN:
-      return (grub_strcmp (entered, password + 1) == 0);
+      return (grub_auth_strcmp (entered, password + 1) == 0);
 
     case PASSWORD_MD5:
       return (grub_check_md5_password (entered, password + 1) == 0);
