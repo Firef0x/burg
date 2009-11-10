@@ -21,6 +21,8 @@
 #include <grub/machine/init.h>
 #include <grub/misc.h>
 
+GRUB_EXPORT(grub_halt);
+
 const char bochs_shutdown[] = "Shutdown";
 
 void

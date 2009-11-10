@@ -25,6 +25,8 @@
 #include <grub/misc.h>
 #include <grub/i386/cmos.h>
 
+GRUB_EXPORT(grub_machine_mmap_iterate);
+
 #define QEMU_CMOS_MEMSIZE_HIGH		0x35
 #define QEMU_CMOS_MEMSIZE_LOW		0x34
 

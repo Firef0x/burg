@@ -18,6 +18,8 @@
 
 #include <grub/symbol.h>
 
+GRUB_EXPORT(grub_stop)
+
 	.text
 /*
  *  This call is special...  it never returns...  in fact it should simply

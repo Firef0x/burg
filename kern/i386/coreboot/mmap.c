@@ -21,6 +21,8 @@
 #include <grub/err.h>
 #include <grub/misc.h>
 
+GRUB_EXPORT(grub_machine_mmap_iterate);
+
 static grub_err_t
 grub_linuxbios_table_iterate (int (*hook) (grub_linuxbios_table_item_t))
 {

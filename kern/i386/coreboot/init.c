@@ -40,6 +40,11 @@
 #define GRUB_FLOPPY_REG_DIGITAL_OUTPUT		0x3f2
 
 GRUB_EXPORT(grub_stop_floppy);
+GRUB_EXPORT(grub_os_area_addr);
+GRUB_EXPORT(grub_os_area_size);
+GRUB_EXPORT(grub_get_rtc);
+GRUB_EXPORT(grub_stop_floppy);
+GRUB_EXPORT(grub_exit);
 
 grub_addr_t grub_os_area_addr;
 grub_size_t grub_os_area_size;
