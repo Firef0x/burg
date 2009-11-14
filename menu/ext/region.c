@@ -32,6 +32,8 @@ GRUB_EXPORT(grub_menu_region_check_rect);
 GRUB_EXPORT(grub_menu_region_add_update);
 GRUB_EXPORT(grub_menu_region_apply_update);
 
+grub_bitmap_cache_t cache_head;
+
 struct grub_handler_class grub_menu_region_class =
   {
     .name = "menu_region"
@@ -86,31 +88,48 @@ grub_menu_region_bitmap_t
 grub_menu_region_create_bitmap (const char *name, int scale,
 				grub_video_color_t color)
 {
-  grub_menu_region_bitmap_t region;
+  grub_menu_region_bitmap_t region = 0;
   struct grub_video_bitmap *bitmap;
+  grub_bitmap_cache_t cache = 0;
 
   if (! grub_cur_menu_region->get_bitmap)
     return 0;
 
-  bitmap = grub_cur_menu_region->get_bitmap (name);
-  if (! bitmap)
-    return 0;
-
   region = grub_zalloc (sizeof (*region));
   if (! region)
+    return 0;
+
+  cache = grub_named_list_find (GRUB_AS_NAMED_LIST_P (&cache_head), name);
+  if (cache)
+    bitmap = cache->bitmap;
+  else
     {
-      grub_video_bitmap_destroy (bitmap);
-      return 0;
+      cache = grub_zalloc (sizeof (*cache));
+      if (! cache)
+	goto quit;
+
+      bitmap = grub_cur_menu_region->get_bitmap (name);
+      if (! bitmap)
+	goto quit;
+
+      cache->bitmap = bitmap;
+      cache->name = grub_strdup (name);
+      grub_list_push (GRUB_AS_LIST_P (&cache_head), GRUB_AS_LIST (cache));
     }
 
+  cache->count++;
   region->common.type = GRUB_MENU_REGION_TYPE_BITMAP;
   region->common.width = bitmap->mode_info.width;
   region->common.height = bitmap->mode_info.height;
-  region->bitmap = bitmap;
+  region->cache = cache;
   region->scale = scale;
   region->color = color;
-
   return region;
+
+ quit:
+  grub_free (region);
+  grub_free (cache);
+  return 0;
 }
 
 void
@@ -128,17 +147,34 @@ grub_menu_region_scale (grub_menu_region_common_t region, int width,
     grub_cur_menu_region->scale_bitmap ((grub_menu_region_bitmap_t) region);
 }
 
+static void
+grub_bitmap_cache_free (grub_bitmap_cache_t cache)
+{
+  cache->count--;
+  if (cache->count == 0)
+    {
+      grub_list_remove (GRUB_AS_LIST_P (&cache_head), GRUB_AS_LIST (cache));
+      grub_cur_menu_region->free_bitmap (cache->bitmap);
+      grub_free ((char *) cache->name);
+      grub_free (cache);
+    }
+}
+
 void
 grub_menu_region_free (grub_menu_region_common_t region)
 {
   if (! region)
     return;
 
-  if (region->type == GRUB_MENU_REGION_TYPE_BITMAP)
+  if ((region->type == GRUB_MENU_REGION_TYPE_BITMAP) &&
+      (grub_cur_menu_region->free_bitmap))
     {
       grub_menu_region_bitmap_t r = (grub_menu_region_bitmap_t) region;
-      if (grub_cur_menu_region->free_bitmap)
+
+      if (r->bitmap)
 	grub_cur_menu_region->free_bitmap (r->bitmap);
+
+      grub_bitmap_cache_free (r->cache);
     }
 
   grub_free (region);

@@ -589,6 +589,9 @@ draw_child (grub_menu_region_update_list_t *head, grub_uitree_t node,
       grub_widget_t c;
       int cx, cy, cw, ch;
 
+      if (child->flags & GRUB_WIDGET_FLAG_HIDDEN)
+	continue;
+
       c = child->data;
       cx = widget->org_x + x - c->org_x;
       cy = widget->org_y + y - c->org_y;
@@ -636,6 +639,9 @@ grub_widget_draw_region (grub_menu_region_update_list_t *head,
 {
   grub_widget_t w;
   grub_uitree_t c;
+
+  if (node->flags & GRUB_WIDGET_FLAG_HIDDEN)
+    return;
 
   w = node->data;
   if (! grub_menu_region_check_rect (&x, &y, &width, &height,
@@ -1087,10 +1093,10 @@ run_dir_cmd (char *name)
 #define WAIT_TIME	5
 
 static int
-check_timeout (grub_uitree_t root)
+check_timeout (grub_uitree_t root, int *key)
 {
   char *p;
-  int total, left, has_key, key;
+  int total, left, has_key;
 
   p = grub_env_get ("timeout");
   if (! p)
@@ -1099,51 +1105,71 @@ check_timeout (grub_uitree_t root)
   total = grub_strtoul (p, 0, 0);
   has_key = (grub_checkkey () != -1);
   if ((has_key) || (! total))
-    return (has_key) ? GRUB_TERM_ASCII_CHAR (grub_getkey ()) : '\r';
+    {
+      *key = (has_key) ? GRUB_TERM_ASCII_CHAR (grub_getkey ()) : '\r';
+      return 0;
+    }
 
   grub_widget_draw (root);
+  root = grub_uitree_find_id (root, "__timeout__");
   total *= 10;
   left = total;
-  key = '\r';
-  while (1)
+  *key = '\r';
+  while (left > 0)
     {
-      grub_uitree_t child;
-      grub_menu_region_update_list_t head;
-
-      head = 0;
-      child = root;
-      while (child)
+      if (root)
 	{
-	  grub_widget_t widget;
+	  grub_uitree_t child;
+	  grub_menu_region_update_list_t head;
 
-	  widget = child->data;
-	  if ((widget) && (widget->class->set_timeout))
+	  head = 0;
+	  child = root;
+	  while (child)
 	    {
-	      widget->class->set_timeout (widget, total, left);
-	      if (left > 0)
-		widget->class->draw (widget, &head, 0, 0,
-				     widget->width, widget->height);
+	      grub_widget_t widget;
+
+	      widget = child->data;
+	      if ((widget) && (widget->class->set_timeout))
+		{
+		  widget->class->set_timeout (widget, total, left);
+		  if (left > 0)
+		    widget->class->draw (widget, &head, 0, 0,
+					 widget->width, widget->height);
+		}
+
+	      child = grub_tree_next_node (GRUB_AS_TREE (root),
+					   GRUB_AS_TREE (child));
 	    }
-
-	  child = grub_tree_next_node (GRUB_AS_TREE (root),
-				       GRUB_AS_TREE (child));
+	  grub_menu_region_apply_update (head);
 	}
-      grub_menu_region_apply_update (head);
-
-      if (left <= 0)
-	break;
 
       grub_millisleep (WAIT_TIME * 100);
       left -= WAIT_TIME;
 
       if (grub_checkkey () != -1)
 	{
-	  key = GRUB_TERM_ASCII_CHAR (grub_getkey ());
+	  *key = GRUB_TERM_ASCII_CHAR (grub_getkey ());
 	  left = 0;
 	}
     }
 
-  return key;
+  if (root)
+    {
+      grub_widget_t widget, parent;
+      grub_menu_region_update_list_t head;
+
+      widget = root->data;
+      parent = root->parent->data;
+      head = 0;
+      if (p)
+	draw_parent (&head, root->parent, widget->x + parent->inner_x,
+		     widget->y + parent->inner_y,
+		     widget->width, widget->height);
+      grub_menu_region_apply_update (head);
+      root->flags |= GRUB_WIDGET_FLAG_HIDDEN;
+    }
+
+  return 1;
 }
 
 static void
@@ -1178,7 +1204,7 @@ save_default (void)
 int
 grub_widget_input (grub_uitree_t root, int nested)
 {
-  int init = 0, c;
+  int init, c;
 
   root->flags |= (GRUB_WIDGET_FLAG_ROOT | GRUB_WIDGET_FLAG_ANCHOR);
 
@@ -1192,7 +1218,19 @@ grub_widget_input (grub_uitree_t root, int nested)
 	grub_widget_select_node (grub_widget_current_node, 1);
     }
 
-  c = (nested) ? 0 : check_timeout (root);
+  init = c = 0;
+  if (! nested)
+    init = check_timeout (root, &c);
+
+  if (! init)
+    {
+      grub_uitree_t node;
+
+      node = grub_uitree_find_id (root, "__timeout__");
+      if (node)
+	node->flags |= GRUB_WIDGET_FLAG_HIDDEN;
+    }
+
   while (1)
     {
       char *cmd, *users;

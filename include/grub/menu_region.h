@@ -57,10 +57,20 @@ struct grub_menu_region_text
 };
 typedef struct grub_menu_region_text *grub_menu_region_text_t;
 
+struct grub_bitmap_cache
+{
+  struct grub_bitmap_cache *next;
+  const char *name;
+  struct grub_video_bitmap *bitmap;
+  int count;
+};
+typedef struct grub_bitmap_cache *grub_bitmap_cache_t;
+
 struct grub_menu_region_bitmap
 {
   struct grub_menu_region_common common;
   struct grub_video_bitmap *bitmap;
+  struct grub_bitmap_cache *cache;
   int scale;
   grub_video_color_t color;
 };

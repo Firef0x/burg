@@ -19,6 +19,8 @@
 #include <config.h>
 #include <grub/types.h>
 #include <grub/util/misc.h>
+#include <grub/misc.h>
+#include <grub/handler.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,6 +30,33 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include <freetype/ftsynth.h>
+
+void
+grub_putchar (int c)
+{
+  putchar (c);
+}
+
+int
+grub_getkey (void)
+{
+  return -1;
+}
+
+struct grub_handler_class grub_term_input_class;
+struct grub_handler_class grub_term_output_class;
+
+void
+grub_refresh (void)
+{
+  fflush (stdout);
+}
+
+char *
+grub_env_get (const char *name __attribute__ ((unused)))
+{
+  return NULL;
+}
 
 #define GRUB_FONT_DEFAULT_SIZE		16
 
@@ -62,7 +91,9 @@ struct grub_font_info
   int min_y;
   int flags;
   int num_range;
+  int num_point;
   grub_uint32_t *ranges;
+  grub_uint32_t *points;
   struct grub_glyph_info *glyph;
 };
 
@@ -77,6 +108,8 @@ static struct option options[] =
   {"bold", no_argument, 0, 'b'},
   {"no-bitmap", no_argument, 0, 0x100},
   {"no-hinting", no_argument, 0, 0x101},
+  {"add-ascii", no_argument, 0, 0x102},
+  {"add-text", required_argument, 0, 't'},
   {"force-autohint", no_argument, 0, 'a'},
   {"help", no_argument, 0, 'h'},
   {"version", no_argument, 0, 'V'},
@@ -105,6 +138,8 @@ Usage: grub-mkfont [OPTIONS] FONT_FILES\n\
   -a, --force-autohint      force autohint\n\
   --no-hinting              disable hinting\n\
   --no-bitmap               ignore bitmap strikes when loading\n\
+  --add-ascii               add ascii characters\n\
+  --add-text,-t FILENAME    add characters from sample file\n\
   -h, --help                display this message and exit\n\
   -V, --version             print version information and exit\n\
   -v, --verbose             print verbose messages\n\
@@ -205,7 +240,7 @@ add_char (struct grub_font_info *font_info, FT_Face face,
 void
 add_font (struct grub_font_info *font_info, FT_Face face)
 {
-  if (font_info->num_range)
+  if ((font_info->num_range) || (font_info->num_point))
     {
       int i;
       grub_uint32_t j;
@@ -214,6 +249,9 @@ add_font (struct grub_font_info *font_info, FT_Face face)
 	for (j = font_info->ranges[i * 2]; j <= font_info->ranges[i * 2 + 1];
 	     j++)
 	  add_char (font_info, face, j);
+
+      for (i = 0; i < font_info->num_point; i++)
+	add_char (font_info, face, font_info->points[i]);
     }
   else
     {
@@ -268,7 +306,8 @@ print_glyphs (struct grub_font_info *font_info)
       grub_uint8_t *bitmap, mask;
 
       printf ("\nGlyph #%d, U+%04x\n", num, glyph->char_code);
-      printf ("Width %d, Height %d, X offset %d, Y offset %d, Device width %d\n",
+      printf ("Width %d, Height %d, X offset %d, Y offset %d,"
+	      "Device width %d\n",
 	      glyph->width, glyph->height, glyph->x_ofs, glyph->y_ofs,
 	      glyph->device_width);
 
@@ -389,7 +428,8 @@ write_font (struct grub_font_info *font_info, char *output_file)
 	font_info->desc = - font_info->min_y;
     }
 
-  write_be16_section ("ASCE", font_info->size - font_info->desc, &offset, file);
+  write_be16_section ("ASCE", font_info->size - font_info->desc,
+		      &offset, file);
   write_be16_section ("DESC", font_info->desc, &offset, file);
 
   if (font_verbosity > 0)
@@ -461,6 +501,70 @@ write_font (struct grub_font_info *font_info, char *output_file)
   fclose (file);
 }
 
+static void
+add_point (struct grub_font_info *font_info, grub_uint32_t a)
+{
+  int i;
+
+  for (i = 0; i < font_info->num_point; i++)
+    if (font_info->points[i] == a)
+      return;
+
+  if ((font_info->num_point & (GRUB_FONT_RANGE_BLOCK - 1)) == 0)
+    font_info->points = xrealloc (font_info->points,
+				  (font_info->num_point +
+				   GRUB_FONT_RANGE_BLOCK) *
+				  sizeof (grub_uint32_t));
+  font_info->points[font_info->num_point++] = a;
+}
+
+static void
+add_range (struct grub_font_info *font_info, grub_uint32_t a,
+	   grub_uint32_t b)
+{
+  if (a == b)
+    add_point (font_info, a);
+  else if (a < b)
+    {
+      if ((font_info->num_range & (GRUB_FONT_RANGE_BLOCK - 1)) == 0)
+	font_info->ranges = xrealloc (font_info->ranges,
+				     (font_info->num_range +
+				      GRUB_FONT_RANGE_BLOCK) *
+				      sizeof (grub_uint32_t) * 2);
+      font_info->ranges[font_info->num_range * 2] = a;
+      font_info->ranges[font_info->num_range * 2 + 1] = b;
+      font_info->num_range++;
+    }
+}
+
+static void
+add_file (struct grub_font_info *font_info, const char *name)
+{
+  grub_uint8_t *data;
+  const grub_uint8_t *ptr;
+  size_t size;
+  grub_uint32_t code;
+
+  size = grub_util_get_image_size (name);
+  data = grub_util_read_image (name);
+  ptr = (const grub_uint8_t *) data;
+  while ((ptr < data + size) &&
+	 (grub_utf8_to_ucs4 (&code, 1, ptr, -1, &ptr) > 0))
+    {
+      if ((code != 0) && (code != 0xfeff) &&
+	  (code != '\r') && (code != '\n'))
+	add_point (font_info, code);
+    }
+
+  free (data);
+}
+
+static grub_uint32_t box_chars[] =
+  {
+    0x250F, 0x2501, 0x2513, 0x2503, 0x2503, 0x2517, 0x2501, 0x251B,
+    0x2554, 0x2550, 0x2557, 0x2551, 0x2551, 0x255A, 0x2550, 0x255D, 0
+  };
+
 int
 main (int argc, char *argv[])
 {
@@ -477,7 +581,7 @@ main (int argc, char *argv[])
   /* Check for options.  */
   while (1)
     {
-      int c = getopt_long (argc, argv, "bao:n:i:s:d:r:hVv", options, 0);
+      int c = getopt_long (argc, argv, "bao:n:i:s:d:r:t:hVv", options, 0);
 
       if (c == -1)
 	break;
@@ -495,6 +599,16 @@ main (int argc, char *argv[])
 	  case 0x101:
 	    font_info.flags |= GRUB_FONT_FLAG_NOHINTING;
 	    break;
+
+	  case 0x102:
+	    {
+	      grub_uint32_t *c;
+
+	      add_range (&font_info, 32, 126);
+	      for (c = box_chars; *c; c++)
+		add_point (&font_info, *c);
+	      break;
+	    }
 
 	  case 'a':
 	    font_info.flags |= GRUB_FONT_FLAG_FORCEHINT;
@@ -525,18 +639,13 @@ main (int argc, char *argv[])
 		  grub_uint32_t a, b;
 
 		  a = strtoul (p, &p, 0);
-		  if (*p != '-')
-		    grub_util_error ("Invalid font range");
-		  b = strtoul (p + 1, &p, 0);
-		  if ((font_info.num_range & (GRUB_FONT_RANGE_BLOCK - 1)) == 0)
-		    font_info.ranges = xrealloc (font_info.ranges,
-						 (font_info.num_range +
-						  GRUB_FONT_RANGE_BLOCK) *
-						 sizeof (int) * 2);
-
-		  font_info.ranges[font_info.num_range * 2] = a;
-		  font_info.ranges[font_info.num_range * 2 + 1] = b;
-		  font_info.num_range++;
+		  if (*p == '-')
+		    {
+		      b = strtoul (p + 1, &p, 0);
+		      add_range (&font_info, a, b);
+		    }
+		  else
+		    add_point (&font_info, a);
 
 		  if (*p)
 		    {
@@ -550,6 +659,10 @@ main (int argc, char *argv[])
 		}
 	      break;
 	    }
+
+	  case 't':
+	    add_file (&font_info, optarg);
+	    break;
 
 	  case 'd':
 	    font_info.desc = strtoul (optarg, NULL, 0);
