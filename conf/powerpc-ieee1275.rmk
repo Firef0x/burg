@@ -11,7 +11,7 @@ script/sh/lexer.c_DEPENDENCIES = grub_script.tab.h
 # Utilities.
 sbin_UTILITIES = grub-mkdevicemap
 ifeq ($(enable_grub_emu), yes)
-sbin_UTILITIES += grub-emu
+#sbin_UTILITIES += grub-emu
 endif
 
 # For grub-mkdevicemap.

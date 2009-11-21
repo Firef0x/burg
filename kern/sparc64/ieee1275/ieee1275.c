@@ -19,6 +19,10 @@
 #include <grub/ieee1275/ieee1275.h>
 #include <grub/types.h>
 
+GRUB_EXPORT(grub_ieee1275_map_physical);
+GRUB_EXPORT(grub_ieee1275_claim_vaddr);
+GRUB_EXPORT(grub_ieee1275_alloc_physmem);
+
 /* Sun specific ieee1275 interfaces used by GRUB.  */
 
 int

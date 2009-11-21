@@ -28,5 +28,12 @@
 /* sparc64 is big-endian.  */
 #define GRUB_TARGET_WORDS_BIGENDIAN	1
 
+#define GRUB_TARGET_SPARC64		1
+
+#define GRUB_TARGET_USE_ADDEND		1
+
+#define GRUB_TARGET_MIN_ALIGN		4
+
+#define GRUB_TARGET_MIN_SEG_ALIGN	1024
 
 #endif /* ! GRUB_TYPES_CPU_HEADER */

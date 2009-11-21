@@ -64,6 +64,9 @@ struct grub_obj_header
 #define GRUB_OBJ_REL_TYPE_24	5
 #define GRUB_OBJ_REL_TYPE_16HI	6
 #define GRUB_OBJ_REL_TYPE_16HA	7
+#define GRUB_OBJ_REL_TYPE_LO10	8
+#define GRUB_OBJ_REL_TYPE_HI22	9
+#define GRUB_OBJ_REL_TYPE_30	10
 
 #define GRUB_OBJ_REL_TYPE_MASK	0x7f
 #define GRUB_OBJ_REL_FLAG_REL	0x80
@@ -80,7 +83,7 @@ struct grub_obj_reloc
   grub_uint8_t segment;
   grub_uint8_t type;
   grub_uint32_t offset;
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
   grub_uint32_t addend;
 #endif
   grub_uint8_t symbol_segment;
@@ -91,7 +94,7 @@ struct grub_obj_reloc_extern
   grub_uint8_t segment;
   grub_uint8_t type;
   grub_uint32_t offset;
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
   grub_uint32_t addend;
 #endif
   grub_uint8_t symbol_segment;

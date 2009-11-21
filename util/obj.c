@@ -82,6 +82,35 @@ check_merge (struct grub_util_obj_segment *s1,
   return 0;
 }
 
+#ifdef GRUB_TARGET_MIN_SEG_ALIGN
+
+static grub_uint32_t
+align_segment (grub_uint32_t offset, grub_uint32_t size, int type,
+	       grub_uint32_t align)
+{
+  offset = (offset + (align - 1)) & ~(align - 1);
+
+  if (((type == GRUB_OBJ_SEG_DATA) || (type == GRUB_OBJ_SEG_BSS)) &&
+      ((offset & (GRUB_TARGET_MIN_SEG_ALIGN - 1)) + size >
+       GRUB_TARGET_MIN_SEG_ALIGN))
+    offset = ((offset + (GRUB_TARGET_MIN_SEG_ALIGN - 1)) &
+	      ~(GRUB_TARGET_MIN_SEG_ALIGN - 1));
+
+  return offset;
+}
+
+#else
+
+static inline grub_uint32_t
+align_segment (grub_uint32_t offset, grub_uint32_t size, int type,
+	       grub_uint32_t align)
+{
+  (void) type;
+  return offset = (offset + (align - 1)) & ~(align - 1);
+}
+
+#endif
+
 void
 grub_obj_merge_segments (struct grub_util_obj *obj, int align, int merge)
 {
@@ -99,7 +128,6 @@ grub_obj_merge_segments (struct grub_util_obj *obj, int align, int merge)
     {
       if (check_merge (p, first, merge))
 	{
-	  grub_uint32_t mask;
 	  int cur_align;
 
 	  if (p->segment.align > first->segment.align)
@@ -109,8 +137,8 @@ grub_obj_merge_segments (struct grub_util_obj *obj, int align, int merge)
 	  if ((p->segment.type != prev->segment.type) && (align > cur_align))
 	    cur_align = align;
 
-	  mask = cur_align - 1;
-	  offset = (offset + mask) & ~mask;
+	  offset = align_segment (offset, p->segment.size, p->segment.type,
+				  cur_align);
 	  p->segment.offset = offset;
 	  offset += p->segment.size;
 	}
@@ -152,7 +180,7 @@ grub_obj_reloc_symbols (struct grub_util_obj *obj, int merge)
 				      rel->symbol_name);
 	  if (sym)
 	    {
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
 	      rel->reloc.addend += sym->symbol.offset;
 #else
 	      if (type == GRUB_OBJ_REL_TYPE_32)
@@ -198,7 +226,7 @@ grub_obj_reloc_symbols (struct grub_util_obj *obj, int merge)
 	      rel->segment = 0;
 	    }
 
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
 	  rel->reloc.addend += delta;
 	  if (rel->reloc.type & GRUB_OBJ_REL_FLAG_REL)
 	    {
@@ -212,6 +240,7 @@ grub_obj_reloc_symbols (struct grub_util_obj *obj, int merge)
 		  *((grub_uint16_t *) addr) =
 		    grub_host_to_target16 (rel->reloc.addend);
 		}
+#if defined(GRUB_TARGET_POWERPC)
 	      else if (type == GRUB_OBJ_REL_TYPE_16HI)
 		{
 		  *((grub_uint16_t *) addr) =
@@ -236,6 +265,22 @@ grub_obj_reloc_symbols (struct grub_util_obj *obj, int merge)
 		  v = (v & 0xfc000003) | (rel->reloc.addend & 0x3fffffc);
 		  *((grub_uint32_t *) addr) = grub_host_to_target32 (v);
 		}
+#elif defined(GRUB_TARGET_SPARC64)
+	      else if (type == GRUB_OBJ_REL_TYPE_30)
+		{
+		  grub_uint32_t v;
+		  grub_int32_t a;
+
+		  v = grub_target_to_host32 (*((grub_uint32_t *) addr));
+		  a = rel->reloc.addend;
+
+		  if (a << 2 >> 2 != a)
+		    grub_util_error ("relocation overflow");
+
+		  v = (v & 0xc0000000) | (rel->reloc.addend >> 2);
+		  *((grub_uint32_t *) addr) = grub_host_to_target32 (v);
+		}
+#endif
 	      else
 		grub_util_error ("invalid relocation type %d", type);
 	    }
@@ -326,7 +371,7 @@ grub_strtab_insert (grub_strtab_t *head, char *name)
 }
 
 #define GRUB_OBJ_HEADER_MAX	0xffff
-#define ALIGN_BUF_SIZE		256
+#define ALIGN_BUF_SIZE		2048
 
 void
 grub_obj_save (struct grub_util_obj *obj, char *mod_name, FILE *fp)
@@ -360,7 +405,7 @@ grub_obj_save (struct grub_util_obj *obj, char *mod_name, FILE *fp)
   while (seg)
     {
       struct grub_util_obj_segment *cur;
-      grub_uint32_t mask, size;
+      grub_uint32_t size;
       int is_last;
 
       cur = seg;
@@ -378,8 +423,9 @@ grub_obj_save (struct grub_util_obj *obj, char *mod_name, FILE *fp)
 	}
 
       cur->index = idx;
-      mask = cur->segment.align - 1;
-      size = (grub_target_to_host32 (hdr->segments[idx].size) + mask) & ~mask;
+      size = align_segment (grub_target_to_host32 (hdr->segments[idx].size),
+			    cur->segment.size, cur->segment.type,
+			    cur->segment.align);
       size += cur->segment.size;
       hdr->segments[idx].size = grub_host_to_target32 (size);
 
@@ -387,7 +433,8 @@ grub_obj_save (struct grub_util_obj *obj, char *mod_name, FILE *fp)
 
       if (cur->segment.type != GRUB_OBJ_SEG_BSS)
 	{
-	  raw_size = (raw_size + mask) & ~mask;
+	  raw_size = align_segment (raw_size, cur->segment.size,
+				    cur->segment.type, cur->segment.align);
 	  raw_size += (is_last) ? cur->raw_size : cur->segment.size;
 	}
 
@@ -491,7 +538,7 @@ grub_obj_save (struct grub_util_obj *obj, char *mod_name, FILE *fp)
 	  r->type = rel->reloc.type;
 	  r->offset = grub_host_to_target32 (rel->reloc.offset
 					     + rel->segment->segment.offset);
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
 	  r->addend = grub_host_to_target32 (rel->reloc.addend);
 #endif
 
@@ -566,11 +613,11 @@ grub_obj_save (struct grub_util_obj *obj, char *mod_name, FILE *fp)
 
       if (cur->segment.type != GRUB_OBJ_SEG_BSS)
 	{
-	  grub_uint32_t mask, size;
+	  grub_uint32_t size;
 	  int is_last;
 
-	  mask = cur->segment.align - 1;
-	  size = (raw_size + mask) & ~mask;
+	  size = align_segment (raw_size, cur->segment.size,
+				cur->segment.type, cur->segment.align);
 	  if (size != raw_size)
 	    {
 	      if (size - raw_size > ALIGN_BUF_SIZE)
@@ -670,7 +717,7 @@ grub_obj_load (char *image, int size, int load_data)
       p->segment = segments[rel->segment];
       p->reloc.type = rel->type;
       p->reloc.offset = grub_target_to_host32 (rel->offset);
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
       p->reloc.addend = grub_target_to_host32 (rel->addend);
 #endif
 
@@ -769,7 +816,7 @@ grub_obj_link (struct grub_util_obj *obj, grub_uint32_t base)
       if (rel->segment)
 	{
 	  char *addr;
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
 	  grub_uint32_t addend;
 
 	  addend = rel->reloc.addend + base;
@@ -784,11 +831,21 @@ grub_obj_link (struct grub_util_obj *obj, grub_uint32_t base)
 	  addr = rel->segment->data + rel->reloc.offset;
 	  switch (rel->reloc.type)
 	    {
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
+
 	    case GRUB_OBJ_REL_TYPE_16:
 	      *((grub_uint16_t *) addr) = grub_host_to_target16 (addend);
 	      break;
 
+	    case GRUB_OBJ_REL_TYPE_32:
+	      *((grub_uint32_t *) addr) = grub_host_to_target32 (addend);
+	      break;
+
+	    case GRUB_OBJ_REL_TYPE_64:
+	      *((grub_uint64_t *) addr) = grub_host_to_target64 (addend);
+	      break;
+
+#if defined(GRUB_TARGET_POWERPC)
 	    case GRUB_OBJ_REL_TYPE_16HI:
 	      *((grub_uint16_t *) addr) = grub_host_to_target16 (addend >> 16);
 	      break;
@@ -798,10 +855,27 @@ grub_obj_link (struct grub_util_obj *obj, grub_uint32_t base)
 		grub_host_to_target16 ((addend + 0x8000)>> 16);
 	      break;
 
-	    case GRUB_OBJ_REL_TYPE_32:
-	      *((grub_uint32_t *) addr) = grub_host_to_target32 (addend);
-	      break;
+#elif defined(GRUB_TARGET_SPARC64)
+	    case GRUB_OBJ_REL_TYPE_LO10:
+	      {
+		grub_uint32_t v;
 
+		v = grub_target_to_host32 (*((grub_uint32_t *) addr));
+		v = (v & ~0x3ff) | (addend & 0x3ff);
+		*((grub_uint32_t *) addr) = grub_host_to_target32 (v);
+		break;
+	      }
+
+	    case GRUB_OBJ_REL_TYPE_HI22:
+	      {
+		grub_uint32_t v;
+
+		v = grub_target_to_host32 (*((grub_uint32_t *) addr));
+		v = (v & ~0x3fffff) | ((addend >> 10) & 0x3fffff);
+		*((grub_uint32_t *) addr) = grub_host_to_target32 (v);
+		break;
+	      }
+#endif
 #else
 	    case GRUB_OBJ_REL_TYPE_32:
 	      {
@@ -918,7 +992,7 @@ add_module (struct grub_util_obj *obj, const char *path,
 	    char *info, int *offset)
 {
   char *image, *mod_name, *p, *pn;
-  int size, info_size, symbol_offset;
+  int size, info_size, symbol_name, symbol_value;
   struct grub_util_obj *mod;
   struct grub_obj_header *mod_header;
   struct grub_module_header *header;
@@ -948,15 +1022,18 @@ add_module (struct grub_util_obj *obj, const char *path,
       p += len;
     }
 
-  symbol_offset = (info_size - sizeof (struct grub_module_header) -
-		   sizeof (struct grub_module_object));
+  symbol_name = (info_size - sizeof (struct grub_module_header) -
+		 sizeof (struct grub_module_object));
+  symbol_value = 0;
   info_size++;
   sym = mod->symbols;
   while (sym)
     {
-      info_size += strlen (sym->name) + 5;
+      info_size += strlen (sym->name) + 1;
+      symbol_value += sizeof (grub_uint32_t);
       sym = sym->next;
     }
+  info_size = ALIGN_UP (info_size, GRUB_TARGET_MIN_ALIGN) + symbol_value;
 
   info = xrealloc (info, *offset + info_size);
   header = (struct grub_module_header *) (info + *offset);
@@ -975,7 +1052,11 @@ add_module (struct grub_util_obj *obj, const char *path,
       modobj->init_func = grub_target_to_host16 (mod_header->init_func);
       modobj->fini_func = grub_target_to_host16 (mod_header->fini_func);
     }
-  modobj->symbol_offset = grub_host_to_target16 (symbol_offset);
+  modobj->symbol_name = grub_host_to_target16 (symbol_name);
+  modobj->symbol_value =
+    grub_host_to_target16 (info_size - symbol_value
+			   - sizeof (struct grub_module_header)
+			   - sizeof (struct grub_module_object));
   pn = modobj->name;
   p = mod_name;
   while (*p)
@@ -1014,7 +1095,7 @@ add_module (struct grub_util_obj *obj, const char *path,
       sym = sym->next;
 
       strcpy (pn, tmp->name);
-      pn += strlen (pn) + 5;
+      pn += strlen (pn) + 1;
       grub_list_push (GRUB_AS_LIST_P (&obj->symbols),
 		      GRUB_AS_LIST (tmp));
     }
@@ -1118,7 +1199,7 @@ grub_obj_add_modinfo (struct grub_util_obj *obj, const char *dir,
   /* Insert the modinfo segment.  */
   seg = xmalloc_zero (sizeof (*seg));
   seg->segment.type = (as_info) ? GRUB_OBJ_SEG_INFO : GRUB_OBJ_SEG_RDATA;
-  seg->segment.align = 1;
+  seg->segment.align = GRUB_TARGET_MIN_ALIGN;
   seg->segment.size = offset;
   seg->raw_size = offset;
   seg->data = info;
@@ -1190,6 +1271,7 @@ grub_obj_add_kernel_symbols (struct grub_util_obj *obj,
 	{
 	  struct grub_module_object *o;
 	  char *pn;
+	  grub_uint32_t *pv;
 
 	  o = (struct grub_module_object *) (h + 1);
 	  if ((o->init_func != GRUB_OBJ_FUNC_NONE) ||
@@ -1224,7 +1306,9 @@ grub_obj_add_kernel_symbols (struct grub_util_obj *obj,
 	  o->init_func = grub_host_to_target32 (o->init_func);
 	  o->fini_func = grub_host_to_target32 (o->fini_func);
 
-	  pn = o->name + grub_target_to_host16 (o->symbol_offset);
+	  pn = o->name + grub_target_to_host16 (o->symbol_name);
+	  pv = (grub_uint32_t *)
+	    (o->name + grub_target_to_host16 (o->symbol_value));
 	  while (*pn)
 	    {
 	      struct grub_util_obj_symbol *s;
@@ -1234,11 +1318,8 @@ grub_obj_add_kernel_symbols (struct grub_util_obj *obj,
 		grub_util_error ("can't find symbol %s", pn);
 
 	      pn += strlen (pn) + 1;
-	      *((grub_uint32_t *) pn) =
-		grub_host_to_target32 (s->symbol.offset
-				       + s->segment->segment.offset);
-
-	      pn += 4;
+	      *(pv++) = grub_host_to_target32 (s->symbol.offset
+					       + s->segment->segment.offset);
 	    }
 	}
 
@@ -1285,7 +1366,7 @@ grub_obj_csym_done (struct grub_util_obj *obj)
 
   seg = xmalloc_zero (sizeof (*seg));
   seg->segment.type = GRUB_OBJ_SEG_BSS;
-  seg->segment.align = 1;
+  seg->segment.align = GRUB_TARGET_MIN_ALIGN;
 
   size = 0;
   csym = grub_list_reverse (GRUB_AS_LIST (obj->csyms));
@@ -1299,6 +1380,8 @@ grub_obj_csym_done (struct grub_util_obj *obj)
 
       s = xmalloc_zero (sizeof (*s));
       s->segment = seg;
+
+      size = align_segment (size, c->size, GRUB_OBJ_SEG_BSS, 1);
       s->symbol.offset = size;
       s->name = c->name;
       size += c->size;
@@ -1345,7 +1428,7 @@ grub_obj_got_done (struct grub_util_obj *obj)
 
   seg = obj->got_segment;
   seg->segment.type = GRUB_OBJ_SEG_TEXT;
-  seg->segment.align = 1;
+  seg->segment.align = GRUB_TARGET_MIN_ALIGN;
   seg->segment.size = obj->got_size;
   seg->raw_size = obj->got_size;
   seg->data = xmalloc_zero (obj->got_size);

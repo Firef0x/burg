@@ -21,7 +21,8 @@
 
 	.text
 	.align	4
-	.globl	_start
+	.globl	_start, grub_code_start
+grub_code_start:
 _start:
 	ba	codestart
 	 nop
@@ -44,13 +45,14 @@ VARIABLE(grub_prefix)
 	. = EXT_C(_start) + GRUB_KERNEL_MACHINE_DATA_END
 
 codestart:
+#if 0
 	/* Copy the modules past the end of the kernel image.
 	 * They are currently sitting in the BSS.
 	 */
-	sethi	%hi(__bss_start), %o2
-	or	%o2, %lo(__bss_start), %o2
-	sethi	%hi(_end), %o3
-	or	%o3, %lo(_end), %o3
+	sethi	%hi(grub_bss_start), %o2
+	or	%o2, %lo(grub_bss_start), %o2
+	sethi	%hi(grub_bss_end), %o3
+	or	%o3, %lo(grub_bss_end), %o3
 	sethi	%hi(grub_total_module_size), %o4
 	lduw	[%o4 + %lo(grub_total_module_size)], %o4
 1:	lduw	[%o2], %o5
@@ -59,12 +61,13 @@ codestart:
 	add	%o2, 4, %o2
 	bne,pt	%icc, 1b
 	 add	%o3, 4, %o3
+#endif
 
 	/* Now it's safe to clear out the BSS.  */
-	sethi	%hi(__bss_start), %o2
-	or	%o2, %lo(__bss_start), %o2
-	sethi	%hi(_end), %o3
-	or	%o3, %lo(_end), %o3
+	sethi	%hi(grub_bss_start), %o2
+	or	%o2, %lo(grub_bss_start), %o2
+	sethi	%hi(grub_bss_end), %o3
+	or	%o3, %lo(grub_bss_end), %o3
 1:	stx	%g0, [%o2]
 	add	%o2, 8, %o2
 	cmp	%o2, %o3

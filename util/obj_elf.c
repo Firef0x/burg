@@ -79,6 +79,9 @@ find_symtab_section (Elf_Shdr *sections,
   return 0;
 }
 
+extern int sss;
+int sss;
+
 static void
 add_segments (struct grub_util_obj *obj,
 	      struct grub_util_obj_segment **segments,
@@ -92,7 +95,7 @@ add_segments (struct grub_util_obj *obj,
   s = (Elf_Shdr *) ((char *) sections
 		    + grub_target_to_host16 (((Elf_Ehdr *) image)->e_shstrndx)
 		    * section_entsize);
-  strtab = image + grub_target_to_host32 (s->sh_offset);
+  strtab = image + grub_target_to_host (s->sh_offset);
 
   for (i = 0, s = sections;
        i < num_sections;
@@ -109,18 +112,18 @@ add_segments (struct grub_util_obj *obj,
       if (! strcmp (name, "modattr"))
 	{
 	  grub_obj_add_attr (obj,
-			     image + grub_target_to_host32 (s->sh_offset),
-			     grub_target_to_host32 (s->sh_size));
+			     image + grub_target_to_host (s->sh_offset),
+			     grub_target_to_host (s->sh_size));
 	  continue;
 	}
 
-      if ((grub_target_to_host32 (s->sh_flags) & (SHF_EXECINSTR | SHF_ALLOC))
+      if ((grub_target_to_host (s->sh_flags) & (SHF_EXECINSTR | SHF_ALLOC))
 	  == (SHF_EXECINSTR | SHF_ALLOC))
 	type = GRUB_OBJ_SEG_TEXT;
-      else if ((grub_target_to_host32 (s->sh_flags) & SHF_ALLOC)
-	       && ! (grub_target_to_host32 (s->sh_flags) & SHF_EXECINSTR))
+      else if ((grub_target_to_host (s->sh_flags) & SHF_ALLOC)
+	       && ! (grub_target_to_host (s->sh_flags) & SHF_EXECINSTR))
 	{
-	  if (! (grub_target_to_host32 (s->sh_flags) & SHF_WRITE))
+	  if (! (grub_target_to_host (s->sh_flags) & SHF_WRITE))
 	    type = GRUB_OBJ_SEG_RDATA;
 	  else if (grub_target_to_host32 (s->sh_type) == SHT_NOBITS)
 	    type = GRUB_OBJ_SEG_BSS;
@@ -136,15 +139,15 @@ add_segments (struct grub_util_obj *obj,
 
 	  p = xmalloc_zero (sizeof (*p));
 	  p->segment.type = type;
-	  p->segment.align = grub_target_to_host32 (s->sh_addralign);
-	  p->segment.size = grub_target_to_host32 (s->sh_size);
+	  p->segment.align = grub_target_to_host (s->sh_addralign);
+	  p->segment.size = grub_target_to_host (s->sh_size);
 	  segments[i] = p;
 
 	  if (type != GRUB_OBJ_SEG_BSS)
 	    {
 	      p->raw_size = p->segment.size;
 	      p->data = xmalloc (p->raw_size);
-	      memcpy (p->data, image + grub_target_to_host32 (s->sh_offset),
+	      memcpy (p->data, image + grub_target_to_host (s->sh_offset),
 		      p->raw_size);
 	    }
 
@@ -168,12 +171,12 @@ add_symbols (struct grub_util_obj *obj,
   symtab_section = find_symtab_section (sections,
 					section_entsize, num_sections);
   sym = (Elf_Sym *) (image + grub_target_to_host (symtab_section->sh_offset));
-  sym_size = grub_target_to_host32 (symtab_section->sh_entsize);
-  num_syms = grub_target_to_host32 (symtab_section->sh_size) / sym_size;
+  sym_size = grub_target_to_host (symtab_section->sh_entsize);
+  num_syms = grub_target_to_host (symtab_section->sh_size) / sym_size;
   str_sec = (Elf_Shdr *) ((char *) sections
 			  + (grub_target_to_host32 (symtab_section->sh_link)
 			     * section_entsize));
-  strtab = image + grub_target_to_host32 (str_sec->sh_offset);
+  strtab = image + grub_target_to_host (str_sec->sh_offset);
 
   for (i = 0; i < num_syms;
        i++, sym = (Elf_Sym *) ((char *) sym + sym_size))
@@ -241,21 +244,21 @@ add_relocs (struct grub_util_obj *obj,
 	sym_sec = (Elf_Shdr *) ((char *) sections
 				+ (grub_target_to_host32 (s->sh_link)
 				   * section_entsize));
-	sym_size = grub_target_to_host32 (sym_sec->sh_entsize);
+	sym_size = grub_target_to_host (sym_sec->sh_entsize);
 
 	str_sec = (Elf_Shdr *) ((char *) sections
 				+ (grub_target_to_host32 (sym_sec->sh_link)
 				   * section_entsize));
-	strtab = image + grub_target_to_host32 (str_sec->sh_offset);
+	strtab = image + grub_target_to_host (str_sec->sh_offset);
 
 	target_index = grub_target_to_host32 (s->sh_info);
 	if (! segments[target_index])
 	  continue;
 
-	r_size = grub_target_to_host32 (s->sh_entsize);
-	num_rs = grub_target_to_host32 (s->sh_size) / r_size;
+	r_size = grub_target_to_host (s->sh_entsize);
+	num_rs = grub_target_to_host (s->sh_size) / r_size;
 
-	r = (Elf_Rela *) (image + grub_target_to_host32 (s->sh_offset));
+	r = (Elf_Rela *) (image + grub_target_to_host (s->sh_offset));
 	for (j = 0;
 	     j < num_rs;
 	     j++, r = (Elf_Rela *) ((char *) r + r_size))
@@ -281,14 +284,13 @@ add_relocs (struct grub_util_obj *obj,
 	      addend = 0;
 
 	    sym = (Elf_Sym *) (image
-			       + grub_target_to_host32 (sym_sec->sh_offset)
+			       + grub_target_to_host (sym_sec->sh_offset)
 			       + (ELF_R_SYM (info) * sym_size));
 	    name = grub_obj_map_symbol (strtab +
 					grub_target_to_host32 (sym->st_name));
-
 	    is_got = 0;
 	    type = -1;
-	    switch (ELF_R_TYPE (info))
+	    switch (ELF_R_TYPE (info) & 0xff)
 	      {
 	      case R_386_NONE:
 		break;
@@ -361,6 +363,31 @@ add_relocs (struct grub_util_obj *obj,
 		type = GRUB_OBJ_REL_TYPE_16HA;
 		break;
 
+#elif defined(GRUB_TARGET_SPARC64)
+	      case R_SPARC_LO10:
+		type = GRUB_OBJ_REL_TYPE_LO10;
+		break;
+
+	      case R_SPARC_OLO10:
+		type = GRUB_OBJ_REL_TYPE_LO10;
+		addend += ELF_R_TYPE (info) >> 8;
+		break;
+
+	      case R_SPARC_HI22:
+		type = GRUB_OBJ_REL_TYPE_HI22;
+		break;
+
+	      case R_SPARC_WDISP30:
+		type = GRUB_OBJ_REL_TYPE_30 | GRUB_OBJ_REL_FLAG_REL;
+		break;
+
+	      case R_SPARC_32:
+		type = GRUB_OBJ_REL_TYPE_32;
+		break;
+
+	      case R_SPARC_64:
+		type = GRUB_OBJ_REL_TYPE_64;
+		break;
 #endif
 
 	      default:
@@ -377,7 +404,7 @@ add_relocs (struct grub_util_obj *obj,
 	    p->reloc.offset = offset;
 	    p->symbol_name = xstrdup (name);
 
-#ifndef GRUB_TARGET_POWERPC
+#ifndef GRUB_TARGET_USE_ADDEND
 	    type &= GRUB_OBJ_REL_TYPE_MASK;
 	    if (addend)
 	      {
@@ -421,7 +448,7 @@ add_relocs (struct grub_util_obj *obj,
 
 		    p->symbol_segment = segments[sym_idx];
 
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
 		    addend += grub_target_to_host (sym->st_value);
 #else
 		    if (type == GRUB_OBJ_REL_TYPE_32)
@@ -457,7 +484,7 @@ add_relocs (struct grub_util_obj *obj,
 		  }
 	      }
 
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
 	    p->reloc.addend = addend;
 #endif
 	    grub_list_push (GRUB_AS_LIST_P (&obj->relocs),
@@ -489,6 +516,7 @@ grub_obj_import_elf (struct grub_util_obj *obj, char *image, int size)
 
   sections = (Elf_Shdr *) (image + section_offset);
   segments = xmalloc_zero (num_sections * sizeof (segments[0]));
+
   add_segments (obj, segments, image, sections, section_entsize, num_sections);
   add_symbols (obj, segments, image, sections, section_entsize, num_sections);
   add_relocs (obj, segments, image, sections, section_entsize, num_sections);

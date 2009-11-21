@@ -27,10 +27,13 @@
 
 GRUB_EXPORT(grub_elf32_load);
 GRUB_EXPORT(grub_elf64_load);
+GRUB_EXPORT(grub_elf_open);
 GRUB_EXPORT(grub_elf_close);
 GRUB_EXPORT(grub_elf_file);
 GRUB_EXPORT(grub_elf_is_elf32);
 GRUB_EXPORT(grub_elf_is_elf64);
+GRUB_EXPORT(grub_elf32_size);
+GRUB_EXPORT(grub_elf64_size);
 
 /* Check if EHDR is a valid ELF header.  */
 static grub_err_t

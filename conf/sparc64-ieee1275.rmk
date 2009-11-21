@@ -9,53 +9,22 @@ COMMON_LDFLAGS = -melf64_sparc -nostdlib -mno-relax
 script/sh/lexer.c_DEPENDENCIES = grub_script.tab.h
 
 # Images.
-pkglib_IMAGES = boot.img diskboot.img kernel.img
+pkglib_IMAGES = boot.img diskboot.img netboot.img
 
 # For boot.img.
 boot_img_SOURCES = boot/sparc64/ieee1275/boot.S
 boot_img_ASFLAGS = $(COMMON_ASFLAGS)
-boot_img_LDFLAGS = $(COMMON_LDFLAGS) -Wl,-N,-Ttext,0x4000
-boot_img_FORMAT = a.out-sunos-big
+boot_img_LINKADDR = 0x4000
 
 # For diskboot.img.
 diskboot_img_SOURCES = boot/sparc64/ieee1275/diskboot.S
 diskboot_img_ASFLAGS = $(COMMON_ASFLAGS)
-diskboot_img_LDFLAGS = $(COMMON_LDFLAGS) -Wl,-N,-Ttext,0x4200
-diskboot_img_FORMAT = binary
+diskboot_img_LINKADDR = 0x4200
 
-MOSTLYCLEANFILES += symlist.c kernel_syms.lst
-DEFSYMFILES += kernel_syms.lst
-
-kernel_img_HEADERS = boot.h cache.h device.h disk.h dl.h elf.h elfload.h \
-	env.h err.h file.h fs.h kernel.h loader.h misc.h mm.h net.h parser.h \
-	partition.h msdos_partition.h reader.h symbol.h term.h time.h types.h \
-	list.h handler.h command.h \
-	sparc64/libgcc.h ieee1275/ieee1275.h machine/kernel.h \
-	sparc64/ieee1275/ieee1275.h
-kernel_img_SOURCES = kern/sparc64/ieee1275/crt0.S kern/ieee1275/cmain.c	\
-	kern/ieee1275/ieee1275.c kern/main.c kern/device.c		\
-	kern/disk.c kern/dl.c kern/err.c kern/file.c kern/fs.c		\
-	kern/misc.c kern/mm.c kern/reader.c kern/term.c			\
-	kern/rescue_parser.c kern/rescue_reader.c \
-	kern/list.c kern/handler.c kern/command.c kern/corecmd.c	\
-	kern/sparc64/ieee1275/ieee1275.c 				\
-	kern/sparc64/ieee1275/init.c 					\
-	kern/ieee1275/mmap.c						\
-	term/ieee1275/ofconsole.c 					\
-	kern/ieee1275/openfw.c disk/ieee1275/ofdisk.c 			\
-	kern/parser.c kern/partition.c kern/env.c kern/$(target_cpu)/dl.c	\
-	kern/generic/millisleep.c kern/time.c				\
-	symlist.c kern/$(target_cpu)/cache.S
-kernel_img_CFLAGS = $(COMMON_CFLAGS)
-kernel_img_ASFLAGS = $(COMMON_ASFLAGS)
-kernel_img_LDFLAGS = -nostdlib -Wl,-N,-Ttext,0x200000,-Bstatic,-melf64_sparc -static-libgcc -lgcc
-kernel_img_FORMAT = binary
-
-symlist.c: $(addprefix include/grub/,$(kernel_img_HEADERS)) config.h gensymlist.sh
-	/bin/sh gensymlist.sh $(filter %.h,$^) > $@ || (rm -f $@; exit 1)
-
-kernel_syms.lst: $(addprefix include/grub/,$(kernel_img_HEADERS)) config.h genkernsyms.sh
-	/bin/sh genkernsyms.sh $(filter %.h,$^) > $@ || (rm -f $@; exit 1)
+# For netboot.img.
+netboot_img_SOURCES = boot/sparc64/ieee1275/netboot.S
+netboot_img_ASFLAGS = $(COMMON_ASFLAGS)
+netboot_img_LINKADDR = 0x4000
 
 # Utilities.
 bin_UTILITIES = grub-mkimage
@@ -66,14 +35,14 @@ endif
 
 # For grub-mkimage.
 grub_mkimage_SOURCES = util/sparc64/ieee1275/grub-mkimage.c util/misc.c \
-        util/resolve.c
+        util/resolve.c util/obj.c kern/list.c
 
 # For grub-setup.
 util/sparc64/ieee1275/grub-setup.c_DEPENDENCIES = grub_setup_init.h
 grub_setup_SOURCES = util/sparc64/ieee1275/grub-setup.c util/hostdisk.c	\
 	util/misc.c util/getroot.c kern/device.c kern/disk.c	\
 	kern/err.c kern/misc.c kern/parser.c kern/partition.c	\
-	kern/file.c kern/fs.c kern/env.c fs/fshelp.c		\
+	kern/file.c kern/fs.c kern/env.c kern/list.c fs/fshelp.c \
 	\
 	fs/affs.c fs/cpio.c fs/ext2.c fs/fat.c fs/hfs.c		\
 	fs/hfsplus.c fs/iso9660.c fs/udf.c fs/jfs.c fs/minix.c	\
@@ -149,11 +118,30 @@ sbin_SCRIPTS = grub-install
 grub_install_SOURCES = util/sparc64/ieee1275/grub-install.in
 
 # Modules.
-pkglib_MODULES = halt.mod \
+pkglib_MODULES = kernel.mod halt.mod \
 	linux.mod \
 	reboot.mod \
 	memdisk.mod \
 	lsmmap.mod
+
+# For kernel.mod.
+kernel_mod_SOURCES = kern/sparc64/ieee1275/crt0.S kern/ieee1275/cmain.c	\
+	kern/ieee1275/ieee1275.c kern/main.c kern/device.c		\
+	kern/disk.c kern/dl.c kern/err.c kern/file.c kern/fs.c		\
+	kern/misc.c kern/mm.c kern/reader.c kern/term.c			\
+	kern/rescue_parser.c kern/rescue_reader.c \
+	kern/list.c kern/handler.c kern/command.c kern/corecmd.c	\
+	kern/sparc64/ieee1275/ieee1275.c 				\
+	kern/sparc64/ieee1275/init.c 					\
+	kern/ieee1275/mmap.c						\
+	term/ieee1275/ofconsole.c 					\
+	kern/ieee1275/openfw.c disk/ieee1275/ofdisk.c 			\
+	kern/parser.c kern/partition.c kern/env.c			\
+	kern/generic/millisleep.c kern/time.c				\
+	kern/$(target_cpu)/cache.S
+kernel_mod_CFLAGS = $(COMMON_CFLAGS)
+kernel_mod_ASFLAGS = $(COMMON_ASFLAGS)
+#kernel_img_LDFLAGS = -nostdlib -Wl,-N,-Ttext,0x200000,-Bstatic,-melf64_sparc -static-libgcc -lgcc
 
 # For boot.mod.
 pkglib_MODULES += boot.mod 

@@ -65,6 +65,8 @@ Report bugs to <%s>.\n", PACKAGE_BUGREPORT);
   exit (status);
 }
 
+extern int sss;
+
 static void
 mkmod (char *objs[], char *name, FILE *fp)
 {

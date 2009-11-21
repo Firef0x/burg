@@ -22,6 +22,14 @@
 
 	.text
 	.align	4
+
+	/* a.out header.  */
+	.word	GRUB_BOOT_AOUT_MAGIC
+	.word	0x200 - GRUB_BOOT_AOUT_HEADER_SIZE
+	.word	0, 0, 0
+	.word	0x4000
+	.word	0, 0
+
 	.globl	_start
 _start:
 	/* OF CIF entry point arrives in %o4 */

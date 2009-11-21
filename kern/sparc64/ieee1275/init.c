@@ -51,13 +51,6 @@ grub_get_rtc (void)
   return ieee1275_get_time_ms ();
 }
 
-grub_addr_t
-grub_arch_modules_addr (void)
-{
-  extern char _end[];
-  return (grub_addr_t) _end;
-}
-
 void
 grub_machine_set_prefix (void)
 {

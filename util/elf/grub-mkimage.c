@@ -34,6 +34,18 @@
 #include <grub/cpu/kernel.h>
 #include <grub/machine/machine.h>
 
+#if GRUB_TARGET_SIZEOF_VOID_P == 4
+
+#define grub_target_to_host	grub_target_to_host32
+#define grub_host_to_target	grub_host_to_target32
+
+#elif GRUB_TARGET_SIZEOF_VOID_P == 8
+
+#define grub_target_to_host	grub_target_to_host64
+#define grub_host_to_target	grub_host_to_target64
+
+#endif
+
 #define GRUB_IEEE1275_NOTE_NAME "PowerPC"
 #define GRUB_IEEE1275_NOTE_TYPE 0x1275
 
@@ -65,7 +77,7 @@ struct grub_ieee1275_note
 };
 
 void
-make_note_section (FILE *out, Elf32_Phdr *phdr, grub_uint32_t offset)
+make_note_section (FILE *out, Elf_Phdr *phdr, grub_uint32_t offset)
 {
   struct grub_ieee1275_note note;
   int note_size = sizeof (struct grub_ieee1275_note);
@@ -89,12 +101,12 @@ make_note_section (FILE *out, Elf32_Phdr *phdr, grub_uint32_t offset)
   /* Fill in the rest of the segment header.  */
   phdr->p_type = grub_host_to_target32 (PT_NOTE);
   phdr->p_flags = grub_host_to_target32 (PF_R);
-  phdr->p_align = grub_host_to_target32 (GRUB_TARGET_SIZEOF_LONG);
+  phdr->p_align = grub_host_to_target (GRUB_TARGET_SIZEOF_LONG);
   phdr->p_vaddr = 0;
   phdr->p_paddr = 0;
-  phdr->p_filesz = grub_host_to_target32 (note_size);
+  phdr->p_filesz = grub_host_to_target (note_size);
   phdr->p_memsz = 0;
-  phdr->p_offset = grub_host_to_target32 (offset);
+  phdr->p_offset = grub_host_to_target (offset);
 }
 
 int
@@ -120,8 +132,8 @@ make_header_space (FILE *out)
 {
   grub_uint32_t addr;
 
-  addr = (ALIGN_UP (sizeof (Elf32_Ehdr), GRUB_TARGET_SIZEOF_LONG) +
-	  sizeof (Elf32_Shdr) * MAX_SECTIONS);
+  addr = (ALIGN_UP (sizeof (Elf_Ehdr), GRUB_TARGET_SIZEOF_LONG) +
+	  sizeof (Elf_Shdr) * MAX_SECTIONS);
   write_padding (out, addr);
 
   return addr;
@@ -146,7 +158,7 @@ write_section_padding (FILE* out, grub_uint32_t offset)
 
 static grub_uint32_t
 write_sections (FILE* out, struct grub_util_obj *obj,
-		Elf32_Phdr *phdr, grub_uint32_t sofs)
+		Elf_Phdr *phdr, grub_uint32_t sofs)
 {
   struct grub_util_obj_segment *seg;
   grub_uint32_t ofs, vaddr;
@@ -154,24 +166,24 @@ write_sections (FILE* out, struct grub_util_obj *obj,
   seg = obj->segments;
   phdr->p_type = grub_host_to_target32 (PT_LOAD);
   phdr->p_flags = grub_host_to_target32 (PF_R | PF_W | PF_X);
-  phdr->p_align = grub_host_to_target32 (seg->segment.align);
+  phdr->p_align = grub_host_to_target (seg->segment.align);
 
   vaddr = seg->segment.offset;
-  phdr->p_vaddr = grub_host_to_target32 (vaddr);
+  phdr->p_vaddr = grub_host_to_target (vaddr);
   phdr->p_paddr = phdr->p_vaddr;
 
   ofs = sofs;
-  phdr->p_offset = grub_host_to_target32 (ofs);
+  phdr->p_offset = grub_host_to_target (ofs);
   for (; seg; seg = seg->next)
     {
       grub_uint32_t seg_ofs;
 
       seg_ofs = seg->segment.offset - vaddr;
-      phdr->p_memsz = grub_host_to_target32 (seg_ofs + seg->segment.size);
+      phdr->p_memsz = grub_host_to_target (seg_ofs + seg->segment.size);
       if (seg->data)
 	{
-	  phdr->p_filesz = grub_host_to_target32 (seg_ofs + seg->raw_size);
-	  ofs = sofs + grub_target_to_host32 (phdr->p_filesz);
+	  phdr->p_filesz = grub_host_to_target (seg_ofs + seg->raw_size);
+	  ofs = sofs + grub_target_to_host (phdr->p_filesz);
 	  grub_util_write_image_at (seg->data, seg->raw_size,
 				    sofs + seg_ofs, out);
 	}
@@ -181,9 +193,9 @@ write_sections (FILE* out, struct grub_util_obj *obj,
 }
 
 static void
-make_header (FILE *out, Elf32_Phdr *phdr, int num_sections)
+make_header (FILE *out, Elf_Phdr *phdr, int num_sections)
 {
-  Elf32_Ehdr ehdr;
+  Elf_Ehdr ehdr;
   grub_uint32_t offset;
 
   memset (&ehdr, 0, sizeof (ehdr));
@@ -195,7 +207,11 @@ make_header (FILE *out, Elf32_Phdr *phdr, int num_sections)
   ehdr.e_ident[EI_VERSION] = EV_CURRENT;
   ehdr.e_version = grub_host_to_target32 (EV_CURRENT);
   ehdr.e_type = grub_host_to_target16 (ET_EXEC);
+#if GRUB_TARGET_SIZEOF_VOID_P == 4
   ehdr.e_ident[EI_CLASS] = ELFCLASS32;
+#else
+  ehdr.e_ident[EI_CLASS] = ELFCLASS64;
+#endif
   ehdr.e_ehsize = grub_host_to_target16 (sizeof (ehdr));
   ehdr.e_entry = phdr->p_vaddr;
 
@@ -205,15 +221,18 @@ make_header (FILE *out, Elf32_Phdr *phdr, int num_sections)
 #elif defined(GRUB_TARGET_POWERPC)
   ehdr.e_ident[EI_DATA] = ELFDATA2MSB;
   ehdr.e_machine = grub_host_to_target16 (EM_PPC);
+#elif defined(GRUB_TARGET_SPARC64)
+  ehdr.e_ident[EI_DATA] = ELFDATA2MSB;
+  ehdr.e_machine = grub_host_to_target16 (EM_SPARCV9);
 #endif
 
   offset = ALIGN_UP (sizeof (ehdr), GRUB_TARGET_SIZEOF_LONG);
-  ehdr.e_phoff = grub_host_to_target32 (offset);
-  ehdr.e_phentsize = grub_host_to_target16 (sizeof (Elf32_Phdr));
+  ehdr.e_phoff = grub_host_to_target (offset);
+  ehdr.e_phentsize = grub_host_to_target16 (sizeof (Elf_Phdr));
   ehdr.e_phnum = grub_host_to_target16 (num_sections);
 
   grub_util_write_image_at (&ehdr, sizeof (ehdr), 0, out);
-  grub_util_write_image_at (phdr, sizeof (Elf32_Phdr) * num_sections,
+  grub_util_write_image_at (phdr, sizeof (Elf_Phdr) * num_sections,
 			    offset, out);
 }
 
@@ -221,7 +240,7 @@ void
 generate_image (char *dir, char *prefix, FILE *out, grub_uint32_t base,
 		int chrp, char *mods[], char *memdisk_path, char *config_path)
 {
-  Elf32_Phdr *sections;
+  Elf_Phdr *sections;
   int num_sections;
   grub_uint32_t offset;
   struct grub_util_path_list *path_list;
@@ -252,7 +271,7 @@ generate_image (char *dir, char *prefix, FILE *out, grub_uint32_t base,
       strcpy (obj->segments->data + GRUB_KERNEL_CPU_PREFIX, prefix);
     }
 
-  sections = xmalloc_zero (sizeof (Elf32_Phdr) * MAX_SECTIONS);
+  sections = xmalloc_zero (sizeof (Elf_Phdr) * MAX_SECTIONS);
   offset = make_header_space (out);
   offset = write_sections (out, obj, sections, offset);
   num_sections = 1;
@@ -329,6 +348,8 @@ main (int argc, char *argv[])
 #elif defined (GRUB_TARGET_I386) && defined (GRUB_MACHINE_COREBOOT)
   base = 0x8200;
 #elif defined (GRUB_TARGET_POWERPC) && defined (GRUB_MACHINE_IEEE1275)
+  base = 0x200000;
+#elif defined (GRUB_TARGET_SPARC64) && defined (GRUB_MACHINE_IEEE1275)
   base = 0x200000;
 #else
   base = 0;

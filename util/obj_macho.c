@@ -223,7 +223,7 @@ add_symbols (struct grub_util_obj *obj,
     }
 }
 
-#ifndef GRUB_TARGET_X86_64
+#if defined(GRUB_TARGET_I386) || defined(GRUB_TARGET_POWERPC)
 
 static struct grub_util_obj_segment *
 find_segment (struct grub_util_obj_segment **segments, int num_segs,
@@ -777,7 +777,7 @@ add_relocs (struct grub_util_obj *obj,
 		}
 
 	      p->reloc.offset = addr;
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
 	      p->reloc.addend = addend;
 #else
 	      if (rt == GRUB_OBJ_REL_TYPE_32)

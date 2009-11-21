@@ -66,6 +66,7 @@ grub_load_modules (void)
       struct grub_module_object *obj;
       char *code_start = &grub_code_start[0];
       char *name, *sym;
+      grub_uint32_t *sym_value;
 
       /* Not a module, skip.  */
       if (header->type != OBJ_TYPE_OBJECT)
@@ -83,16 +84,12 @@ grub_load_modules (void)
 
       grub_dl_resolve_dependencies (mod, name);
 
-      sym = name + obj->symbol_offset;
+      sym = name + obj->symbol_name;
+      sym_value = (grub_uint32_t *) (name + obj->symbol_value);
       while (*sym)
 	{
-	  char *s;
-
-	  s = sym;
+	  grub_dl_register_symbol (sym, code_start + *(sym_value++), mod);
 	  sym += grub_strlen (sym) + 1;
-	  grub_dl_register_symbol (s, code_start + *((grub_uint32_t *) sym),
-				   mod);
-	  sym += 4;
 	}
 
       if (obj->init_func)

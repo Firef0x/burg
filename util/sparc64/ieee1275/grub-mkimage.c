@@ -25,6 +25,7 @@
 #include <grub/util/misc.h>
 #include <grub/util/resolve.h>
 #include <grub/misc.h>
+#include <grub/util/obj.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -33,6 +34,12 @@
 
 #define _GNU_SOURCE	1
 #include <getopt.h>
+
+int
+grub_strcmp (const char *s1, const char *s2)
+{
+  return strcmp (s1, s2);
+}
 
 static void
 compress_kernel (char *kernel_img, size_t kernel_size,
@@ -45,79 +52,53 @@ compress_kernel (char *kernel_img, size_t kernel_size,
   *core_size = kernel_size;
 }
 
+#define LINK_ADDR	0x200000
+
 static void
-generate_image (const char *dir, const char *prefix, FILE *out, char *mods[], char *memdisk_path)
+generate_image (const char *dir, const char *prefix, FILE *out, char *mods[],
+		char *memdisk_path, char *config_path, int netboot)
 {
-  size_t kernel_size, total_module_size, memdisk_size, core_size, boot_size, offset;
-  char *kernel_path, *kernel_img, *core_img, *boot_path, *boot_img;
-  struct grub_util_path_list *path_list, *p;
-  struct grub_module_info *modinfo;
-  grub_addr_t module_addr;
+  char *kernel_img, *core_img, *boot_img;
+  size_t kernel_size, total_module_size, core_size, boot_size;
+  char *boot_path;
   unsigned int num;
+  struct grub_util_path_list *path_list;
+  struct grub_util_obj *obj;
+  struct grub_util_obj_segment *modinfo, *seg;
 
   path_list = grub_util_resolve_dependencies (dir, "moddep.lst", mods);
 
-  kernel_path = grub_util_get_path (dir, "kernel.img");
-  kernel_size = grub_util_get_image_size (kernel_path);
+  obj = xmalloc_zero (sizeof (*obj));
+  modinfo = grub_obj_add_modinfo (obj, dir, path_list, 0,
+				  memdisk_path, config_path);
+  grub_obj_sort_segments (obj);
+  grub_obj_merge_segments (obj, GRUB_TARGET_MIN_SEG_ALIGN, GRUB_OBJ_MERGE_ALL);
+  grub_obj_add_kernel_symbols (obj, modinfo, 0);
+  grub_obj_reloc_symbols (obj, GRUB_OBJ_MERGE_ALL);
+  grub_obj_link (obj, LINK_ADDR);
 
-  total_module_size = sizeof (struct grub_module_info);
-  for (p = path_list; p; p = p->next)
-    total_module_size += (grub_util_get_image_size (p->name)
-			  + sizeof (struct grub_module_header));
+  kernel_size = modinfo->segment.offset - LINK_ADDR;
+  total_module_size = modinfo->segment.size;
+  kernel_img = xmalloc_zero (kernel_size + total_module_size);
 
-  memdisk_size = 0;
-  if (memdisk_path)
+  seg = obj->segments;
+  while (seg)
     {
-      memdisk_size = ALIGN_UP(grub_util_get_image_size (memdisk_path), 512);
-      grub_util_info ("the size of memory disk is 0x%x", memdisk_size);
-      total_module_size += memdisk_size + sizeof (struct grub_module_header);
+      if (seg->segment.type != GRUB_OBJ_SEG_BSS)
+	{
+	  int offset = seg->segment.offset - LINK_ADDR;
+
+	  memcpy (kernel_img + offset, seg->data, seg->raw_size);
+	}
+      seg = seg->next;
     }
 
-  grub_util_info ("the total module size is 0x%x", total_module_size);
-
-  kernel_img = xmalloc (kernel_size + total_module_size);
-  grub_util_load_image (kernel_path, kernel_img);
+  grub_obj_free (obj);
 
   if ((GRUB_KERNEL_MACHINE_PREFIX + strlen (prefix) + 1)
       > GRUB_KERNEL_MACHINE_DATA_END)
     grub_util_error ("prefix too long");
   strcpy (kernel_img + GRUB_KERNEL_MACHINE_PREFIX, prefix);
-
-  /* Fill in the grub_module_info structure.  */
-  modinfo = (struct grub_module_info *) (kernel_img + kernel_size);
-  modinfo->magic = GRUB_MODULE_MAGIC;
-  modinfo->offset = sizeof (struct grub_module_info);
-  modinfo->size = total_module_size;
-
-  offset = kernel_size + sizeof (struct grub_module_info);
-  for (p = path_list; p; p = p->next)
-    {
-      struct grub_module_header *header;
-      size_t mod_size;
-
-      mod_size = grub_util_get_image_size (p->name);
-
-      header = (struct grub_module_header *) (kernel_img + offset);
-      header->type = OBJ_TYPE_ELF;
-      header->size = grub_host_to_target32 (mod_size + sizeof (*header));
-      offset += sizeof (*header);
-
-      grub_util_load_image (p->name, kernel_img + offset);
-      offset += mod_size;
-    }
-
-  if (memdisk_path)
-    {
-      struct grub_module_header *header;
-
-      header = (struct grub_module_header *) (kernel_img + offset);
-      header->type = OBJ_TYPE_MEMDISK;
-      header->size = grub_host_to_target32 (memdisk_size + sizeof (*header));
-      offset += sizeof (*header);
-
-      grub_util_load_image (memdisk_path, kernel_img + offset);
-      offset += memdisk_size;
-    }
 
   compress_kernel (kernel_img, kernel_size + total_module_size,
 		   &core_img, &core_size);
@@ -127,27 +108,30 @@ generate_image (const char *dir, const char *prefix, FILE *out, char *mods[], ch
   num = ((core_size + GRUB_DISK_SECTOR_SIZE - 1) >> GRUB_DISK_SECTOR_BITS);
   num <<= GRUB_DISK_SECTOR_BITS;
 
-  boot_path = grub_util_get_path (dir, "diskboot.img");
+  boot_path = grub_util_get_path (dir,
+				  (netboot) ? "netboot.img" : "diskboot.img");
   boot_size = grub_util_get_image_size (boot_path);
   if (boot_size != GRUB_DISK_SECTOR_SIZE)
-    grub_util_error ("diskboot.img is not one sector size");
+    grub_util_error ("diskboot.img/netboot.img is not one sector size");
 
   boot_img = grub_util_read_image (boot_path);
 
   /* sparc is a big endian architecture.  */
-  *((grub_uint32_t *) (boot_img + GRUB_DISK_SECTOR_SIZE
-		       - GRUB_BOOT_MACHINE_LIST_SIZE + 8))
-    = grub_cpu_to_be32 (num);
+  if (netboot)
+    {
+      *((grub_uint32_t *) (boot_img + GRUB_BOOT_MACHINE_CODE_SIZE))
+	= grub_cpu_to_be32 (core_size + 0x200 - GRUB_BOOT_AOUT_HEADER_SIZE);
+    }
+  else
+    {
+      *((grub_uint32_t *) (boot_img + GRUB_DISK_SECTOR_SIZE
+			   - GRUB_BOOT_MACHINE_LIST_SIZE + 8))
+	= grub_cpu_to_be32 (num);
+    }
 
   grub_util_write_image (boot_img, boot_size, out);
   free (boot_img);
   free (boot_path);
-
-  module_addr = (path_list
-		 ? (GRUB_BOOT_MACHINE_IMAGE_ADDRESS + kernel_size)
-		 : 0);
-
-  grub_util_info ("the first module address is 0x%x", module_addr);
 
   *((grub_uint32_t *) (core_img + GRUB_KERNEL_MACHINE_TOTAL_MODULE_SIZE))
     = grub_cpu_to_be32 (total_module_size);
@@ -161,7 +145,6 @@ generate_image (const char *dir, const char *prefix, FILE *out, char *mods[], ch
   grub_util_write_image (core_img, core_size, out);
   free (kernel_img);
   free (core_img);
-  free (kernel_path);
 
   while (path_list)
     {
@@ -177,7 +160,9 @@ static struct option options[] =
     {"directory", required_argument, 0, 'd'},
     {"prefix", required_argument, 0, 'p'},
     {"memdisk", required_argument, 0, 'm'},
+    {"config", required_argument, 0, 'c'},
     {"output", required_argument, 0, 'o'},
+    {"netboot", no_argument, 0, 'n'},
     {"help", no_argument, 0, 'h'},
     {"version", no_argument, 0, 'V'},
     {"verbose", no_argument, 0, 'v'},
@@ -198,7 +183,9 @@ Make a bootable image of GRUB.\n\
   -d, --directory=DIR     use images and modules under DIR [default=%s]\n\
   -p, --prefix=DIR        set grub_prefix directory [default=%s]\n\
   -m, --memdisk=FILE      embed FILE as a memdisk image\n\
+  -c, --config=FILE       embed FILE as boot config\n\
   -o, --output=FILE       output a generated image to FILE [default=stdout]\n\
+  -n, --netboot           generate netboot image\n\
   -h, --help              display this message and exit\n\
   -V, --version           print version information and exit\n\
   -v, --verbose           print verbose messages\n\
@@ -216,12 +203,14 @@ main (int argc, char *argv[])
   char *dir = NULL;
   char *prefix = NULL;
   char *memdisk = NULL;
+  char *config = NULL;
   FILE *fp = stdout;
+  int netboot = 0;
 
   progname = "grub-mkimage";
   while (1)
     {
-      int c = getopt_long (argc, argv, "d:p:m:o:hVv", options, 0);
+      int c = getopt_long (argc, argv, "d:p:m:c:o:nhVv", options, 0);
 
       if (c == -1)
 	break;
@@ -248,6 +237,17 @@ main (int argc, char *argv[])
 	    if (prefix)
 	      free (prefix);
 	    prefix = xstrdup ("(memdisk)/boot/grub");
+	    break;
+
+	  case 'c':
+	    if (config)
+	      free (config);
+
+	    config = xstrdup (optarg);
+	    break;
+
+	  case 'n':
+	    netboot = 1;
 	    break;
 
 	  case 'h':
@@ -281,14 +281,19 @@ main (int argc, char *argv[])
 	grub_util_error ("cannot open %s", output);
     }
 
-  generate_image (dir ? : GRUB_LIBDIR,
-		  prefix ? : DEFAULT_DIRECTORY, fp,
-		  argv + optind, memdisk);
+  generate_image (dir ? : GRUB_LIBDIR, prefix ? : DEFAULT_DIRECTORY, fp,
+		  argv + optind, memdisk, config, netboot);
 
   fclose (fp);
 
   if (dir)
     free (dir);
+
+  if (memdisk)
+    free (memdisk);
+
+  if (config)
+    free (config);
 
   return 0;
 }

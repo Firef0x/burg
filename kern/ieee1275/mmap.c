@@ -20,6 +20,8 @@
 #include <grub/ieee1275/ieee1275.h>
 #include <grub/types.h>
 
+GRUB_EXPORT(grub_machine_mmap_iterate);
+
 grub_err_t
 grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t))
 {

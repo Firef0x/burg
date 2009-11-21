@@ -311,7 +311,7 @@ grub_dl_resolve_symbols (grub_dl_t mod, struct grub_obj_header *e)
       addr += rel->offset;
       type = rel->type;
 
-#if defined(GRUB_TARGET_POWERPC)
+#if defined(GRUB_TARGET_USE_ADDEND)
       addend = rel->addend;
 #else
       addend = *((grub_addr_t *) addr);
@@ -379,6 +379,43 @@ grub_dl_resolve_symbols (grub_dl_t mod, struct grub_obj_header *e)
 	    v = (v & 0xfc000003) | (addend & 0x3fffffc);
 	    *((grub_uint32_t *) addr) = v;
 	    break;
+	  }
+#endif
+
+#if defined(GRUB_TARGET_SPARC64)
+	case GRUB_OBJ_REL_TYPE_LO10:
+	  {
+	    grub_uint32_t v;
+
+	    v = *((grub_uint32_t *) addr);
+	    v = (v & ~0x3ff) | (addend & 0x3ff);
+	    *((grub_uint32_t *) addr) = v;
+	    break;
+	  }
+
+	case GRUB_OBJ_REL_TYPE_HI22:
+	  {
+	    grub_uint32_t v;
+
+	    v = *((grub_uint32_t *) addr);
+	    v = (v & ~0x3fffff) | ((addend >> 10) & 0x3fffff);
+	    *((grub_uint32_t *) addr) = v;
+	    break;
+	  }
+
+	case GRUB_OBJ_REL_TYPE_30:
+	  {
+	    grub_uint32_t v;
+	    grub_int32_t a;
+
+	    v = *((grub_uint32_t *) addr);
+	    a = addend;
+
+	    if (a << 2 >> 2 != a)
+	      return grub_error (GRUB_ERR_BAD_MODULE, "relocation overflow");
+
+	    v = (v & 0xc0000000) | (addend >> 2);
+	    *((grub_uint32_t *) addr) = v;
 	  }
 #endif
 

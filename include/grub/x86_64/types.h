@@ -34,4 +34,6 @@
 
 #define GRUB_TARGET_X86_64		1
 
+#define GRUB_TARGET_MIN_ALIGN		1
+
 #endif /* ! GRUB_TYPES_CPU_HEADER */

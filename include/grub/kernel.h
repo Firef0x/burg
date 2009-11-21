@@ -42,7 +42,8 @@ struct grub_module_object
 {
   grub_uint32_t init_func;
   grub_uint32_t fini_func;
-  grub_uint16_t symbol_offset;
+  grub_uint16_t symbol_name;
+  grub_uint16_t symbol_value;
   char name[0];
 } __attribute__((packed));
 

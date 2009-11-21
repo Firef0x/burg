@@ -89,6 +89,15 @@ get_reloc_type (int type)
 
     case GRUB_OBJ_REL_TYPE_16HA | GRUB_OBJ_REL_FLAG_REL:
       return "rel16ha";
+
+    case GRUB_OBJ_REL_TYPE_LO10:
+      return "dirlo10";
+
+    case GRUB_OBJ_REL_TYPE_HI22:
+      return "dirhi22";
+
+    case GRUB_OBJ_REL_TYPE_30 | GRUB_OBJ_REL_FLAG_REL:
+      return "rel30";
     }
 
   sprintf (name_buf, "%x", type);
@@ -142,7 +151,7 @@ dump_reloc_hook (struct grub_util_obj_reloc *obj)
     {
       grub_uint32_t value;
 
-#ifdef GRUB_TARGET_POWERPC
+#ifdef GRUB_TARGET_USE_ADDEND
       value = obj->reloc.addend;
 #else
       if (obj->segment->data)

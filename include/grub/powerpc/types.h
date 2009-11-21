@@ -30,4 +30,8 @@
 
 #define GRUB_TARGET_POWERPC		1
 
+#define GRUB_TARGET_USE_ADDEND		1
+
+#define GRUB_TARGET_MIN_ALIGN		1
+
 #endif /* ! GRUB_TYPES_CPU_HEADER */
