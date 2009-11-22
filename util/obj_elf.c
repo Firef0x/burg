@@ -370,7 +370,10 @@ add_relocs (struct grub_util_obj *obj,
 
 	      case R_SPARC_OLO10:
 		type = GRUB_OBJ_REL_TYPE_LO10;
-		addend += ELF_R_TYPE (info) >> 8;
+		addend += (ELF_R_TYPE (info) >> 8);
+		if ((obj->relocs) &&
+		    (obj->relocs->reloc.type == R_SPARC_HI22))
+		  obj->relocs->reloc.addend += (ELF_R_TYPE (info) >> 8);
 		break;
 
 	      case R_SPARC_HI22:

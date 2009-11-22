@@ -100,6 +100,9 @@ enum grub_ieee1275_flag
 
   /* Open Hack'Ware don't support the ANSI sequence.  */
   GRUB_IEEE1275_FLAG_NO_ANSI,
+
+  /* OLPC uses cursor-on to set cursor.  */
+  GRUB_IEEE1275_FLAG_SET_CURSOR,
 };
 
 int grub_ieee1275_test_flag (enum grub_ieee1275_flag flag);

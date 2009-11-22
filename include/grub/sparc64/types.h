@@ -34,6 +34,4 @@
 
 #define GRUB_TARGET_MIN_ALIGN		4
 
-#define GRUB_TARGET_MIN_SEG_ALIGN	1024
-
 #endif /* ! GRUB_TYPES_CPU_HEADER */

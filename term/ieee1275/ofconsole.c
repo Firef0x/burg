@@ -325,10 +325,13 @@ static void
 grub_ofconsole_setcursor (int on)
 {
   /* Understood by the Open Firmware flavour in OLPC.  */
-  if (on)
-    grub_ieee1275_interpret ("cursor-on", 0);
-  else
-    grub_ieee1275_interpret ("cursor-off", 0);
+  if (grub_ieee1275_test_flag (GRUB_IEEE1275_FLAG_SET_CURSOR))
+    {
+      if (on)
+	grub_ieee1275_interpret ("cursor-on", 0);
+      else
+	grub_ieee1275_interpret ("cursor-off", 0);
+    }
 }
 
 static void

@@ -72,7 +72,7 @@ generate_image (const char *dir, const char *prefix, FILE *out, char *mods[],
   modinfo = grub_obj_add_modinfo (obj, dir, path_list, 0,
 				  memdisk_path, config_path);
   grub_obj_sort_segments (obj);
-  grub_obj_merge_segments (obj, GRUB_TARGET_MIN_SEG_ALIGN, GRUB_OBJ_MERGE_ALL);
+  grub_obj_merge_segments (obj, GRUB_TARGET_SIZEOF_LONG, GRUB_OBJ_MERGE_ALL);
   grub_obj_add_kernel_symbols (obj, modinfo, 0);
   grub_obj_reloc_symbols (obj, GRUB_OBJ_MERGE_ALL);
   grub_obj_link (obj, LINK_ADDR);

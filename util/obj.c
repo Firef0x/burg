@@ -82,34 +82,11 @@ check_merge (struct grub_util_obj_segment *s1,
   return 0;
 }
 
-#ifdef GRUB_TARGET_MIN_SEG_ALIGN
-
-static grub_uint32_t
-align_segment (grub_uint32_t offset, grub_uint32_t size, int type,
-	       grub_uint32_t align)
-{
-  offset = (offset + (align - 1)) & ~(align - 1);
-
-  if (((type == GRUB_OBJ_SEG_DATA) || (type == GRUB_OBJ_SEG_BSS)) &&
-      ((offset & (GRUB_TARGET_MIN_SEG_ALIGN - 1)) + size >
-       GRUB_TARGET_MIN_SEG_ALIGN))
-    offset = ((offset + (GRUB_TARGET_MIN_SEG_ALIGN - 1)) &
-	      ~(GRUB_TARGET_MIN_SEG_ALIGN - 1));
-
-  return offset;
-}
-
-#else
-
 static inline grub_uint32_t
-align_segment (grub_uint32_t offset, grub_uint32_t size, int type,
-	       grub_uint32_t align)
+align_segment (grub_uint32_t offset, grub_uint32_t align)
 {
-  (void) type;
   return offset = (offset + (align - 1)) & ~(align - 1);
 }
-
-#endif
 
 void
 grub_obj_merge_segments (struct grub_util_obj *obj, int align, int merge)
@@ -137,8 +114,7 @@ grub_obj_merge_segments (struct grub_util_obj *obj, int align, int merge)
 	  if ((p->segment.type != prev->segment.type) && (align > cur_align))
 	    cur_align = align;
 
-	  offset = align_segment (offset, p->segment.size, p->segment.type,
-				  cur_align);
+	  offset = align_segment (offset, cur_align);
 	  p->segment.offset = offset;
 	  offset += p->segment.size;
 	}
@@ -424,7 +400,6 @@ grub_obj_save (struct grub_util_obj *obj, char *mod_name, FILE *fp)
 
       cur->index = idx;
       size = align_segment (grub_target_to_host32 (hdr->segments[idx].size),
-			    cur->segment.size, cur->segment.type,
 			    cur->segment.align);
       size += cur->segment.size;
       hdr->segments[idx].size = grub_host_to_target32 (size);
@@ -433,8 +408,7 @@ grub_obj_save (struct grub_util_obj *obj, char *mod_name, FILE *fp)
 
       if (cur->segment.type != GRUB_OBJ_SEG_BSS)
 	{
-	  raw_size = align_segment (raw_size, cur->segment.size,
-				    cur->segment.type, cur->segment.align);
+	  raw_size = align_segment (raw_size, cur->segment.align);
 	  raw_size += (is_last) ? cur->raw_size : cur->segment.size;
 	}
 
@@ -616,8 +590,7 @@ grub_obj_save (struct grub_util_obj *obj, char *mod_name, FILE *fp)
 	  grub_uint32_t size;
 	  int is_last;
 
-	  size = align_segment (raw_size, cur->segment.size,
-				cur->segment.type, cur->segment.align);
+	  size = align_segment (raw_size, cur->segment.align);
 	  if (size != raw_size)
 	    {
 	      if (size - raw_size > ALIGN_BUF_SIZE)
@@ -1380,8 +1353,8 @@ grub_obj_csym_done (struct grub_util_obj *obj)
 
       s = xmalloc_zero (sizeof (*s));
       s->segment = seg;
-
-      size = align_segment (size, c->size, GRUB_OBJ_SEG_BSS, 1);
+      if ((c->size & (GRUB_TARGET_SIZEOF_LONG - 1)) == 0)
+	size = ALIGN_UP (size, GRUB_TARGET_SIZEOF_LONG);
       s->symbol.offset = size;
       s->name = c->name;
       size += c->size;

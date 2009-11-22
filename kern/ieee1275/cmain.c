@@ -145,6 +145,7 @@ grub_ieee1275_find_options (void)
       */
 
       grub_ieee1275_set_flag (GRUB_IEEE1275_FLAG_OFDISK_SDCARD_ONLY);
+      grub_ieee1275_set_flag (GRUB_IEEE1275_FLAG_SET_CURSOR);
     }
 
   if (! grub_ieee1275_finddevice ("/rom/boot-rom", &bootrom))

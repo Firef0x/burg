@@ -433,7 +433,11 @@ grub_ext2_read_block (grub_fshelp_node_t node, grub_disk_addr_t fileblock)
   /* Indirect.  */
   else if (fileblock < INDIRECT_BLOCKS + blksz / 4)
     {
-      grub_uint32_t indir[blksz / 4];
+      grub_uint32_t *indir;
+
+      indir = grub_malloc (blksz);
+      if (! indir)
+	return grub_errno;
 
       if (grub_disk_read (data->disk,
 			  grub_le_to_cpu32 (inode->blocks.indir_block)
@@ -442,6 +446,7 @@ grub_ext2_read_block (grub_fshelp_node_t node, grub_disk_addr_t fileblock)
 	return grub_errno;
 
       blknr = grub_le_to_cpu32 (indir[fileblock - INDIRECT_BLOCKS]);
+      grub_free (indir);
     }
   /* Double indirect.  */
   else if (fileblock < INDIRECT_BLOCKS + blksz / 4 * (blksz / 4 + 1))
@@ -449,7 +454,11 @@ grub_ext2_read_block (grub_fshelp_node_t node, grub_disk_addr_t fileblock)
       unsigned int perblock = blksz / 4;
       unsigned int rblock = fileblock - (INDIRECT_BLOCKS
 					 + blksz / 4);
-      grub_uint32_t indir[blksz / 4];
+      grub_uint32_t *indir;
+
+      indir = grub_malloc (blksz);
+      if (! indir)
+	return grub_errno;
 
       if (grub_disk_read (data->disk,
 			  grub_le_to_cpu32 (inode->blocks.double_indir_block)
@@ -463,8 +472,8 @@ grub_ext2_read_block (grub_fshelp_node_t node, grub_disk_addr_t fileblock)
 			  0, blksz, indir))
 	return grub_errno;
 
-
       blknr = grub_le_to_cpu32 (indir[rblock % perblock]);
+            grub_free (indir);
     }
   /* triple indirect.  */
   else
