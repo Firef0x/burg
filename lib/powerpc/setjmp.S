@@ -22,6 +22,9 @@
 
 	.text
 
+GRUB_EXPORT(grub_setjmp);
+GRUB_EXPORT(grub_longjmp);
+
 #ifdef APPLE_CC
 
 /*

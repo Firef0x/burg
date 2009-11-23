@@ -114,6 +114,8 @@ static char *compute_dest_ofpath (const char *dest)
 	  *p++ = ',';
 	  dest++;
 	}
+      else if (c == ',')
+	break;
       else
 	*p++ = c;
     }

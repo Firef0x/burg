@@ -416,6 +416,7 @@ grub_dl_resolve_symbols (grub_dl_t mod, struct grub_obj_header *e)
 
 	    v = (v & 0xc0000000) | (addend >> 2);
 	    *((grub_uint32_t *) addr) = v;
+	    break;
 	  }
 #endif
 
