@@ -156,7 +156,7 @@ class Utility
   def print_tail()
     prefix = @name.to_var
     print "#{@name}: $(#{prefix}_DEPENDENCIES) $(#{prefix}_OBJECTS)
-	$(CC) -o $@ $(#{prefix}_OBJECTS) $(LDFLAGS) $(#{prefix}_LDFLAGS)
+	$(CC) -o $@ $(#{prefix}_OBJECTS) $(LDFLAGS) $(#{prefix}_LDFLAGS) -lintl
 
 "
   end

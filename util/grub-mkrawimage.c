@@ -21,12 +21,21 @@
 #include <grub/types.h>
 #include <grub/util/obj.h>
 #include <grub/util/misc.h>
+#include <grub/i18n.h>
 
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <getopt.h>
+
+#include "progname.h"
+
+void
+grub_abort (void)
+{
+  abort ();
+}
 
 int
 grub_strcmp (const char *s1, const char *s2)
@@ -117,7 +126,10 @@ main (int argc, char *argv[])
   char *output = NULL;
   grub_uint32_t base = 0;
 
-  progname = "grub-mkrawimage";
+  set_program_name (argv[0]);
+  setlocale (LC_ALL, "");
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   /* Check for options.  */
   while (1)
@@ -134,7 +146,7 @@ main (int argc, char *argv[])
 	    break;
 
 	  case 'V':
-	    printf ("%s (%s) %s\n", progname, PACKAGE_NAME, PACKAGE_VERSION);
+	    printf ("grub-mkrawimage (%s) %s\n", PACKAGE_NAME, PACKAGE_VERSION);
 	    return 0;
 
 	  case 'v':

@@ -25,6 +25,7 @@
 #include <grub/parser.h>
 #include <grub/auth.h>
 #include <grub/lib.h>
+#include <grub/i18n.h>
 
 enum update_mode
   {
@@ -997,7 +998,7 @@ run (struct screen *screen)
     }
 
   grub_cls ();
-  grub_printf ("  Booting a command list\n\n");
+  grub_printf ("%s", _("  Booting a command list\n\n"));
 
 
   /* Execute the script, line for line.  */
@@ -1177,6 +1178,6 @@ grub_menu_entry_run (grub_menu_entry_t entry)
   grub_cls ();
   grub_print_error ();
   grub_errno = GRUB_ERR_NONE;
-  grub_printf ("\nPress any key to continue...");
+  grub_printf ("%s", _("\nPress any key to continue..."));
   (void) grub_getkey ();
 }

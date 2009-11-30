@@ -31,6 +31,15 @@
 #include <grub/kernel.h>
 #include <grub/efi/pe32.h>
 #include <grub/machine/kernel.h>
+#include <grub/i18n.h>
+
+#include "progname.h"
+
+void
+grub_abort (void)
+{
+  abort ();
+}
 
 int
 grub_strcmp (const char *s1, const char *s2)
@@ -568,7 +577,10 @@ main (int argc, char *argv[])
   char *memdisk = NULL;
   char *config = NULL;
 
-  progname = "grub-mkimage";
+  set_program_name (argv[0]);
+  setlocale (LC_ALL, "");
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   while (1)
     {

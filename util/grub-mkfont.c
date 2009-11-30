@@ -21,6 +21,9 @@
 #include <grub/util/misc.h>
 #include <grub/misc.h>
 #include <grub/handler.h>
+#include <grub/i18n.h>
+
+#include "progname.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -123,10 +126,10 @@ static void
 usage (int status)
 {
   if (status)
-    fprintf (stderr, "Try ``grub-mkfont --help'' for more information.\n");
+    fprintf (stderr, "Try ``%s --help'' for more information.\n", program_name);
   else
     printf ("\
-Usage: grub-mkfont [OPTIONS] FONT_FILES\n\
+Usage: %s [OPTIONS] FONT_FILES\n\
 \nOptions:\n\
   -o, --output=FILE_NAME    set output file name\n\
   -i, --index=N             set face index\n\
@@ -144,7 +147,7 @@ Usage: grub-mkfont [OPTIONS] FONT_FILES\n\
   -V, --version             print version information and exit\n\
   -v, --verbose             print verbose messages\n\
 \n\
-Report bugs to <%s>.\n", PACKAGE_BUGREPORT);
+Report bugs to <%s>.\n", program_name, PACKAGE_BUGREPORT);
 
   exit (status);
 }
@@ -576,7 +579,10 @@ main (int argc, char *argv[])
 
   memset (&font_info, 0, sizeof (font_info));
 
-  progname = "grub-mkfont";
+  set_program_name (argv[0]);
+  setlocale (LC_ALL, "");
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   /* Check for options.  */
   while (1)
@@ -673,7 +679,7 @@ main (int argc, char *argv[])
 	    break;
 
 	  case 'V':
-	    printf ("%s (%s) %s\n", progname, PACKAGE_NAME, PACKAGE_VERSION);
+	    printf ("%s (%s) %s\n", program_name, PACKAGE_NAME, PACKAGE_VERSION);
 	    return 0;
 
 	  case 'v':

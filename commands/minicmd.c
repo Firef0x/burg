@@ -336,6 +336,7 @@ grub_mini_cmd_exit (struct grub_command *cmd __attribute__ ((unused)),
   return 0;
 }
 
+/* clear */
 static grub_err_t
 grub_mini_cmd_clear (struct grub_command *cmd __attribute__ ((unused)),
 		     int argc __attribute__ ((unused)),
@@ -346,7 +347,8 @@ grub_mini_cmd_clear (struct grub_command *cmd __attribute__ ((unused)),
 }
 
 static grub_command_t cmd_cat, cmd_help, cmd_root;
-static grub_command_t cmd_dump, cmd_rmmod, cmd_lsmod, cmd_exit, cmd_clear;
+static grub_command_t cmd_dump, cmd_rmmod, cmd_lsmod, cmd_exit;
+static grub_command_t cmd_clear;
 
 GRUB_MOD_INIT(minicmd)
 {
@@ -373,7 +375,7 @@ GRUB_MOD_INIT(minicmd)
 			   0, "exit from GRUB");
   cmd_clear =
     grub_register_command ("clear", grub_mini_cmd_clear,
-			   0, "clear screen");
+			   0, "clear the screen");
 }
 
 GRUB_MOD_FINI(minicmd)

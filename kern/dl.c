@@ -31,7 +31,6 @@
 #include <grub/file.h>
 #include <grub/env.h>
 #include <grub/cache.h>
-#include <grub/machine/machine.h>
 
 GRUB_EXPORT(grub_dl_load_file);
 GRUB_EXPORT(grub_dl_load);

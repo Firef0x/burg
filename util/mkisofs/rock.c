@@ -19,9 +19,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, see <http://www.gnu.org/licenses/>.
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
-
-static char rcsid[] ="$Id: rock.c,v 1.8 1999/03/02 03:41:26 eric Exp $";
+ */
 
 #include <stdlib.h>
 
@@ -45,6 +43,7 @@ static char rcsid[] ="$Id: rock.c,v 1.8 1999/03/02 03:41:26 eric Exp $";
 #include "mkisofs.h"
 #include "iso9660.h"
 #include <string.h>
+#include <errno.h>
 
 #ifdef	DOESNT_WORK
 
@@ -88,7 +87,7 @@ static char rcsid[] ="$Id: rock.c,v 1.8 1999/03/02 03:41:26 eric Exp $";
    a CE entry for the continuation record */
 
 #define MAYBE_ADD_CE_ENTRY(BYTES) \
-    ((unsigned) ((BYTES) + CE_SIZE + currlen + ipnt) > (unsigned) (recstart + reclimit) ? 1 : 0)
+    ((unsigned) ((BYTES) + CE_SIZE + currlen + ipnt) > (unsigned) (recstart + reclimit) ? 1 : 0) 
 
 /*
  * Buffer to build RR attributes
@@ -105,7 +104,7 @@ static int reclimit;
 static void add_CE_entry	__PR((void));
 
 static void add_CE_entry(){
-	  if(recstart)
+          if(recstart)
 	    set_733((char*)Rock + recstart - 8, ipnt + 28 - recstart);
 	  Rock[ipnt++] ='C';
 	  Rock[ipnt++] ='E';
@@ -184,7 +183,7 @@ int deep_opt;
     npnt = name;
 
     while(remain){
-	  use = remain;
+          use = remain;
 	  need_ce = 0;
 	  /* Can we fit this SUSP and a CE entry? */
 	  if(use + currlen + CE_SIZE + (ipnt - recstart) > reclimit) {
@@ -211,13 +210,13 @@ int deep_opt;
   };
 
   /*
-   * Add the posix modes
+   * Add the posix modes 
    */
   if(MAYBE_ADD_CE_ENTRY(PX_SIZE)) add_CE_entry();
   Rock[ipnt++] ='P';
   Rock[ipnt++] ='X';
   Rock[ipnt++] = PX_SIZE;
-  Rock[ipnt++] = SU_VERSION;
+  Rock[ipnt++] = SU_VERSION;  
   flagval |= (1<<0);
   set_733((char*)Rock + ipnt, lstatbuf->st_mode);
   ipnt += 8;
@@ -237,7 +236,7 @@ int deep_opt;
     Rock[ipnt++] ='P';
     Rock[ipnt++] ='N';
     Rock[ipnt++] = PN_SIZE;
-    Rock[ipnt++] = SU_VERSION;
+    Rock[ipnt++] = SU_VERSION;  
     flagval |= (1<<1);
 #if defined(MAJOR_IN_SYSMACROS) || defined(MAJOR_IN_MKDEV)
     set_733((char*)Rock + ipnt, major(lstatbuf->st_rdev ));
@@ -253,22 +252,22 @@ int deep_opt;
      * system supports it.
      */
     if(sizeof(dev_t) <= 2) {
-	set_733((char*)Rock + ipnt, (lstatbuf->st_rdev >> 8));
-	ipnt += 8;
-	set_733((char*)Rock + ipnt, lstatbuf->st_rdev & 0xff);
-	ipnt += 8;
+        set_733((char*)Rock + ipnt, (lstatbuf->st_rdev >> 8));
+        ipnt += 8;
+        set_733((char*)Rock + ipnt, lstatbuf->st_rdev & 0xff);
+        ipnt += 8;
     }
     else if(sizeof(dev_t) <= 4) {
-	set_733((char*)Rock + ipnt, (lstatbuf->st_rdev >> 8) >> 8);
-	ipnt += 8;
-	set_733((char*)Rock + ipnt, lstatbuf->st_rdev & 0xffff);
-	ipnt += 8;
+        set_733((char*)Rock + ipnt, (lstatbuf->st_rdev >> 8) >> 8);
+        ipnt += 8;
+        set_733((char*)Rock + ipnt, lstatbuf->st_rdev & 0xffff);
+        ipnt += 8;
     }
     else {
-	set_733((char*)Rock + ipnt, (lstatbuf->st_rdev >> 16) >> 16);
-	ipnt += 8;
-	set_733((char*)Rock + ipnt, lstatbuf->st_rdev);
-	ipnt += 8;
+        set_733((char*)Rock + ipnt, (lstatbuf->st_rdev >> 16) >> 16);
+        ipnt += 8;
+        set_733((char*)Rock + ipnt, lstatbuf->st_rdev);
+        ipnt += 8;
     }
 #endif
   };
@@ -287,27 +286,27 @@ int deep_opt;
     cpnt = &symlink_buff[0];
     flagval |= (1<<2);
 
-    if (! split_SL_field)
+    if (! split_SL_field) 
       {
 	int sl_bytes = 0;
-	for (cpnt1 = cpnt; *cpnt1 != '\0'; cpnt1++)
+	for (cpnt1 = cpnt; *cpnt1 != '\0'; cpnt1++) 
 	  {
-	    if (*cpnt1 == '/')
+	    if (*cpnt1 == '/') 
 	      {
 		sl_bytes += 4;
-	      }
-	    else
+	      } 
+	    else 
 	      {
 		sl_bytes += 1;
 	      }
 	  }
-	if (sl_bytes > 250)
+	if (sl_bytes > 250) 
 	  {
-	    /*
+	    /* 
 	     * the symbolic link won't fit into one SL System Use Field
-	     * print an error message and continue with splited one
+	     * print an error message and continue with splited one 
 	     */
-	    fprintf(stderr,"symbolic link ``%s'' to long for one SL System Use Field, splitting", cpnt);
+	    fprintf(stderr, _("symbolic link ``%s'' to long for one SL System Use Field, splitting"), cpnt);
 	  }
        if(MAYBE_ADD_CE_ENTRY(SL_SIZE + sl_bytes)) add_CE_entry();
      }
@@ -318,7 +317,7 @@ int deep_opt;
       Rock[ipnt++] ='L';
       lenpos = ipnt;
       Rock[ipnt++] = SL_SIZE;
-      Rock[ipnt++] = SU_VERSION;
+      Rock[ipnt++] = SU_VERSION;  
       Rock[ipnt++] = 0; /* Flags */
       lenval = 5;
       while(*cpnt){
@@ -327,7 +326,7 @@ int deep_opt;
 	  nchar--;
 	  *cpnt1 = 0;
 	};
-
+	
 	/* We treat certain components in a special way.  */
 	if(cpnt[0] == '.' && cpnt[1] == '.' && cpnt[2] == 0){
 	  if(MAYBE_ADD_CE_ENTRY(2)) add_CE_entry();
@@ -349,8 +348,8 @@ int deep_opt;
 	} else {
 	  /* If we do not have enough room for a component, start
 	     a new continuations segment now */
-	 if(split_SL_component ? MAYBE_ADD_CE_ENTRY(6) :
-				 MAYBE_ADD_CE_ENTRY(6 + strlen ((char *) cpnt)))
+         if(split_SL_component ? MAYBE_ADD_CE_ENTRY(6) :
+                                 MAYBE_ADD_CE_ENTRY(6 + strlen ((char *) cpnt))) 
 	   {
 	     add_CE_entry();
 	     if(cpnt1)
@@ -382,7 +381,7 @@ int deep_opt;
 	      add_CE_entry();
 	      if(cpnt1) {
 		*cpnt1 = '/';
-		nchar++;
+                nchar++;
 		cpnt1 = NULL; /* A kluge so that we can restart properly */
 	      }
 	      break;
@@ -398,7 +397,7 @@ int deep_opt;
       if(nchar) Rock[lenpos + 2] = SL_CONTINUE; /* We need another SL entry */
     } /* while nchar */
   } /* Is a symbolic link */
-  /*
+  /* 
    * Add in the Rock Ridge TF time field
    */
   if(MAYBE_ADD_CE_ENTRY(TF_SIZE)) add_CE_entry();
@@ -423,22 +422,22 @@ int deep_opt;
   iso9660_date((char *) &Rock[ipnt], lstatbuf->st_ctime);
   ipnt += 7;
 
-  /*
+  /* 
    * Add in the Rock Ridge RE time field
    */
   if(deep_opt & NEED_RE){
-	  if(MAYBE_ADD_CE_ENTRY(RE_SIZE)) add_CE_entry();
+          if(MAYBE_ADD_CE_ENTRY(RE_SIZE)) add_CE_entry();
 	  Rock[ipnt++] ='R';
 	  Rock[ipnt++] ='E';
 	  Rock[ipnt++] = RE_SIZE;
 	  Rock[ipnt++] = SU_VERSION;
 	  flagval |= (1<<6);
   };
-  /*
+  /* 
    * Add in the Rock Ridge PL record, if required.
    */
   if(deep_opt & NEED_PL){
-	  if(MAYBE_ADD_CE_ENTRY(PL_SIZE)) add_CE_entry();
+          if(MAYBE_ADD_CE_ENTRY(PL_SIZE)) add_CE_entry();
 	  Rock[ipnt++] ='P';
 	  Rock[ipnt++] ='L';
 	  Rock[ipnt++] = PL_SIZE;
@@ -448,11 +447,11 @@ int deep_opt;
 	  flagval |= (1<<5);
   };
 
-  /*
+  /* 
    * Add in the Rock Ridge CL field, if required.
    */
   if(deep_opt & NEED_CL){
-	  if(MAYBE_ADD_CE_ENTRY(CL_SIZE)) add_CE_entry();
+          if(MAYBE_ADD_CE_ENTRY(CL_SIZE)) add_CE_entry();
 	  Rock[ipnt++] ='C';
 	  Rock[ipnt++] ='L';
 	  Rock[ipnt++] = CL_SIZE;
@@ -465,7 +464,7 @@ int deep_opt;
 #ifndef VMS
   /* If transparent compression was requested, fill in the correct
      field for this file */
-  if(transparent_compression &&
+  if(transparent_compression && 
      S_ISREG(lstatbuf->st_mode) &&
      strlen(name) > 3 &&
      strcmp(name + strlen(name) - 3,".gZ") == 0){
@@ -480,8 +479,8 @@ int deep_opt;
     OK_flag = 1;
 
     zipfile = fopen(whole_name, "rb");
-    ssize_t tmp = fread(header, 1, sizeof(header), zipfile);
-    (void) tmp;
+    if (fread (header, 1, sizeof (header), zipfile) != sizeof(header))
+      error (1, errno, "fread");
 
     /* Check some magic numbers from gzip. */
     if(header[0] != 0x1f || header[1] != 0x8b || header[2] != 8) OK_flag = 0;
@@ -499,8 +498,8 @@ int deep_opt;
       else {
 	int blocksize;
 	blocksize = (header[3] << 8) | header[2];
-	file_size = ((unsigned int)header[7] << 24) |
-		    ((unsigned int)header[6] << 16) |
+	file_size = ((unsigned int)header[7] << 24) | 
+		    ((unsigned int)header[6] << 16) | 
 		    ((unsigned int)header[5] << 8)  | header[4];
 #if 0
 	fprintf(stderr,"Blocksize = %d %d\n", blocksize, file_size);
@@ -515,7 +514,7 @@ int deep_opt;
     zipfile = fopen(checkname, "rb");
     if(zipfile) {
       OK_flag = 0;
-      fprintf(stderr,"Unable to insert transparent compressed file - name conflict\n");
+      fprintf (stderr, _("Unable to insert transparent compressed file - name conflict\n"));
       fclose(zipfile);
     }
 
@@ -535,7 +534,7 @@ int deep_opt;
     };
   }
 #endif
-  /*
+  /* 
    * Add in the Rock Ridge CE field, if required.  We use  this for the
    * extension record that is stored in the root directory.
    */
@@ -588,10 +587,8 @@ char * FDECL4(generate_rr_extension_record, char *, id,  char  *, descriptor,
   memcpy(Rock  + lipnt, source, len_src);
   lipnt += len_src;
 
-  if(lipnt  > SECTOR_SIZE) {
-	  fprintf(stderr,"Extension record too  long\n");
-	  exit(1);
-  };
+  if(lipnt  > SECTOR_SIZE)
+    error (1, 0, _("Extension record too long\n"));
   pnt = (char *) e_malloc(SECTOR_SIZE);
   memset(pnt, 0,  SECTOR_SIZE);
   memcpy(pnt, Rock, lipnt);

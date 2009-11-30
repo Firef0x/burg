@@ -23,6 +23,7 @@
 #include <stdarg.h>
 #include <grub/term.h>
 #include <grub/env.h>
+#include <grub/i18n.h>
 
 GRUB_EXPORT(grub_memmove);
 GRUB_EXPORT(grub_strcpy);
@@ -60,11 +61,23 @@ GRUB_EXPORT(grub_divmod64);
 GRUB_EXPORT(__enable_execute_stack);
 #endif
 
+GRUB_EXPORT(grub_gettext);
+GRUB_EXPORT(grub_gettext_dummy);
+
 static int
 grub_iswordseparator (int c)
 {
   return (grub_isspace (c) || c == ',' || c == ';' || c == '|' || c == '&');
 }
+
+/* grub_gettext_dummy is not translating anything.  */
+const char *
+grub_gettext_dummy (const char *s)
+{
+  return s;
+}
+
+const char* (*grub_gettext) (const char *s) = grub_gettext_dummy;
 
 void *
 grub_memmove (void *dest, const void *src, grub_size_t n)

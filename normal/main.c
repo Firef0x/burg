@@ -27,6 +27,7 @@
 #include <grub/env.h>
 #include <grub/menu.h>
 #include <grub/command.h>
+#include <grub/i18n.h>
 
 /* This starts the normal mode.  */
 static void
@@ -35,7 +36,7 @@ grub_enter_normal_mode (const char *config)
   read_command_list ();
   read_fs_list ();
   read_handler_list ();
-  grub_command_execute ("parser.sh", 0, 0);
+  grub_command_execute ("parser.grub", 0, 0);
   grub_menu_execute (config, 0, 0);
 }
 

@@ -30,6 +30,7 @@
 #include <grub/parser.h>
 #include <grub/normal_menu.h>
 #include <grub/menu_viewer.h>
+#include <grub/i18n.h>
 
 /* Time to delay after displaying an error message about a default/fallback
    entry failing to boot.  */
@@ -88,8 +89,8 @@ print_message (int nested, int edit)
     }
   else
     {
-      grub_printf ("\n\
-      Use the %C and %C keys to select which entry is highlighted.\n",
+      grub_printf (_("\n\
+      Use the %C and %C keys to select which entry is highlighted.\n"),
 		   (grub_uint32_t) GRUB_TERM_DISP_UP, (grub_uint32_t) GRUB_TERM_DISP_DOWN);
       grub_printf ("\
       Press enter to boot the selected OS, \'e\' to edit the\n\
@@ -652,9 +653,9 @@ static grub_err_t
 grub_normal_read_line (char **line, int cont)
 {
   grub_parser_t parser = grub_parser_get_current ();
-  char prompt[8 + grub_strlen (parser->name)];
+  char prompt[sizeof("> ") + grub_strlen (parser->name)];
 
-  grub_sprintf (prompt, "%s:%s> ", parser->name, (cont) ? "" : "grub");
+  grub_sprintf (prompt, "%s> ", parser->name);
 
   while (1)
     {
@@ -690,10 +691,10 @@ grub_cmdline_run (int nested)
   grub_normal_init_page ();
   grub_setcursor (1);
 
-  grub_printf ("\
+  grub_printf (_("\
  [ Minimal BASH-like line editing is supported. For the first word, TAB\n\
    lists possible command completions. Anywhere else TAB lists possible\n\
-   device/file completions.%s ]\n\n",
+   device/file completions.%s ]\n\n"),
 	       nested ? " ESC at any time exits." : "");
 
   reader_nested = nested;

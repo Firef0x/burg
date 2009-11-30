@@ -20,6 +20,7 @@
 #include <grub/util/misc.h>
 #include <grub/lib.h>
 #include <grub/handler.h>
+#include <grub/i18n.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -27,6 +28,8 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <time.h>
+
+#include "progname.h"
 
 void
 grub_putchar (int c)
@@ -120,7 +123,10 @@ generate_password (char *password)
 int
 main (int argc, char *argv[])
 {
-  progname = "grub-mkpasswd";
+  set_program_name (argv[0]);
+  setlocale (LC_ALL, "");
+  bindtextdomain (PACKAGE, LOCALEDIR);
+  textdomain (PACKAGE);
 
   /* Check for options.  */
   while (1)
@@ -137,7 +143,7 @@ main (int argc, char *argv[])
 	    break;
 
 	  case 'V':
-	    printf ("%s (%s) %s\n", progname, PACKAGE_NAME, PACKAGE_VERSION);
+	    printf ("grub-mkpasswd (%s) %s\n", PACKAGE_NAME, PACKAGE_VERSION);
 	    return 0;
 
 	  case 'v':
