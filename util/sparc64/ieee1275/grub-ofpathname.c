@@ -19,6 +19,9 @@
 
 #include <grub/util/misc.h>
 #include <grub/util/ofpath.h>
+#include <grub/i18n.h>
+
+#include "progname.h"
 
 int main(int argc, char **argv)
 {

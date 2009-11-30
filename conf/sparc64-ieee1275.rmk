@@ -31,12 +31,13 @@ bin_UTILITIES = grub-mkimage
 sbin_UTILITIES = grub-setup grub-ofpathname
 
 # For grub-mkimage.
-grub_mkimage_SOURCES = util/sparc64/ieee1275/grub-mkimage.c util/misc.c \
-        util/resolve.c util/obj.c kern/list.c
+grub_mkimage_SOURCES = gnulib/progname.c util/sparc64/ieee1275/grub-mkimage.c \
+	util/misc.c util/resolve.c util/obj.c kern/list.c
 
 # For grub-setup.
 util/sparc64/ieee1275/grub-setup.c_DEPENDENCIES = grub_setup_init.h
-grub_setup_SOURCES = util/sparc64/ieee1275/grub-setup.c util/hostdisk.c	\
+grub_setup_SOURCES = gnulib/progname.c \
+	util/sparc64/ieee1275/grub-setup.c util/hostdisk.c	\
 	util/misc.c util/getroot.c kern/device.c kern/disk.c	\
 	kern/err.c kern/misc.c kern/parser.c kern/partition.c	\
 	kern/file.c kern/fs.c kern/env.c kern/list.c fs/fshelp.c \
@@ -55,7 +56,8 @@ grub_setup_SOURCES = util/sparc64/ieee1275/grub-setup.c util/hostdisk.c	\
 	grub_setup_init.c
 
 # For grub-ofpathname.
-grub_ofpathname_SOURCES = util/sparc64/ieee1275/grub-ofpathname.c \
+grub_ofpathname_SOURCES = gnulib/progname.c \
+	util/sparc64/ieee1275/grub-ofpathname.c \
 	util/ieee1275/ofpath.c util/misc.c
 
 # Scripts.

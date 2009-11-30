@@ -52,3 +52,7 @@
 #ifndef SYSTEM_ID_DEFAULT
 #define  SYSTEM_ID_DEFAULT 	"LINUX"
 #endif
+
+#ifdef __MINGW32__
+#define fseeko fseeko64
+#endif

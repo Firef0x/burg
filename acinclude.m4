@@ -458,3 +458,17 @@ else
   AC_MSG_RESULT([no])
 [fi]
 ])
+
+dnl Check if --defsym is supported
+AC_DEFUN(grub_PROG_LD_DEFSYM,
+[AC_MSG_CHECKING([whether linker accepts --defsym])
+AC_CACHE_VAL(grub_cv_prog_ld_defsym,
+[save_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS -Wl,--defsym,__main=0x8100"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[]])],
+	       [grub_cv_prog_ld_defsym=yes],
+	       [grub_cv_prog_ld_defsym=no])
+LDFLAGS="$save_LDFLAGS"
+])
+AC_MSG_RESULT([$grub_cv_prog_ld_defsym])
+])

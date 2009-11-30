@@ -41,7 +41,7 @@ void grub_list_insert (grub_list_t *head, grub_list_t item,
 
 /* This function doesn't exist, so if assertion is false for some reason, the
    linker would fail.  */
-#ifdef APPLE_CC
+#if 1
 /* This approach fails with Apple's gcc. Use grub_abort.  */
 #include <grub/misc.h>
 static inline void *

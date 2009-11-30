@@ -80,6 +80,8 @@ void sleep(int s);
 
 grub_int64_t grub_util_get_disk_size (char *name);
 
+#define realpath(a, b)	(char *) a
+
 #endif
 
 

@@ -45,9 +45,12 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <grub/util/getroot.h>
+#include <grub/i18n.h>
 
 #define _GNU_SOURCE	1
 #include <getopt.h>
+
+#include "progname.h"
 
 /* This program fills in various fields inside of the 'boot' and 'core'
  * image files.
@@ -421,7 +424,7 @@ DEVICE must be a GRUB device (e.g. ``(hd0,1)'').\n\
   -v, --verbose           print verbose messages\n\
 \n\
 Report bugs to <%s>.\n\
-", program_name
+", program_name,
 	    DEFAULT_BOOT_FILE, DEFAULT_CORE_FILE, DEFAULT_DIRECTORY,
 	    DEFAULT_DEVICE_MAP, PACKAGE_BUGREPORT);
 

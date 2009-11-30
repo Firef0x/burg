@@ -26,6 +26,7 @@
 #include <grub/util/resolve.h>
 #include <grub/misc.h>
 #include <grub/util/obj.h>
+#include <grub/i18n.h>
 
 #include <stdio.h>
 #include <unistd.h>
@@ -34,6 +35,14 @@
 
 #define _GNU_SOURCE	1
 #include <getopt.h>
+
+#include "progname.h"
+
+void
+grub_abort (void)
+{
+  abort ();
+}
 
 int
 grub_strcmp (const char *s1, const char *s2)

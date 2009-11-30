@@ -11,7 +11,9 @@ automake -a -c -f || true
 
 echo timestamp > stamp-h.in
 
-python util/import_gcry.py lib/libgcrypt/ .
+if which python 2>/dev/null >/dev/null ; then
+  python util/import_gcry.py lib/libgcrypt/ .
+fi
 
 for rmk in conf/*.rmk ${GRUB_CONTRIB}/*/conf/*.rmk; do
   if test -e $rmk ; then

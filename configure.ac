@@ -175,6 +175,8 @@ AC_GNU_SOURCE
 AM_GNU_GETTEXT
 AC_SYS_LARGEFILE
 
+LDFLAGS="$LDFLAGS $LIBINTL"
+
 # Identify characteristics of the host architecture.
 AC_C_BIGENDIAN
 AC_CHECK_SIZEOF(void *)
@@ -410,10 +412,11 @@ AC_CHECK_FUNCS(__bswapsi2 __bswapdi2 __ashldi3 __ashrdi3 __lshrdi3 __trampoline_
 
 # Set them to their new values for the tests below.
 CC="$TARGET_CC"
-if test "x$TARGET_APPLE_CC" = x1 ; then
-CFLAGS="$TARGET_CFLAGS -nostdlib"
-else
+grub_PROG_LD_DEFSYM
+if test "x$grub_cv_prog_ld_defsym" = xyes; then
 CFLAGS="$TARGET_CFLAGS -nostdlib -Wl,--defsym,___main=0x8100"
+else
+CFLAGS="$TARGET_CFLAGS -nostdlib"
 fi
 CPPFLAGS="$TARGET_CPPFLAGS"
 LDFLAGS="$TARGET_LDFLAGS"
