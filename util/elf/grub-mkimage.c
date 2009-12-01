@@ -111,12 +111,6 @@ make_note_section (FILE *out, Elf_Phdr *phdr, grub_uint32_t offset)
   phdr->p_offset = grub_host_to_target (offset);
 }
 
-void
-grub_abort (void)
-{
-  abort ();
-}
-
 int
 grub_strcmp (const char *s1, const char *s2)
 {

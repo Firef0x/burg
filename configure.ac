@@ -32,7 +32,6 @@ dnl type.
 
 
 AC_INIT([GRUB],[1.97],[bug-grub@gnu.org])
-AM_INIT_AUTOMAKE()
 AC_PREREQ(2.60)
 AC_CONFIG_SRCDIR([include/grub/dl.h])
 AC_CONFIG_HEADER([config.h])
@@ -43,6 +42,7 @@ AC_CANONICAL_TARGET
 
 # Program name transformations
 AC_ARG_PROGRAM
+AM_INIT_AUTOMAKE()
 
 case "$target_cpu" in
   i[[3456]]86)	target_cpu=i386 ;;
@@ -121,8 +121,7 @@ case "$platform" in
   pc)		machine_CFLAGS="-DGRUB_MACHINE_PCBIOS=1" ;;
   emu)		machine_CFLAGS="-DGRUB_MACHINE_EMU=1" ;;
 esac
-CFLAGS="$CFLAGS $machine_CFLAGS"
-TARGET_CFLAGS="$TARGET_CFLAGS $machine_CFLAGS"
+CFLAGS="$CFLAGS $machine_CFLAGS -O2"
 
 AC_SUBST(host_cpu)
 AC_SUBST(host_os)
@@ -291,6 +290,7 @@ if test "x$TARGET_CFLAGS" = x; then
     TARGET_CFLAGS="$TARGET_CFLAGS -fno-dwarf2-cfi-asm"
   fi
 fi
+TARGET_CFLAGS="$TARGET_CFLAGS $machine_CFLAGS"
 
 grub_apple_target_cc
 if test x$grub_cv_apple_target_cc = xyes ; then

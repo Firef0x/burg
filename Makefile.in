@@ -38,6 +38,7 @@ libdir = @libdir@
 infodir = @infodir@
 mandir = @mandir@
 includedir = @includedir@
+localedir = @localedir@
 pkgdatadir = $(datadir)/`echo @PACKAGE_TARNAME@ | sed '$(transform)'`
 pkglibdir =  $(libdir)/`echo @PACKAGE_TARNAME@/$(target_cpu)-$(platform) | sed '$(transform)'`
 
@@ -462,14 +463,14 @@ gensymlist.sh: gensymlist.sh.in config.status
 genkernsyms.sh: genkernsyms.sh.in config.status
 	$(SHELL) ./config.status
 
-$(srcdir)/po/$(PACKAGE).pot: po/POTFILES po/POTFILES-shell
-	cd $(srcdir) && $(XGETTEXT) --from-code=utf-8 -o $@ -f $< --keyword=_ --keyword=N_
-	cd $(srcdir) && $(XGETTEXT) --from-code=utf-8 -o $@ -f po/POTFILES-shell -j --language=Shell
+$(srcdir)/po/$(PACKAGE).pot: $(srcdir)/po/POTFILES $(srcdir)/po/POTFILES-shell
+	$(XGETTEXT) --from-code=utf-8 -o $@ -D $(srcdir) -f $< --keyword=_ --keyword=N_
+	$(XGETTEXT) --from-code=utf-8 -o $@ -D $(srcdir) -f $(srcdir)/po/POTFILES-shell -j --language=Shell
 
-$(foreach lang, $(LINGUAS), $(srcdir)/po/$(lang).po): po/$(PACKAGE).pot
-	$(MSGMERGE) -U $@ $^
+$(foreach lang, $(LINGUAS), $(srcdir)/po/$(lang).po): $(srcdir)/po/$(PACKAGE).pot
+	$(MSGMERGE) --backup=none -U $@ $^
 
-po/%.mo: po/%.po
+po/%.mo: $(srcdir)/po/%.po
 	$(MKDIR_P) $$(dirname $@)
 	$(MSGFMT) -c --statistics -o $@ $^
 

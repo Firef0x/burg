@@ -30,12 +30,6 @@
 
 #include "progname.h"
 
-void
-grub_abort (void)
-{
-  abort ();
-}
-
 int
 grub_strcmp (const char *s1, const char *s2)
 {
