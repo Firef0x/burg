@@ -848,6 +848,10 @@ grub_obj_link (struct grub_util_obj *obj, grub_uint32_t base)
 		*((grub_uint32_t *) addr) = grub_host_to_target32 (v);
 		break;
 	      }
+
+	    case GRUB_OBJ_REL_TYPE_HH22:
+	    case GRUB_OBJ_REL_TYPE_HM10:
+	      break;
 #endif
 #else
 	    case GRUB_OBJ_REL_TYPE_32:

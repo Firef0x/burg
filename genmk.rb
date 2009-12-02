@@ -74,14 +74,25 @@ MOSTLYCLEAN_IMAGE_TARGETS += mostlyclean-image-#{@name}.#{@rule_count}
       fake_obj = File.basename(src).suffix('o')
       dep = deps[i]
       flag = if /\.c$/ =~ src then 'CFLAGS' else 'ASFLAGS' end
-      extra_flags = if /\.S$/ =~ src then '-DASM_FILE=1' else '' end
       dir = File.dirname(src)
 
-      "#{obj}: #{src} $(#{src}_DEPENDENCIES)
-	$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<
+      if /\.S$/ =~ src then
+        "#{obj}: #{src} $(#{src}_DEPENDENCIES)
+ifeq ($(AS),)
+	$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<
+else
+	$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -S $< | $(AS) -o $@
+endif
 -include #{dep}
 
 "
+      else
+        "#{obj}: #{src} $(#{src}_DEPENDENCIES)
+	$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<
+-include #{dep}
+
+"
+      end
     end.join('')
   end
 end
@@ -135,14 +146,25 @@ MODFILES += #{@name}
       parttool = 'parttool-' + obj.suffix('lst')
       dep = deps[i]
       flag = if /\.c$/ =~ src then 'CFLAGS' else 'ASFLAGS' end
-      extra_flags = if /\.S$/ =~ src then '-DASM_FILE=1' else '' end
       dir = File.dirname(src)
 
-      "#{obj}: #{src} $(#{src}_DEPENDENCIES)
-	$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<
+      if /\.S$/ =~ src then
+        "#{obj}: #{src} $(#{src}_DEPENDENCIES)
+ifeq ($(AS),)
+	$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<
+else
+	$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -S $< | $(AS) -o $@
+endif
 -include #{dep}
 
 "
+      else
+        "#{obj}: #{src} $(#{src}_DEPENDENCIES)
+	$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<
+-include #{dep}
+
+"
+      end
     end.join('')
   end
 end

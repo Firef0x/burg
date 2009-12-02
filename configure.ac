@@ -130,6 +130,13 @@ AC_SUBST(host_kernel)
 AC_SUBST(target_cpu)
 AC_SUBST(platform)
 
+# Specify the shell.
+AC_ARG_WITH([shell],
+            AS_HELP_STRING([--with-shell=SHELL],
+                           [select the shell for Makefile]))
+shell="$with_shell"
+AC_SUBST(shell)
+
 #
 # Checks for build programs.
 #
@@ -174,8 +181,6 @@ AC_GNU_SOURCE
 AM_GNU_GETTEXT
 AC_SYS_LARGEFILE
 
-LDFLAGS="$LDFLAGS $LIBINTL"
-
 # Identify characteristics of the host architecture.
 AC_C_BIGENDIAN
 AC_CHECK_SIZEOF(void *)
@@ -203,6 +208,9 @@ AC_CHECK_FUNCS(memmove sbrk strdup lstat getuid getgid)
 AC_CHECK_HEADERS(sys/mkdev.h sys/sysmacros.h malloc.h termios.h sys/types.h)
 AC_CHECK_HEADERS(unistd.h string.h strings.h sys/stat.h sys/fcntl.h)
 
+AC_SEARCH_LIBS(nanosleep, rt posix4)
+AC_SEARCH_LIBS(getopt_long, iberty)
+
 #
 # Check for target programs.
 #
@@ -222,6 +230,8 @@ else
 fi
 AC_SUBST(TARGET_CC)
 
+LDFLAGS="$LDFLAGS $LIBINTL $LIBS"
+AC_SUBST(AS)
 
 # Test the C compiler for the target environment.
 tmp_CC="$CC"
@@ -393,6 +403,8 @@ grub_CHECK_STACK_ARG_PROBE
 if test x"$sap_possible" = xyes; then
   TARGET_CFLAGS="$TARGET_CFLAGS -mno-stack-arg-probe"
 fi
+
+grub_CHECK_RETURNS_TWICE
 
 AC_ARG_ENABLE([werror],
 	      [AS_HELP_STRING([--disable-werror],

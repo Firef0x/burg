@@ -28,6 +28,7 @@
 #include <string.h>
 #include <time.h>
 #include <errno.h>
+#include <limits.h>
 
 #include "config.h"
 

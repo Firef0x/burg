@@ -21,12 +21,11 @@
 
 typedef unsigned long grub_jmp_buf[20];
 
-#if defined (APPLE_CC)
-int grub_setjmp (grub_jmp_buf env);
-#else
+#ifdef HAVE_RETURNS_TWICE
 int grub_setjmp (grub_jmp_buf env) __attribute__ ((returns_twice));
+#else
+int grub_setjmp (grub_jmp_buf env);
 #endif
-
 void grub_longjmp (grub_jmp_buf env, int val) __attribute__ ((noreturn));
 
 #endif /* ! GRUB_SETJMP_CPU_HEADER */

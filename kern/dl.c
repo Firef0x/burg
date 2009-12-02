@@ -402,6 +402,28 @@ grub_dl_resolve_symbols (grub_dl_t mod, struct grub_obj_header *e)
 	    break;
 	  }
 
+#if GRUB_TARGET_SIZEOF_VOID_P == 8
+	case GRUB_OBJ_REL_TYPE_HM10:
+	  {
+	    grub_uint32_t v;
+
+	    v = *((grub_uint32_t *) addr);
+	    v = (v & ~0x3ff) | ((addend >> 32) & 0x3ff);
+	    *((grub_uint32_t *) addr) = v;
+	    break;
+	  }
+
+	case GRUB_OBJ_REL_TYPE_HH22:
+	  {
+	    grub_uint32_t v;
+
+	    v = *((grub_uint32_t *) addr);
+	    v = (v & ~0x3fffff) | ((addend >> 42) & 0x3fffff);
+	    *((grub_uint32_t *) addr) = v;
+	    break;
+	  }
+#endif
+
 	case GRUB_OBJ_REL_TYPE_30:
 	  {
 	    grub_uint32_t v;

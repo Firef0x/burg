@@ -13,7 +13,11 @@
 
 ### The configure script will replace these variables.
 
+ifeq (, @shell@)
 SHELL = /bin/sh
+else
+SHELL = @shell@
+endif
 
 @SET_MAKE@
 
@@ -74,6 +78,7 @@ MKDIR_P = @MKDIR_P@
 mkinstalldirs = $(srcdir)/mkinstalldirs
 
 CC = @CC@
+AS = @AS@
 CFLAGS = @CFLAGS@
 ASFLAGS = @ASFLAGS@
 LDFLAGS = @LDFLAGS@

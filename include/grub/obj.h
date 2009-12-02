@@ -67,6 +67,8 @@ struct grub_obj_header
 #define GRUB_OBJ_REL_TYPE_LO10	8
 #define GRUB_OBJ_REL_TYPE_HI22	9
 #define GRUB_OBJ_REL_TYPE_30	10
+#define GRUB_OBJ_REL_TYPE_HM10	11
+#define GRUB_OBJ_REL_TYPE_HH22	12
 
 #define GRUB_OBJ_REL_TYPE_MASK	0x7f
 #define GRUB_OBJ_REL_FLAG_REL	0x80

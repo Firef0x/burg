@@ -23,7 +23,11 @@
 
 typedef grub_uint64_t grub_jmp_buf[3];
 
+#ifdef HAVE_RETURNS_TWICE
 int grub_setjmp (grub_jmp_buf env) __attribute__ ((returns_twice));
+#else
+int grub_setjmp (grub_jmp_buf env);
+#endif
 void grub_longjmp (grub_jmp_buf env, int val) __attribute__ ((noreturn));
 
 #endif /* ! GRUB_SETJMP_CPU_HEADER */

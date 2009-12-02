@@ -472,3 +472,34 @@ LDFLAGS="$save_LDFLAGS"
 ])
 AC_MSG_RESULT([$grub_cv_prog_ld_defsym])
 ])
+
+dnl Check if returns_twice attribute is supported
+AC_DEFUN([grub_CHECK_RETURNS_TWICE],
+[AC_REQUIRE([AC_PROG_CC])
+AC_MSG_CHECKING([if returns_twice attribute is supported])
+AC_CACHE_VAL(grub_cv_returns_twice,
+[cat > conftest.c <<\EOF
+int func (void) __attribute__ ((return_twice));
+
+int
+func (void)
+{
+  return 0;
+}
+EOF
+
+if AC_TRY_COMMAND([${CC-cc} ${CFLAGS} -c -Werror conftest.c]) ; then
+  grub_cv_returns_twice=yes
+else
+  grub_cv_returns_twice=no
+fi
+
+rm -f conftest*])
+
+if test "x$grub_cv_returns_twice" = xyes; then
+  AC_DEFINE_UNQUOTED([HAVE_RETURNS_TWICE], $grub_cv_returns_twice,
+    [Define if returns_twice attribute is supported])
+fi
+
+AC_MSG_RESULT([$grub_cv_returns_twice])
+])

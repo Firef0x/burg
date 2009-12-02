@@ -26,7 +26,9 @@
  */
 
 #include <stdio.h>
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif
 #include <prototyp.h>
 #include <sys/stat.h>
 

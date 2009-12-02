@@ -47,12 +47,18 @@ static char grub_modname[] __attribute__ ((section ("_modname, _modname"), used)
 
 #define GRUB_MOD_DEP(name)	\
 __asm__ (".section _moddeps, _moddeps\n.asciz \"" #name "\"\n")
-#else
+#elif defined(__MINGW32__) || defined(__CYGWIN__)
 #define GRUB_MOD_NAME(name)	\
 __asm__ (".section .modname\n.asciz \"" #name "\"\n")
 
 #define GRUB_MOD_DEP(name)	\
 __asm__ (".section .moddeps\n.asciz \"" #name "\"\n")
+#else
+#define GRUB_MOD_NAME(name)	\
+__asm__ (".section \".modname\"\n.asciz \"" #name "\"\n")
+
+#define GRUB_MOD_DEP(name)	\
+__asm__ (".section \".moddeps\"\n.asciz \"" #name "\"\n")
 #endif
 
 struct grub_dl_segment

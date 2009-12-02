@@ -60,10 +60,15 @@
 #define GRUB_MODATTR(name, value)	\
   __asm (".section modattr,modattr\n.asciz \"" name ":" value "\"\n.text")
 
-#else
+#elif defined(__MINGW32__) || defined(__CYGWIN__)
 
 #define GRUB_MODATTR(name, value)	\
   __asm (".section modattr\n.asciz \"" name ":" value "\"\n.text")
+
+#else
+
+#define GRUB_MODATTR(name, value)	\
+  __asm (".section \"modattr\"\n.asciz \"" name ":" value "\"\n.text")
 
 #endif
 

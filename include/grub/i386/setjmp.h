@@ -21,11 +21,11 @@
 
 typedef unsigned long grub_jmp_buf[6];
 
-#if defined(__MINGW32__) || defined (APPLE_CC)
-int grub_setjmp (grub_jmp_buf env) __attribute__ ((cdecl, regparm (3)));
-#else
+#ifdef HAVE_RETURNS_TWICE
 int grub_setjmp (grub_jmp_buf env) __attribute__ ((returns_twice, cdecl,
 						   regparm (3)));
+#else
+int grub_setjmp (grub_jmp_buf env) __attribute__ ((cdecl, regparm (3)));
 #endif
 void grub_longjmp (grub_jmp_buf env, int val) __attribute__ ((noreturn, cdecl,
 							      regparm (3)));

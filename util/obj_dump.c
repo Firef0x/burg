@@ -96,6 +96,12 @@ get_reloc_type (int type)
     case GRUB_OBJ_REL_TYPE_HI22:
       return "dirhi22";
 
+    case GRUB_OBJ_REL_TYPE_HM10:
+      return "dirhm10";
+
+    case GRUB_OBJ_REL_TYPE_HH22:
+      return "dirhh22";
+
     case GRUB_OBJ_REL_TYPE_30 | GRUB_OBJ_REL_FLAG_REL:
       return "rel30";
     }

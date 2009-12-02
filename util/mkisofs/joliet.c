@@ -73,7 +73,6 @@
 #include "mkisofs.h"
 #include "iso9660.h"
 
-#include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
 

@@ -377,7 +377,16 @@ add_relocs (struct grub_util_obj *obj,
 		break;
 
 	      case R_SPARC_HI22:
+	      case R_SPARC_LM22:
 		type = GRUB_OBJ_REL_TYPE_HI22;
+		break;
+
+	      case R_SPARC_HM10:
+		type = GRUB_OBJ_REL_TYPE_HM10;
+		break;
+
+	      case R_SPARC_HH22:
+		type = GRUB_OBJ_REL_TYPE_HH22;
 		break;
 
 	      case R_SPARC_WDISP30:
