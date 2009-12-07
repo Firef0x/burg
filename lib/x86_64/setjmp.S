@@ -22,8 +22,10 @@
 
 	.text
 
+GRUB_EXPORT_START
 GRUB_EXPORT(grub_setjmp);
 GRUB_EXPORT(grub_longjmp);
+GRUB_EXPORT_END
 
 /*
  *  jmp_buf:

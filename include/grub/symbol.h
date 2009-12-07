@@ -43,15 +43,20 @@
 
 #ifdef APPLE_CC
 
-#define GRUB_MODATTR(name, value)	\
-  .section modattr,modattr,regular ; .ascii name,":",value,"\0" ; .text
+#define GRUB_EXPORT_START	.section modattr,modattr,regular
+
+#elif defined(__MINGW32__) || defined(__CYGWIN__)
+
+#define GRUB_EXPORT_START	.section modattr
 
 #else
 
-#define GRUB_MODATTR(name, value)	\
-  .section modattr ; .ascii name,":",value,"\0" ; .text
+#define GRUB_EXPORT_START	.section "modattr"
 
 #endif
+
+#define GRUB_EXPORT(name)	.ascii "export:",#name,"\0"
+#define GRUB_EXPORT_END		.text
 
 #else
 
@@ -72,8 +77,8 @@
 
 #endif
 
-#endif
-
 #define GRUB_EXPORT(value)	GRUB_MODATTR("export", #value)
+
+#endif
 
 #endif /* ! GRUB_SYMBOL_HEADER */

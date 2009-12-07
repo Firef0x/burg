@@ -21,6 +21,7 @@
 #include <grub/symbol.h>
 #include <grub/boot.h>
 
+GRUB_EXPORT_START
 GRUB_EXPORT(efi_wrap_0);
 GRUB_EXPORT(efi_wrap_1);
 GRUB_EXPORT(efi_wrap_2);
@@ -29,6 +30,7 @@ GRUB_EXPORT(efi_wrap_4);
 GRUB_EXPORT(efi_wrap_5);
 GRUB_EXPORT(efi_wrap_6);
 GRUB_EXPORT(efi_wrap_10);
+GRUB_EXPORT_END
 
 /*
  * x86_64 uses registry to pass parameters. Unfortunately, gcc and efi use

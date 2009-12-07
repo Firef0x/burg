@@ -256,7 +256,8 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 		}
 	      break;
 
-	    case 14:	/* Ctrl-n */
+	    case GRUB_TERM_CTRL_N:	/* Ctrl-n */
+	    case GRUB_TERM_DOWN:
 	      {
 		char *hist;
 
@@ -274,7 +275,8 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 
 		break;
 	      }
-	    case 16:	/* Ctrl-p */
+	    case GRUB_TERM_CTRL_P:	/* Ctrl-p */
+	    case GRUB_TERM_UP:
 	      {
 		char *hist;
 

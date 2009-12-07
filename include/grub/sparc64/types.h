@@ -32,6 +32,6 @@
 
 #define GRUB_TARGET_USE_ADDEND		1
 
-#define GRUB_TARGET_MIN_ALIGN		4
+#define GRUB_TARGET_MIN_ALIGN		8
 
 #endif /* ! GRUB_TYPES_CPU_HEADER */

@@ -1063,12 +1063,14 @@ grub_menu_entry_run (grub_menu_entry_t entry)
 
       switch (c)
 	{
-	case 16: /* C-p */
+	case GRUB_TERM_CTRL_P: /* C-p */
+	case GRUB_TERM_UP:
 	  if (! previous_line (screen, 1))
 	    goto fail;
 	  break;
 
-	case 14: /* C-n */
+	case GRUB_TERM_CTRL_N: /* C-n */
+	case GRUB_TERM_DOWN:
 	  if (! next_line (screen, 1))
 	    goto fail;
 	  break;

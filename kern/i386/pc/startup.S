@@ -53,6 +53,7 @@
 #include <multiboot.h>
 #include <multiboot2.h>
 
+GRUB_EXPORT_START
 GRUB_EXPORT(grub_pxe_scan);
 GRUB_EXPORT(grub_pxe_call);
 GRUB_EXPORT(grub_get_rtc);
@@ -84,6 +85,7 @@ GRUB_EXPORT(grub_biosdisk_get_diskinfo_standard);
 GRUB_EXPORT(grub_biosdisk_get_num_floppies);
 
 GRUB_EXPORT(grub_boot_drive);
+GRUB_EXPORT_END
 
 #define ABS(x)	((x) - LOCAL (base) + GRUB_BOOT_MACHINE_KERNEL_ADDR + 0x200)
 

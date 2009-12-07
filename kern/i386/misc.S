@@ -18,7 +18,9 @@
 
 #include <grub/symbol.h>
 
+GRUB_EXPORT_START
 GRUB_EXPORT(grub_stop)
+GRUB_EXPORT_END
 
 	.text
 /*
