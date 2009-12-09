@@ -26,6 +26,9 @@
 #include <grub/types.h>
 #include <grub/video.h>
 #include <grub/bitmap.h>
+#include <grub/list.h>
+#include <grub/env.h>
+#include <grub/lib.h>
 
 GRUB_EXPORT(grub_font_draw_glyph);
 GRUB_EXPORT(grub_font_draw_string);
@@ -787,6 +790,7 @@ grub_font_t
 grub_font_get (const char *font_name)
 {
   struct grub_font_node *node;
+  grub_autolist_t p;
 
   for (node = grub_font_list; node; node = node->next)
     {
@@ -795,6 +799,32 @@ grub_font_get (const char *font_name)
         return font;
     }
 
+  p = grub_named_list_find (GRUB_AS_NAMED_LIST (grub_autolist_font), font_name);
+  if (p)
+    {      
+      char *prefix;
+
+      prefix = grub_env_get ("prefix");
+      if (prefix)
+	{
+	  char *filename;
+	  
+	  filename = grub_malloc (grub_strlen (prefix) + grub_strlen (p->value)
+				  + 8);
+	  if (filename)
+	    {
+	      grub_sprintf (filename, "%s/fonts/%s", prefix, p->value);
+	      grub_font_load (filename);
+	      grub_free (filename);
+	      
+	    }
+	  grub_errno = 0;
+	}
+      grub_list_remove (GRUB_AS_LIST_P (&grub_autolist_font), GRUB_AS_LIST (p));
+      grub_free (p->name);
+      grub_free (p);
+    }  
+    
   /* If no font by that name is found, return the first font in the list
      as a fallback.  */
   if (grub_font_list && grub_font_list->value)

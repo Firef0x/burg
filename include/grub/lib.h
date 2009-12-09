@@ -76,4 +76,16 @@ grub_uint32_t grub_getcrc32 (grub_uint32_t crc, void *buf, int size);
 /* Defined in `hexdump.c'.  */
 void hexdump (unsigned long bse,char* buf,int len);
 
+/* Defined in `autolist.c'.  */
+struct grub_autolist
+{
+  struct grub_autolist *next;
+  char *name;
+  char *value;
+};
+typedef struct grub_autolist *grub_autolist_t;
+
+grub_autolist_t grub_autolist_load (const char *name);
+extern grub_autolist_t grub_autolist_font;
+
 #endif

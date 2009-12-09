@@ -315,7 +315,7 @@ adjust_layout (grub_widget_t widget, int calc_mode)
   if (calc_mode)
     {
       init_size (widget, 1);
-
+      
       if (! (node->flags & GRUB_WIDGET_FLAG_FIXED_WIDTH))
 	{
 	  p = grub_widget_get_prop (node, "max_width");
@@ -1175,15 +1175,15 @@ check_timeout (grub_uitree_t root, int *key)
 static void
 save_default (void)
 {
-  char *p, *parm, *title, *save;
+  char *p, *parm, *index, *save;
   int savedefault;
 
   p = grub_env_get ("savedefault");
   savedefault = ((p) && (*p == '1'));
 
   parm = grub_uitree_get_prop (grub_widget_current_node, "parameters");
-  title = grub_dialog_get_parm (grub_widget_current_node, parm, "title");
-  if (! title)
+  index = grub_dialog_get_parm (grub_widget_current_node, parm, "index");
+  if (! index)    
     return;
 
   save = grub_dialog_get_parm (grub_widget_current_node, parm, "save");
@@ -1195,7 +1195,7 @@ save_default (void)
       char *args[1];
 
       args[0] = "default";
-      grub_env_set ("default", title);
+      grub_env_set ("default", index);
       grub_command_execute ("save_env", 1, args);
       grub_errno = 0;
     }

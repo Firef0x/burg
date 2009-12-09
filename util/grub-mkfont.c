@@ -104,7 +104,7 @@ static struct option options[] =
 {
   {"output", required_argument, 0, 'o'},
   {"name", required_argument, 0, 'n'},
-  {"index", required_argument, 0, 'i'},
+  {"index", required_argument, 0, 'I'},
   {"range", required_argument, 0, 'r'},
   {"size", required_argument, 0, 's'},
   {"desc", required_argument, 0, 'd'},
@@ -114,6 +114,7 @@ static struct option options[] =
   {"add-ascii", no_argument, 0, 0x102},
   {"add-text", required_argument, 0, 't'},
   {"force-autohint", no_argument, 0, 'a'},
+  {"info", no_argument, 0, 'i'},
   {"help", no_argument, 0, 'h'},
   {"version", no_argument, 0, 'V'},
   {"verbose", no_argument, 0, 'v'},
@@ -132,7 +133,7 @@ usage (int status)
 Usage: %s [OPTIONS] FONT_FILES\n\
 \nOptions:\n\
   -o, --output=FILE_NAME    set output file name\n\
-  -i, --index=N             set face index\n\
+  -I, --index=N             set face index\n\
   -r, --range=A-B[,C-D]     set font range\n\
   -n, --name=S              set font family name\n\
   -s, --size=N              set font size\n\
@@ -143,6 +144,7 @@ Usage: %s [OPTIONS] FONT_FILES\n\
   --no-bitmap               ignore bitmap strikes when loading\n\
   --add-ascii               add ascii characters\n\
   --add-text,-t FILENAME    add characters from sample file\n\
+  -i, --info                    print pf2 font information\n\
   -h, --help                display this message and exit\n\
   -V, --version             print version information and exit\n\
   -v, --verbose             print verbose messages\n\
@@ -549,7 +551,7 @@ add_file (struct grub_font_info *font_info, const char *name)
   grub_uint32_t code;
 
   size = grub_util_get_image_size (name);
-  data = grub_util_read_image (name);
+  data = (grub_uint8_t *) grub_util_read_image (name);
   ptr = (const grub_uint8_t *) data;
   while ((ptr < data + size) &&
 	 (grub_utf8_to_ucs4 (&code, 1, ptr, -1, &ptr) > 0))
@@ -560,6 +562,80 @@ add_file (struct grub_font_info *font_info, const char *name)
     }
 
   free (data);
+}
+
+static char *
+read_section (char **str, int *value, off_t *ofs, FILE* file)
+{
+  static char section_name[8];
+  char *p;
+  int len;
+
+  *str = NULL;
+  *value = 0;
+  grub_util_read_at (section_name, 8, *ofs, file);
+  len = grub_be_to_cpu32 (*((grub_uint32_t *) (section_name + 4)));
+  *ofs += 8;
+  p = section_name;
+  if (len == 2)
+    {
+      grub_util_read_at (section_name + 4, 2, *ofs, file);
+      *value = grub_be_to_cpu16 (*((grub_uint16_t *) (section_name + 4)));
+    }
+  else
+    {
+      if (memcmp (section_name, "CHIX", 4))
+	{
+	  *str = xmalloc (len);
+	  grub_util_read_at (*str, len, *ofs, file);
+	}
+      else
+	p = NULL;
+    }
+
+  *ofs += len;
+  section_name[4] = 0;
+  return p;
+}
+
+static void
+print_info (const char *filename)
+{
+  FILE *file;
+  char buf[12];
+  char *name, *str;
+  int value;
+  off_t ofs;
+
+  file = fopen (filename, "rb");
+  if (! file)
+    grub_util_error ("Can\'t read from file %s.", filename);
+
+  grub_util_read_at (buf, 12, 0, file);
+  if ((memcmp (buf, "FILE", 4)) ||
+      (grub_be_to_cpu32 (*((grub_uint32_t *) (buf + 4))) != 4) ||
+      (memcmp (buf + 8, "PFF2", 4)))
+    grub_util_error ("Invalid format");
+
+  if (font_verbosity > 0)
+    printf ("%s:\n", filename);
+
+  ofs = 12;
+  while ((name = read_section (&str, &value, &ofs, file)) != NULL)
+    {
+      if (font_verbosity > 0)
+	{
+	  if (str)
+	    printf ("%s: %s\n", name, str);
+	  else
+	    printf ("%s: %d\n", name, value);
+	}
+      else if (! strcmp (name, "NAME"))
+	printf ("%s: %s\n", str, filename);
+      free (str);
+    }
+
+  fclose (file);
 }
 
 static grub_uint32_t box_chars[] =
@@ -576,6 +652,7 @@ main (int argc, char *argv[])
   int font_index = 0;
   int font_size = 0;
   char *output_file = NULL;
+  int info_mode = 0;
 
   memset (&font_info, 0, sizeof (font_info));
 
@@ -587,7 +664,7 @@ main (int argc, char *argv[])
   /* Check for options.  */
   while (1)
     {
-      int c = getopt_long (argc, argv, "bao:n:i:s:d:r:t:hVv", options, 0);
+      int c = getopt_long (argc, argv, "bao:n:I:s:d:r:t:ihVv", options, 0);
 
       if (c == -1)
 	break;
@@ -628,7 +705,7 @@ main (int argc, char *argv[])
 	    font_info.name = optarg;
 	    break;
 
-	  case 'i':
+	  case 'I':
 	    font_index = strtoul (optarg, NULL, 0);
 	    break;
 
@@ -670,6 +747,10 @@ main (int argc, char *argv[])
 	    add_file (&font_info, optarg);
 	    break;
 
+	  case 'i':
+	    info_mode = 1;
+	    break;
+
 	  case 'd':
 	    font_info.desc = strtoul (optarg, NULL, 0);
 	    break;
@@ -690,6 +771,14 @@ main (int argc, char *argv[])
 	    usage (1);
 	    break;
 	  }
+    }
+
+  if (info_mode)
+    {
+      for (; optind < argc; optind++)
+	print_info (argv[optind]);
+
+      return 0;
     }
 
   if (! output_file)

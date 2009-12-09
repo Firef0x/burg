@@ -53,35 +53,70 @@ get_screen (void)
 static void
 set_position (grub_uitree_t root, grub_uitree_t node)
 {
-  char buf[12], *p;
+  char buf[12], *p, *pos;
   grub_widget_t screen, widget;
   int v;
+  int horizontal;
+  int right, bottom;
+  
+  pos = grub_uitree_get_prop (grub_widget_current_node->parent, "popup");
+  if (! pos)
+    pos = "";
+  else if (! grub_strcmp (pos, "abs"))
+    return;
+
+  horizontal = 0;
+  p = grub_uitree_get_prop (grub_widget_current_node->parent, "direction");
+  if ((p) &&
+      ((! grub_strcmp (p, "left_to_right")) ||
+       (! grub_strcmp (p, "right_to_left"))))
+    horizontal = 1;
 
   screen = root->data;
   widget = grub_widget_current_node->data;
 
-  if (widget->org_x * 2 + widget->width <= screen->width)
+  right = (horizontal) ? -1 :
+    (widget->org_x * 2 + widget->width <= screen->width);
+
+  if (! grub_strcmp (pos, "right"))
+    right = 1;
+  else if (! grub_strcmp (pos, "left"))
+    right = 0;
+
+  if (right == 0)
     {
-      v = widget->org_x + widget->width;
-      p = "attach_left";
+      p = "attach_right";
+      v = screen->width - widget->org_x;
     }
   else
     {
-      v = screen->width - widget->org_x;
-      p = "attach_right";
+      p = "attach_left";
+      v = widget->org_x;
+      if (right > 0)
+	v += widget->width;
     }
   grub_sprintf (buf, "%d/%d", v, v);
   grub_uitree_set_prop (node, p, buf);
 
-  if (widget->org_y * 2 + widget->height <= screen->height)
+  bottom = (! horizontal) ? -1 :
+    (widget->org_y * 2 + widget->height <= screen->height);
+  
+  if (! grub_strcmp (pos, "bottom"))
+    bottom = 1;
+  else if (! grub_strcmp (pos, "top"))
+    bottom = 0;
+
+  if (bottom == 0)
     {
-      v = widget->org_y + widget->height;
-      p = "attach_top";
+      p = "attach_bottom";
+      v = screen->height - widget->org_y;
     }
   else
     {
-      v = screen->height - widget->org_y;
-      p = "attach_bottom";
+      p = "attach_top";
+      v = widget->org_y;
+      if (bottom > 0)
+	v += widget->height;
     }
   grub_sprintf (buf, "%d/%d", v, v);
   grub_uitree_set_prop (node, p, buf);
@@ -258,11 +293,8 @@ create_node (grub_uitree_t menu, grub_uitree_t tree, int *num)
 	  return 0;
 	}
 
-      grub_strcpy (buf, "menu_popup -");
-      p = buf + sizeof ("menu_popup -") - 1;
-      if (grub_uitree_get_prop (sub, "absolute") == 0)
-	*(p++) = 'r';
-      grub_sprintf (p, "i %d menu_tree", *num - menu->parent->flags - 1);
+      grub_sprintf (buf, "menu_popup -ri %d menu_tree",
+		    *num - menu->parent->flags - 1);
       grub_uitree_set_prop (node, "command", buf);
 
       grub_tree_add_child (GRUB_AS_TREE (tree), GRUB_AS_TREE (sub), -1);
@@ -284,7 +316,7 @@ create_node (grub_uitree_t menu, grub_uitree_t tree, int *num)
 }
 
 static void
-add_sys_menu (grub_uitree_t node)
+add_sys_menu (grub_uitree_t node, int index, int default_num)
 {
   grub_uitree_t menu, tree;
   int num;
@@ -311,12 +343,18 @@ add_sys_menu (grub_uitree_t node)
     {
       grub_uitree_t child;
       grub_uitree_t n;
+      char buf[8];
 
       n = create_node (menu, tree, &num);
       if (! n)
 	return;
 
+      grub_sprintf (buf, "%d", index);
+      grub_uitree_set_prop (n, "index", buf);
+
       grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (n), -1);
+      if (index == default_num)
+	grub_widget_select_node (n, 1);
 
       child = menu->child;
       while (child)
@@ -339,26 +377,30 @@ add_sys_menu (grub_uitree_t node)
 				       GRUB_AS_TREE (child));
 	}
       menu = menu->next;
+      index++;
     }
 }
 
-static void
-add_user_menu (grub_uitree_t node, grub_menu_t menu)
+static int
+add_user_menu (grub_uitree_t node, grub_menu_t menu, int default_num)
 {
   grub_menu_entry_t entry;
+  int index;
 
   if (! menu)
-    return;
+    return 0;
 
+  index = 0;
   entry = menu->entry_list;
   while (entry)
     {
       grub_uitree_t item;
       char *parm;
+      char buf[8];
 
       item = grub_dialog_create ("template_menuitem", 1, 0, 0, 0);
       if (! item)
-	return;
+	return index;
 
       parm = grub_uitree_get_prop (item, "parameters");
       if (entry->title)
@@ -369,6 +411,9 @@ add_user_menu (grub_uitree_t node, grub_menu_t menu)
 
       if (entry->users)
 	grub_uitree_set_prop (item, "users", entry->users);
+
+      grub_sprintf (buf, "%d", index);
+      grub_uitree_set_prop (item, "index", buf);
 
       if (entry->save != -1)
 	{
@@ -383,35 +428,14 @@ add_user_menu (grub_uitree_t node, grub_menu_t menu)
 	grub_uitree_set_prop (item, "command", entry->sourcecode);
 
       grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (item), -1);
+      if (index == default_num)
+	grub_widget_select_node (item, 1);
+
       entry = entry->next;
+      index++;
     }
-}
 
-static void
-check_default (grub_uitree_t node)
-{
-  grub_uitree_t child;
-  char *default_item;
-
-  default_item = grub_env_get ("default");
-  if (! default_item)
-    return;
-
-  child = node->child;
-  while (child)
-    {
-      char *parm, *title;
-
-      parm = grub_uitree_get_prop (child, "parameters");
-      title = grub_dialog_get_parm (child, parm, "title");
-      if ((title) && (! grub_strcmp (title, default_item)))
-	{
-	  grub_widget_select_node (child, 1);
-	  return;
-	}
-
-      child = grub_tree_next_node (GRUB_AS_TREE (node), GRUB_AS_TREE (child));
-    }
+  return index;
 }
 
 static grub_err_t
@@ -429,12 +453,16 @@ show_menu (grub_menu_t menu, int nested)
       grub_term_output_t output;
 
       node = grub_uitree_find_id (root, "__menu__");
-      if (! node)
-	grub_error (GRUB_ERR_BAD_ARGUMENT, "menu not found");
+      if (node)
+	{
+	  int index, default_num;
+	  char *default_str;
 
-      add_user_menu (node, menu);
-      add_sys_menu (node);
-      check_default (node);
+	  default_str = grub_env_get ("default");
+	  default_num = (default_str) ? grub_strtol (default_str, 0, 0) : -1;
+	  index = add_user_menu (node, menu, default_num);
+	  add_sys_menu (node, index, default_num);
+	}
 
       if (! grub_menu_region_get_current ())
 	{
@@ -465,7 +493,7 @@ show_menu (grub_menu_t menu, int nested)
       child = grub_uitree_find_id (node, "__child__");
       if (! child)
 	child = node;
-      add_user_menu (child, menu);
+      add_user_menu (child, menu, -1);
       set_position (root, node);
       grub_dialog_popup (node);
       grub_dialog_free (node, 0, 0);

@@ -447,7 +447,7 @@ hello_mod_LDFLAGS = $(COMMON_LDFLAGS)
 lib_mod_SOURCES = lib/tree.c lib/uitree.c lib/auth.c lib/md5_password.c \
 	lib/datetime.c lib/completion.c lib/misc.c lib/crc.c \
 	lib/hexdump.c lib/getline.c lib/history.c lib/menu_entry.c \
-	lib/menu_viewer.c
+	lib/menu_viewer.c lib/autolist.c
 lib_mod_CFLAGS = $(COMMON_CFLAGS)
 lib_mod_LDFLAGS = $(COMMON_LDFLAGS)
 

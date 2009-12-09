@@ -324,18 +324,12 @@ grub_menu_execute (const char *config, int nested, int batch)
 
   if (! batch)
     {
-      if (grub_uitree_find (&grub_uitree_root, "screen"))
-	grub_command_execute ("menu_viewer.ext", 0, 0);
-      else
-	grub_command_execute ("menu_viewer.normal", 0, 0);
-
       if (menu && menu->size)
 	{
 	  if (grub_menu_viewer_get_current ())
 	    grub_menu_viewer_get_current ()->show_menu (menu, nested);
 
-	  if (nested)
-	    free_menu (menu);
+	  free_menu (menu);
 	}
       else if (! nested)
 	{

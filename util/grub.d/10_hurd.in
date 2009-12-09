@@ -69,7 +69,7 @@ if ${all_of_them} && test -e /lib/ld.so.1 ; then : ; else
 fi
 
 cat << EOF
-menuentry "${OS}" {
+menuentry "${OS}"  --class hurd {
 EOF
 prepare_grub_to_access_device ${GRUB_DEVICE_BOOT} | sed -e "s/^/\t/"
 cat << EOF

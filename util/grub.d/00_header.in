@@ -37,13 +37,23 @@ if [ "x${GRUB_DEFAULT}" = "x" ] ; then GRUB_DEFAULT=0 ; fi
 if [ "x${GRUB_TIMEOUT}" = "x" ] ; then GRUB_TIMEOUT=5 ; fi
 if [ "x${GRUB_GFXMODE}" = "x" ] ; then GRUB_GFXMODE=640x480 ; fi
 
-cat << EOF
+if [ "x${GRUB_DEFAULT}" = "xsaved" ] ; then
+  if test ! -e ${grub_prefix}/grubenv ; then
+    ${bindir}/grub-editenv ${grub_prefix}/grubenv create
+  fi
+  cat << EOF
+set savedefault=1
+load_env
+EOF
+else
+  cat << EOF
 set default=${GRUB_DEFAULT}
 EOF
+fi
 
 case ${GRUB_TERMINAL_INPUT}:${GRUB_TERMINAL_OUTPUT} in
   serial:* | *:serial)
-    if ! test -e ${grub_prefix}/serial.mod ; then
+    if test ! -e ${grub_prefix}/serial.mod ; then
       echo "Serial terminal not available on this platform." >&2 ; exit 1
     fi
 
@@ -69,6 +79,26 @@ fi
 EOF
   ;;
 esac
+
+if test "x${GRUB_THEME}" != "x" ; then
+  if test -e ${grub_prefix}/${GRUB_THEME}/config.lst ; then
+    for i in `cat ${grub_prefix}/${GRUB_THEME}/config.lst` ; do
+      echo "merge_config \${prefix}/$i"
+    done
+  else
+    echo "Theme file not found." >&2 ; exit 1
+  fi
+  cat << EOF
+insmod ${GRUB_VIDEO_BACKEND}
+insmod png
+insmod jpeg
+insmod coreui
+set gfxmode=${GRUB_GFXMODE}
+set gfxfont="Unifont Regular 16"
+menu_viewer.ext
+EOF
+  GRUB_TERMINAL_OUTPUT=
+fi
 
 case x${GRUB_TERMINAL_OUTPUT} in
  xgfxterm)

@@ -62,6 +62,7 @@ struct grub_bitmap_cache
   struct grub_bitmap_cache *next;
   const char *name;
   struct grub_video_bitmap *bitmap;
+  struct grub_video_bitmap *scaled_bitmap;
   int count;
 };
 typedef struct grub_bitmap_cache *grub_bitmap_cache_t;

@@ -70,7 +70,7 @@ for dir in $dirlist ; do
 
   echo "Found $OS on $dir ($dev)" >&2
   cat << EOF
-menuentry "$OS" {
+menuentry "$OS" --class windows {
 EOF
 
   prepare_grub_to_access_device "$dev" | sed 's,^,\t,'

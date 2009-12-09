@@ -36,7 +36,10 @@ grub_enter_normal_mode (const char *config)
   read_command_list ();
   read_fs_list ();
   read_handler_list ();
+  grub_autolist_font = grub_autolist_load ("fonts/font.lst");
+  grub_errno = 0;
   grub_command_execute ("parser.grub", 0, 0);
+  grub_command_execute ("menu_viewer.normal", 0, 0);
   grub_menu_execute (config, 0, 0);
 }
 
