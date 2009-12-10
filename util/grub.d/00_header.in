@@ -83,7 +83,14 @@ esac
 if test "x${GRUB_THEME}" != "x" ; then
   if test -e ${grub_prefix}/${GRUB_THEME}/config.lst ; then
     for i in `cat ${grub_prefix}/${GRUB_THEME}/config.lst` ; do
-      echo "merge_config \${prefix}/$i"
+      case "x$i" in
+        x+*)
+          echo "merge_config \${prefix}/`echo $i | sed s,+,,`"
+	  ;;
+	x*)
+	  echo "load_config \${prefix}/$i"
+	  ;;
+      esac
     done
   else
     echo "Theme file not found." >&2 ; exit 1
