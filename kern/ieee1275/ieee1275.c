@@ -310,8 +310,8 @@ grub_ieee1275_read (grub_ieee1275_ihandle_t ihandle, void *buffer,
 }
 
 int
-grub_ieee1275_seek (grub_ieee1275_ihandle_t ihandle, int pos_hi,
-		    int pos_lo, grub_ssize_t *result)
+grub_ieee1275_seek (grub_ieee1275_ihandle_t ihandle, unsigned pos_hi,
+		    unsigned pos_lo, grub_ssize_t *result)
 {
   struct write_args
   {
