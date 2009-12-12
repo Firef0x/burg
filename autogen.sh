@@ -11,7 +11,7 @@ automake -a -c -f || true
 
 echo timestamp > stamp-h.in
 
-if which python 2>/dev/null >/dev/null ; then
+if python -c "import re,sys,os,datetime" 2>/dev/null >/dev/null ; then
   python util/import_gcry.py lib/libgcrypt/ .
 fi
 

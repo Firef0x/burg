@@ -435,7 +435,7 @@ grub_dl_resolve_symbols (grub_dl_t mod, struct grub_obj_header *e)
 	    if (a << 2 >> 2 != a)
 	      return grub_error (GRUB_ERR_BAD_MODULE, "relocation overflow");
 
-	    v = (v & 0xc0000000) | (addend >> 2);
+	    v = (v & 0xc0000000) | ((addend >> 2) & 0x3fffffff);
 	    *((grub_uint32_t *) addr) = v;
 	    break;
 	  }

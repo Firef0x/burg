@@ -253,7 +253,8 @@ grub_obj_reloc_symbols (struct grub_util_obj *obj, int merge)
 		  if (a << 2 >> 2 != a)
 		    grub_util_error ("relocation overflow");
 
-		  v = (v & 0xc0000000) | (rel->reloc.addend >> 2);
+		  v = ((v & 0xc0000000) |
+		       ((rel->reloc.addend >> 2) & 0x3fffffff));
 		  *((grub_uint32_t *) addr) = grub_host_to_target32 (v);
 		}
 #endif
