@@ -63,7 +63,7 @@ ofdisk_hash_add (char *devpath)
 
   if (p)
     {
-      p->devpath = devpath;
+      p->devpath = grub_strdup (devpath);
       p->next = *head;
       *head = p;
     }
@@ -240,9 +240,16 @@ grub_ofdisk_read (grub_disk_t disk, grub_disk_addr_t sector,
 
   pos = sector * 512UL;
 
+#if GRUB_TARGET_SIZEOF_LONG == 4
   grub_ieee1275_seek ((grub_ieee1275_ihandle_t) (unsigned long) disk->data,
-		      (unsigned) (pos >> 32),
-		      (unsigned) (pos & 0xFFFFFFFFUL), &status);
+		      (grub_ieee1275_cell_t) (pos >> 32),
+		      (grub_ieee1275_cell_t) (pos & 0xFFFFFFFFUL),
+		      &status);
+#else
+  grub_ieee1275_seek ((grub_ieee1275_ihandle_t) (unsigned long) disk->data,
+		      0, pos, &status);
+#endif
+
   if (status < 0)
     return grub_error (GRUB_ERR_READ_ERROR,
 		       "Seek error, can't seek block %llu",

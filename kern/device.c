@@ -102,7 +102,10 @@ grub_device_iterate (int (*hook) (const char *name))
 
       dev = grub_device_open (disk_name);
       if (! dev)
-	return 0;
+	{
+	  grub_errno = 0;
+	  return 0;
+	}
 
       if (dev->disk && dev->disk->has_partitions)
 	{

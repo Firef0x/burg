@@ -142,7 +142,8 @@ int grub_ieee1275_read (grub_ieee1275_ihandle_t ihandle,
 			void *buffer, grub_size_t len,
 			grub_ssize_t *actualp);
 int grub_ieee1275_seek (grub_ieee1275_ihandle_t ihandle,
-			unsigned pos_hi, unsigned pos_lo,
+			grub_ieee1275_cell_t pos_hi,
+			grub_ieee1275_cell_t pos_lo,
 			grub_ssize_t *result);
 int grub_ieee1275_peer (grub_ieee1275_phandle_t node,
 			grub_ieee1275_phandle_t *result);
