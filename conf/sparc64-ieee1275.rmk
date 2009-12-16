@@ -36,8 +36,7 @@ grub_mkimage_SOURCES = gnulib/progname.c util/sparc64/ieee1275/grub-mkimage.c \
 
 # For grub-setup.
 util/sparc64/ieee1275/grub-setup.c_DEPENDENCIES = grub_setup_init.h
-grub_setup_SOURCES = gnulib/progname.c \
-	util/sparc64/ieee1275/grub-setup.c util/hostdisk.c	\
+grub_setup_SOURCES = util/sparc64/ieee1275/grub-setup.c util/hostdisk.c	\
 	util/misc.c util/getroot.c kern/device.c kern/disk.c	\
 	kern/err.c kern/misc.c kern/parser.c kern/partition.c	\
 	kern/file.c kern/fs.c kern/env.c kern/list.c fs/fshelp.c \
@@ -52,13 +51,12 @@ grub_setup_SOURCES = gnulib/progname.c \
 	partmap/sun.c partmap/acorn.c				\
 	\
 	disk/raid.c disk/mdraid_linux.c disk/lvm.c		\
-	util/raid.c util/lvm.c					\
+	util/raid.c util/lvm.c gnulib/progname.c		\
 	grub_setup_init.c
 
 # For grub-ofpathname.
-grub_ofpathname_SOURCES = gnulib/progname.c \
-	util/sparc64/ieee1275/grub-ofpathname.c \
-	util/ieee1275/ofpath.c util/misc.c
+grub_ofpathname_SOURCES = util/sparc64/ieee1275/grub-ofpathname.c \
+	util/ieee1275/ofpath.c util/misc.c gnulib/progname.c
 
 # Scripts.
 sbin_SCRIPTS = grub-install

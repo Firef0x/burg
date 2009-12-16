@@ -52,8 +52,6 @@ void grub_efi_print_device_path (grub_efi_device_path_t *dp);
 char *grub_efi_get_filename (grub_efi_device_path_t *dp);
 grub_efi_device_path_t *grub_efi_get_device_path (grub_efi_handle_t handle);
 int grub_efi_exit_boot_services (grub_efi_uintn_t map_key);
-void grub_reboot (void);
-void grub_halt (void);
 int grub_efi_finish_boot_services (void);
 
 void grub_efi_mm_init (void);

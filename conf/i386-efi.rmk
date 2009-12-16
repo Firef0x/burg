@@ -36,7 +36,6 @@ pkglib_MODULES = kernel.mod chain.mod appleldr.mod \
 	fixvideo.mod mmap.mod acpi.mod efi_fb.mod
 
 # For kernel.mod.
-kernel_mod_EXPORTS = no
 kernel_mod_SOURCES = kern/i386/efi/startup.S kern/main.c kern/device.c \
 	kern/disk.c kern/dl.c kern/file.c kern/fs.c kern/err.c \
 	kern/misc.c kern/mm.c kern/reader.c kern/term.c \
@@ -136,7 +135,7 @@ efi_fb_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 pkglib_MODULES += xnu.mod
 xnu_mod_SOURCES = loader/xnu_resume.c loader/i386/xnu.c loader/i386/efi/xnu.c\
-	 loader/macho.c loader/xnu.c loader/i386/xnu_helper.S
+	 loader/macho.c loader/xnu.c
 xnu_mod_CFLAGS = $(COMMON_CFLAGS)
 xnu_mod_LDFLAGS = $(COMMON_LDFLAGS)
 xnu_mod_ASFLAGS = $(COMMON_ASFLAGS)

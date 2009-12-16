@@ -21,6 +21,7 @@
 #include <grub/types.h>
 #include <grub/util/misc.h>
 #include <grub/device.h>
+#include <grub/i18n.h>
 #include <grub/disk.h>
 #include <grub/file.h>
 #include <grub/fs.h>

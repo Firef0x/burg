@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <setjmp.h>
 #include <unistd.h>
 
@@ -63,11 +64,19 @@ void grub_util_write_image_at (const void *img, size_t size, off_t offset,
 char * grub_util_get_module_name (const char *str);
 char * grub_util_get_module_path (const char *prefix, const char *str);
 
+#ifndef HAVE_VASPRINTF
+
+int vasprintf (char **buf, const char *fmt, va_list ap);
+
+#endif
+
 #ifndef  HAVE_ASPRINTF
 
 int asprintf (char **buf, const char *fmt, ...);
 
 #endif
+
+char *xasprintf (const char *fmt, ...);
 
 #ifdef __MINGW32__
 

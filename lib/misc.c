@@ -25,6 +25,7 @@
 #include <grub/datetime.h>
 #include <grub/lib.h>
 #include <grub/term.h>
+#include <grub/i18n.h>
 
 GRUB_EXPORT(grub_wait_after_message);
 GRUB_EXPORT(grub_print_device_info);
@@ -34,7 +35,8 @@ GRUB_EXPORT(grub_print_device_info);
 void
 grub_wait_after_message (void)
 {
-  grub_printf ("\nPress any key to continue...");
+  grub_putchar ('\n');
+  grub_printf_ (N_("Press any key to continue..."));
   (void) grub_getkey ();
   grub_putchar ('\n');
 }

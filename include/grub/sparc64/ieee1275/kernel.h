@@ -54,9 +54,6 @@ extern grub_int32_t grub_total_module_size;
    configuration file are located.  */
 extern char grub_prefix[];
 
-void grub_reboot (void);
-void grub_halt (void);
-
 #endif /* ! ASM_FILE */
 
 #endif /* ! GRUB_KERNEL_MACHINE_HEADER */

@@ -84,3 +84,5 @@ codestart:
 
 	/* This should never happen.  */
 	jmp	EXT_C(grub_stop)
+
+#include "../realmode.S"

@@ -115,11 +115,13 @@ endif
 AWK = @AWK@
 LIBCURSES = @LIBCURSES@
 LIBUSB = @LIBUSB@
+LIBPCIACCESS = @LIBPCIACCESS@
 YACC = @YACC@
 FONT_SOURCE = @FONT_SOURCE@
 
 # Options.
 enable_grub_emu_usb = @enable_grub_emu_usb@
+enable_grub_emu_pci = @enable_grub_emu_pci@
 enable_grub_fstest = @enable_grub_fstest@
 enable_grub_pe2elf = @enable_grub_pe2elf@
 enable_grub_mkfont = @enable_grub_mkfont@
@@ -145,7 +147,9 @@ CLEANFILES =
 MOSTLYCLEANFILES =
 DISTCLEANFILES = config.status config.cache config.log config.h \
 	Makefile stamp-h include/grub/cpu include/grub/machine \
-	gensymlist.sh genkernsyms.sh build_env.mk
+	gensymlist.sh genkernsyms.sh build_env.mk \
+	docs/grub.info docs/version.texi docs/stamp-vti
+
 MAINTAINER_CLEANFILES = $(srcdir)/configure $(addprefix $(srcdir)/,$(MKFILES)) \
 	$(srcdir)/DISTLIST $(srcdir)/config.h.in $(srcdir)/stamp-h.in $(INFOS)
 
@@ -171,7 +175,7 @@ endif
 ### General targets.
 
 LISTFILES = modsym.lst moddep.lst command.lst fs.lst partmap.lst \
-	    parttool.lst handler.lst
+	    parttool.lst handler.lst video.lst
 CLEANFILES += $(pkglib_DATA) $(pkgdata_DATA) $(LISTFILES) po/*.mo
 pkglib_DATA += $(LISTFILES)
 

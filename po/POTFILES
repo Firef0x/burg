@@ -12,3 +12,4 @@ util/mkisofs/tree.c
 util/mkisofs/write.c
 
 menu/normal/main.c
+menu/normal/menu_entry.c

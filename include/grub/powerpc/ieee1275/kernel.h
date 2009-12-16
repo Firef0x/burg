@@ -23,9 +23,6 @@
 
 #ifndef ASM_FILE
 
-void grub_reboot (void);
-void grub_halt (void);
-
 /* The prefix which points to the directory where GRUB modules and its
    configuration file are located.  */
 extern char grub_prefix[];

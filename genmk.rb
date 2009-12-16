@@ -144,6 +144,7 @@ MODFILES += #{@name}
       partmap = 'partmap-' + obj.suffix('lst')
       handler = 'handler-' + obj.suffix('lst')
       parttool = 'parttool-' + obj.suffix('lst')
+      video = 'video-' + obj.suffix('lst')
       dep = deps[i]
       flag = if /\.c$/ =~ src then 'CFLAGS' else 'ASFLAGS' end
       dir = File.dirname(src)

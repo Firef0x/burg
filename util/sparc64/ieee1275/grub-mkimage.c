@@ -21,6 +21,7 @@
 #include <grub/machine/boot.h>
 #include <grub/machine/kernel.h>
 #include <grub/kernel.h>
+#include <grub/i18n.h>
 #include <grub/disk.h>
 #include <grub/util/misc.h>
 #include <grub/util/resolve.h>
@@ -38,7 +39,6 @@
 
 #include "progname.h"
 
-int
 grub_strcmp (const char *s1, const char *s2)
 {
   return strcmp (s1, s2);

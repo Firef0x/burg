@@ -23,6 +23,10 @@
 
 #include "progname.h"
 
+#include <grub/i18n.h>
+
+#include "progname.h"
+
 int main(int argc, char **argv)
 {
   char *of_path;

@@ -21,6 +21,7 @@
 
 #include <grub/err.h>
 #include <grub/types.h>
+#include <grub/list.h>
 
 /* Video color in hardware dependent format.  Users should not assume any
    specific coding format.  */
@@ -161,6 +162,9 @@ struct grub_video_palette_data
 
 struct grub_video_adapter
 {
+  /* The next video adapter.  */
+  struct grub_video_adapter *next;
+
   /* The video adapter name.  */
   const char *name;
 
@@ -228,15 +232,32 @@ struct grub_video_adapter
   grub_err_t (*set_active_render_target) (struct grub_video_render_target *target);
 
   grub_err_t (*get_active_render_target) (struct grub_video_render_target **target);
-
-  /* The next video adapter.  */
-  struct grub_video_adapter *next;
 };
 typedef struct grub_video_adapter *grub_video_adapter_t;
 
-void grub_video_register (grub_video_adapter_t adapter);
-void grub_video_unregister (grub_video_adapter_t adapter);
-void grub_video_iterate (int (*hook) (grub_video_adapter_t adapter));
+extern grub_video_adapter_t grub_video_adapter_list;
+
+static inline void
+grub_video_register (grub_video_adapter_t adapter)
+{
+  grub_list_push (GRUB_AS_LIST_P (&grub_video_adapter_list),
+		  GRUB_AS_LIST (adapter));
+  GRUB_MODATTR ("video", "");
+}
+
+static inline void
+grub_video_unregister (grub_video_adapter_t adapter)
+{
+  grub_list_remove (GRUB_AS_LIST_P (&grub_video_adapter_list),
+		    GRUB_AS_LIST (adapter));
+}
+
+static inline void
+grub_video_iterate (int (*hook) (grub_video_adapter_t adapter))
+{
+  grub_list_iterate (GRUB_AS_LIST (grub_video_adapter_list),
+		     (grub_list_hook_t) hook);
+}
 
 grub_err_t grub_video_restore (void);
 
