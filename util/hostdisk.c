@@ -149,12 +149,13 @@ find_free_slot ()
 }
 
 static int
-grub_util_biosdisk_iterate (int (*hook) (const char *name))
+grub_util_biosdisk_iterate (int (*hook) (const char *name, void *closure),
+			    void *closure)
 {
   unsigned i;
 
   for (i = 0; i < sizeof (map) / sizeof (map[0]); i++)
-    if (map[i].drive && hook (map[i].drive))
+    if (map[i].drive && hook (map[i].drive, closure))
       return 1;
 
   return 0;
@@ -550,6 +551,11 @@ static struct grub_disk_dev grub_util_biosdisk_dev =
     .next = 0
   };
 
+static void show_error (const char *msg, const char *dev_map, int lineno)
+{
+  grub_util_error ("%s:%d: %s", dev_map, lineno, msg);
+}
+
 static void
 read_device_map (const char *dev_map)
 {
@@ -557,12 +563,6 @@ read_device_map (const char *dev_map)
   char buf[1024];	/* XXX */
   int lineno = 0;
   struct stat st;
-
-  auto void show_error (const char *msg);
-  void show_error (const char *msg)
-    {
-      grub_util_error ("%s:%d: %s", dev_map, lineno, msg);
-    }
 
   fp = fopen (dev_map, "r");
   if (! fp)
@@ -588,18 +588,18 @@ read_device_map (const char *dev_map)
 	continue;
 
       if (*p != '(')
-	show_error ("No open parenthesis found");
+	show_error ("No open parenthesis found", dev_map, lineno);
 
       p++;
       /* Find a free slot.  */
       drive = find_free_slot ();
       if (drive < 0)
-	show_error ("Map table size exceeded");
+	show_error ("Map table size exceeded", dev_map, lineno);
 
       e = p;
       p = strchr (p, ')');
       if (! p)
-	show_error ("No close parenthesis found");
+	show_error ("No close parenthesis found", dev_map, lineno);
 
       map[drive].drive = xmalloc (p - e + sizeof ('\0'));
       strncpy (map[drive].drive, e, p - e + sizeof ('\0'));
@@ -611,7 +611,7 @@ read_device_map (const char *dev_map)
 	p++;
 
       if (*p == '\0')
-	show_error ("No filename found");
+	show_error ("No filename found", dev_map, lineno);
 
       /* NUL-terminate the filename.  */
       e = p;
@@ -898,6 +898,59 @@ find_system_device (const char *os_dev)
   return i;
 }
 
+struct find_partition_closure
+{
+  struct hd_geometry *hdg;
+  int dos_part;
+  int bsd_part;
+};
+
+#if defined(__linux__) || defined(__CYGWIN__)
+static int
+find_partition (grub_disk_t disk UNUSED, const grub_partition_t partition,
+		void *closure)
+{
+  struct find_partition_closure *c = closure;
+  struct grub_msdos_partition *pcdata = NULL;
+
+  if (strcmp (partition->partmap->name, "part_msdos") == 0)
+    pcdata = partition->data;
+
+  if (pcdata)
+    {
+      if (pcdata->bsd_part < 0)
+	grub_util_info ("DOS partition %d starts from %lu",
+			pcdata->dos_part, partition->start);
+      else
+	grub_util_info ("BSD partition %d,%c starts from %lu",
+			pcdata->dos_part, pcdata->bsd_part + 'a',
+			partition->start);
+    }
+  else
+    {
+      grub_util_info ("Partition %d starts from %lu",
+		      partition->index, partition->start);
+    }
+
+  if (c->hdg->start == partition->start)
+    {
+      if (pcdata)
+	{
+	  c->dos_part = pcdata->dos_part;
+	  c->bsd_part = pcdata->bsd_part;
+	}
+      else
+	{
+	  c->dos_part = partition->index;
+	  c->bsd_part = -1;
+	}
+      return 1;
+    }
+
+  return 0;
+}
+#endif
+
 char *
 grub_util_biosdisk_get_grub_dev (const char *os_dev)
 {
@@ -943,52 +996,11 @@ grub_util_biosdisk_get_grub_dev (const char *os_dev)
     grub_disk_t disk;
     int fd;
     struct hd_geometry hdg;
-    int dos_part = -1;
-    int bsd_part = -1;
-    auto int find_partition (grub_disk_t disk,
-			     const grub_partition_t partition);
+    struct find_partition_closure c;
 
-    int find_partition (grub_disk_t disk __attribute__ ((unused)),
-			const grub_partition_t partition)
-      {
- 	struct grub_msdos_partition *pcdata = NULL;
-
-	if (strcmp (partition->partmap->name, "part_msdos") == 0)
-	  pcdata = partition->data;
-
-	if (pcdata)
-	  {
-	    if (pcdata->bsd_part < 0)
-	      grub_util_info ("DOS partition %d starts from %lu",
-			      pcdata->dos_part, partition->start);
-	    else
-	      grub_util_info ("BSD partition %d,%c starts from %lu",
-			      pcdata->dos_part, pcdata->bsd_part + 'a',
-			      partition->start);
-	  }
-	else
-	  {
-	      grub_util_info ("Partition %d starts from %lu",
-			      partition->index, partition->start);
-	  }
-
-	if (hdg.start == partition->start)
-	  {
-	    if (pcdata)
-	      {
-		dos_part = pcdata->dos_part;
-		bsd_part = pcdata->bsd_part;
-	      }
-	    else
-	      {
-		dos_part = partition->index;
-		bsd_part = -1;
-	      }
-	    return 1;
-	  }
-
-	return 0;
-      }
+    c.hdg = &hdg;
+    c.dos_part = -1;
+    c.bsd_part = -1;
 
     name = make_device_name (drive, -1, -1);
 
@@ -1026,14 +1038,14 @@ grub_util_biosdisk_get_grub_dev (const char *os_dev)
     if (! disk)
       return 0;
 
-    grub_partition_iterate (disk, find_partition);
+    grub_partition_iterate (disk, find_partition, 0);
     if (grub_errno != GRUB_ERR_NONE)
       {
 	grub_disk_close (disk);
 	return 0;
       }
 
-    if (dos_part < 0)
+    if (c.dos_part < 0)
       {
 	grub_disk_close (disk);
 	grub_error (GRUB_ERR_BAD_DEVICE,
@@ -1041,7 +1053,7 @@ grub_util_biosdisk_get_grub_dev (const char *os_dev)
 	return 0;
       }
 
-    return make_device_name (drive, dos_part, bsd_part);
+    return make_device_name (drive, c.dos_part, c.bsd_part);
   }
 
 #elif defined(__GNU__)

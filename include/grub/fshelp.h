@@ -50,11 +50,15 @@ enum grub_fshelp_filetype
 grub_err_t grub_fshelp_find_file (const char *path,
 				  grub_fshelp_node_t rootnode,
 				  grub_fshelp_node_t *foundnode,
-				  int (*iterate_dir) (grub_fshelp_node_t dir,
-						      int NESTED_FUNC_ATTR
-						      (*hook) (const char *filename,
-							       enum grub_fshelp_filetype filetype,
-							       grub_fshelp_node_t node)),
+				  int (*iterate_dir)
+				  (grub_fshelp_node_t dir,
+				   int (*hook)
+				   (const char *filename,
+				    enum grub_fshelp_filetype filetype,
+				    grub_fshelp_node_t node,
+				    void *closure),
+				   void *closure),
+				  void *closure,
 				  char *(*read_symlink) (grub_fshelp_node_t node),
 				  enum grub_fshelp_filetype expect);
 
@@ -65,12 +69,16 @@ grub_err_t grub_fshelp_find_file (const char *path,
    blocks to disk blocks.  The file is FILESIZE bytes big and the
    blocks have a size of LOG2BLOCKSIZE (in log2).  */
 grub_ssize_t grub_fshelp_read_file (grub_disk_t disk, grub_fshelp_node_t node,
-				    void NESTED_FUNC_ATTR (*read_hook) (grub_disk_addr_t sector,
-                                                                        unsigned offset,
-                                                                        unsigned length),
+				    void (*read_hook)
+				    (grub_disk_addr_t sector,
+				     unsigned offset,
+				     unsigned length,
+				     void *closure),
+				    void *closure,
 				    grub_off_t pos, grub_size_t len, char *buf,
-				    grub_disk_addr_t (*get_block) (grub_fshelp_node_t node,
-                                                                   grub_disk_addr_t block),
+				    grub_disk_addr_t (*get_block)
+				    (grub_fshelp_node_t node,
+				     grub_disk_addr_t block),
 				    grub_off_t filesize, int log2blocksize);
 
 unsigned int grub_fshelp_log2blksize (unsigned int blksize,

@@ -100,7 +100,9 @@ static struct grub_partition_map grub_apple_partition_map;
 static grub_err_t
 apple_partition_map_iterate (grub_disk_t disk,
 			     int (*hook) (grub_disk_t disk,
-					  const grub_partition_t partition))
+					  const grub_partition_t partition,
+					  void *closure),
+			     void *closure)
 {
   struct grub_partition part;
   struct grub_apple_header aheader;
@@ -163,7 +165,7 @@ apple_partition_map_iterate (grub_disk_t disk,
 		    grub_be_to_cpu32 (apart.first_phys_block),
 		    grub_be_to_cpu32 (apart.blockcnt));
 
-      if (hook (disk, &part))
+      if (hook (disk, &part, closure))
 	return grub_errno;
 
       pos += grub_be_to_cpu16 (aheader.blocksize);
@@ -179,47 +181,52 @@ apple_partition_map_iterate (grub_disk_t disk,
 		     "Apple partition map not found.");
 }
 
+struct apple_partition_map_probe_closure
+{
+  grub_partition_t p;
+  int partnum;
+};
+
+static int
+find_func (grub_disk_t d __attribute__ ((unused)),
+	   const grub_partition_t partition, void *closure)
+{
+  struct apple_partition_map_probe_closure *c = closure;
+  if (c->partnum == partition->index)
+    {
+      c->p = (grub_partition_t) grub_malloc (sizeof (*c->p));
+      if (! c->p)
+	return 1;
+
+      grub_memcpy (c->p, partition, sizeof (*c->p));
+      return 1;
+    }
+
+  return 0;
+}
 
 static grub_partition_t
 apple_partition_map_probe (grub_disk_t disk, const char *str)
 {
-  grub_partition_t p = 0;
-  int partnum = 0;
   char *s = (char *) str;
+  struct apple_partition_map_probe_closure c;
 
-  auto int find_func (grub_disk_t d, const grub_partition_t partition);
-
-  int find_func (grub_disk_t d __attribute__ ((unused)),
-		 const grub_partition_t partition)
-    {
-      if (partnum == partition->index)
-	{
-	  p = (grub_partition_t) grub_malloc (sizeof (*p));
-	  if (! p)
-	    return 1;
-
-	  grub_memcpy (p, partition, sizeof (*p));
-	  return 1;
-	}
-
-      return 0;
-    }
-
+  c.p = 0;
   /* Get the partition number.  */
-  partnum = grub_strtoul (s, 0, 10) - 1;
+  c.partnum = grub_strtoul (s, 0, 10) - 1;
   if (grub_errno)
     {
       grub_error (GRUB_ERR_BAD_FILENAME, "invalid partition");
       return 0;
     }
 
-  if (apple_partition_map_iterate (disk, find_func))
+  if (apple_partition_map_iterate (disk, find_func, &c))
     goto fail;
 
-  return p;
+  return c.p;
 
  fail:
-  grub_free (p);
+  grub_free (c.p);
   return 0;
 }
 

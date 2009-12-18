@@ -467,9 +467,10 @@ grub_udf_read_block (grub_fshelp_node_t node, grub_disk_addr_t fileblock)
 
 static grub_ssize_t
 grub_udf_read_file (grub_fshelp_node_t node,
-		    void NESTED_FUNC_ATTR
-		    (*read_hook) (grub_disk_addr_t sector,
-				  unsigned offset, unsigned length),
+		    void (*read_hook) (grub_disk_addr_t sector,
+				       unsigned offset, unsigned length,
+				       void *closure),
+		    void *closure,
 		    int pos, grub_size_t len, char *buf)
 {
   switch (U16 (node->fe.icbtag.flags) & GRUB_UDF_ICBTAG_FLAG_AD_MASK)
@@ -494,7 +495,7 @@ grub_udf_read_file (grub_fshelp_node_t node,
       return 0;
     }
 
-  return  grub_fshelp_read_file (node->data->disk, node, read_hook,
+  return  grub_fshelp_read_file (node->data->disk, node, read_hook, closure,
                                  pos, len, buf, grub_udf_read_block,
                                  U64 (node->fe.file_size),
                                  GRUB_UDF_LOG2_BLKSZ);
@@ -696,10 +697,11 @@ fail:
 
 static int
 grub_udf_iterate_dir (grub_fshelp_node_t dir,
-		      int NESTED_FUNC_ATTR
-		      (*hook) (const char *filename,
-			       enum grub_fshelp_filetype filetype,
-			       grub_fshelp_node_t node))
+		      int (*hook) (const char *filename,
+				   enum grub_fshelp_filetype filetype,
+				   grub_fshelp_node_t node,
+				   void *closure),
+		      void *closure)
 {
   grub_fshelp_node_t child;
   struct grub_udf_file_ident dirent;
@@ -713,12 +715,12 @@ grub_udf_iterate_dir (grub_fshelp_node_t dir,
   grub_memcpy ((char *) child, (char *) dir,
 	       sizeof (struct grub_fshelp_node));
 
-  if (hook (".", GRUB_FSHELP_DIR, child))
+  if (hook (".", GRUB_FSHELP_DIR, child, closure))
     return 1;
 
   while (offset < U64 (dir->fe.file_size))
     {
-      if (grub_udf_read_file (dir, 0, offset, sizeof (dirent),
+      if (grub_udf_read_file (dir, 0, 0, offset, sizeof (dirent),
 			      (char *) &dirent) != sizeof (dirent))
 	return 0;
 
@@ -739,7 +741,7 @@ grub_udf_iterate_dir (grub_fshelp_node_t dir,
       if (dirent.characteristics & GRUB_UDF_FID_CHAR_PARENT)
 	{
 	  /* This is the parent directory.  */
-	  if (hook ("..", GRUB_FSHELP_DIR, child))
+	  if (hook ("..", GRUB_FSHELP_DIR, child, closure))
 	    return 1;
 	}
       else
@@ -750,13 +752,13 @@ grub_udf_iterate_dir (grub_fshelp_node_t dir,
 	  type = ((dirent.characteristics & GRUB_UDF_FID_CHAR_DIRECTORY) ?
 		  (GRUB_FSHELP_DIR) : (GRUB_FSHELP_REG));
 
-	  if ((grub_udf_read_file (dir, 0, offset,
+	  if ((grub_udf_read_file (dir, 0, 0, offset,
 				   dirent.file_ident_length, filename))
 	      != dirent.file_ident_length)
 	    return 0;
 
 	  filename[dirent.file_ident_length] = 0;
-	  if (hook (&filename[1], type, child))
+	  if (hook (&filename[1], type, child, closure))
 	    return 1;
 	}
 
@@ -767,29 +769,39 @@ grub_udf_iterate_dir (grub_fshelp_node_t dir,
   return 0;
 }
 
+struct grub_udf_dir_closure
+{
+  int (*hook) (const char *filename,
+	       const struct grub_dirhook_info *info,
+	       void *closure);
+  void *closure;
+};
+
+static int
+iterate (const char *filename,
+	 enum grub_fshelp_filetype filetype,
+	 grub_fshelp_node_t node,
+	 void *closure)
+{
+  struct grub_udf_dir_closure *c = closure;
+  struct grub_dirhook_info info;
+  grub_memset (&info, 0, sizeof (info));
+  info.dir = ((filetype & GRUB_FSHELP_TYPE_MASK) == GRUB_FSHELP_DIR);
+  grub_free (node);
+  return c->hook (filename, &info, c->closure);
+}
+
 static grub_err_t
 grub_udf_dir (grub_device_t device, const char *path,
 	      int (*hook) (const char *filename,
-			   const struct grub_dirhook_info *info))
+			   const struct grub_dirhook_info *info,
+			   void *closure),
+	      void *closure)
 {
   struct grub_udf_data *data = 0;
   struct grub_fshelp_node rootnode;
   struct grub_fshelp_node *foundnode;
-
-  auto int NESTED_FUNC_ATTR iterate (const char *filename,
-				     enum grub_fshelp_filetype filetype,
-				     grub_fshelp_node_t node);
-
-  int NESTED_FUNC_ATTR iterate (const char *filename,
-				enum grub_fshelp_filetype filetype,
-				grub_fshelp_node_t node)
-  {
-      struct grub_dirhook_info info;
-      grub_memset (&info, 0, sizeof (info));
-      info.dir = ((filetype & GRUB_FSHELP_TYPE_MASK) == GRUB_FSHELP_DIR);
-      grub_free (node);
-      return hook (filename, &info);
-  }
+  struct grub_udf_dir_closure c;
 
   grub_dl_ref (my_mod);
 
@@ -802,10 +814,12 @@ grub_udf_dir (grub_device_t device, const char *path,
 
   if (grub_fshelp_find_file (path, &rootnode,
 			     &foundnode,
-			     grub_udf_iterate_dir, 0, GRUB_FSHELP_DIR))
+			     grub_udf_iterate_dir, 0, 0, GRUB_FSHELP_DIR))
     goto fail;
 
-  grub_udf_iterate_dir (foundnode, iterate);
+  c.hook = hook;
+  c.closure = closure;
+  grub_udf_iterate_dir (foundnode, iterate, &c);
 
   if (foundnode != &rootnode)
     grub_free (foundnode);
@@ -836,7 +850,7 @@ grub_udf_open (struct grub_file *file, const char *name)
 
   if (grub_fshelp_find_file (name, &rootnode,
 			     &foundnode,
-			     grub_udf_iterate_dir, 0, GRUB_FSHELP_REG))
+			     grub_udf_iterate_dir, 0, 0, GRUB_FSHELP_REG))
     goto fail;
 
   file->data = foundnode;
@@ -858,7 +872,8 @@ grub_udf_read (grub_file_t file, char *buf, grub_size_t len)
 {
   struct grub_fshelp_node *node = (struct grub_fshelp_node *) file->data;
 
-  return grub_udf_read_file (node, file->read_hook, file->offset, len, buf);
+  return grub_udf_read_file (node, file->read_hook, file->closure,
+			     file->offset, len, buf);
 }
 
 static grub_err_t

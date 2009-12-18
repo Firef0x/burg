@@ -29,22 +29,35 @@ struct grub_nand_data
   grub_uint32_t block_size;
 };
 
-static int
-grub_nand_iterate (int (*hook) (const char *name))
+struct grub_nand_iterate_closure
 {
-  auto int dev_iterate (struct grub_ieee1275_devalias *alias);
-  int dev_iterate (struct grub_ieee1275_devalias *alias)
-    {
-      if (! grub_strcmp (alias->name, "nand"))
-        {
-          hook (alias->name);
-          return 1;
-        }
+  int (*hook) (const char *name, void *closure);
+  void *closure;
+};
 
-      return 0;
+static int
+dev_iterate (struct grub_ieee1275_devalias *alias, void *closure)
+{
+  struct grub_nand_iterate_closure *c = closure;
+
+  if (! grub_strcmp (alias->name, "nand"))
+    {
+      c->hook (alias->name, c->closure);
+      return 1;
     }
 
-  return grub_devalias_iterate (dev_iterate);
+  return 0;
+}
+
+static int
+grub_nand_iterate (int (*hook) (const char *name, void *closure),
+		   void *closure)
+{
+  struct grub_nand_iterate_closure c;
+
+  c.hook = hook;
+  c.closure = closure;
+  return grub_devalias_iterate (dev_iterate, &c);
 }
 
 static grub_err_t

@@ -141,49 +141,57 @@ iszero (grub_uint8_t *reg, int size)
   return 1;
 }
 
+struct grub_acpi_create_ebda_closure
+{
+  int ebda_len;
+  grub_uint64_t highestlow;
+};
+
+static int
+find_hook (grub_uint64_t start, grub_uint64_t size,
+	   grub_uint32_t type, void *closure)
+{
+  struct grub_acpi_create_ebda_closure *c = closure;
+  grub_uint64_t end = start + size;
+  if (type != GRUB_MACHINE_MEMORY_AVAILABLE)
+    return 0;
+  if (end > 0x100000)
+    end = 0x100000;
+  if (end > start + c->ebda_len
+      && c->highestlow < ((end - c->ebda_len) & (~0xf)) )
+    c->highestlow = (end - c->ebda_len) & (~0xf);
+  return 0;
+}
+
 grub_err_t
 grub_acpi_create_ebda (void)
 {
   int ebda_kb_len;
-  int ebda_len;
   int mmapregion = 0;
   grub_uint8_t *ebda, *v1inebda = 0, *v2inebda = 0;
-  grub_uint64_t highestlow = 0;
   grub_uint8_t *targetebda, *target;
   struct grub_acpi_rsdp_v10 *v1;
   struct grub_acpi_rsdp_v20 *v2;
-  auto int NESTED_FUNC_ATTR find_hook (grub_uint64_t, grub_uint64_t,
-				       grub_uint32_t);
-  int NESTED_FUNC_ATTR find_hook (grub_uint64_t start, grub_uint64_t size,
-				  grub_uint32_t type)
-  {
-    grub_uint64_t end = start + size;
-    if (type != GRUB_MACHINE_MEMORY_AVAILABLE)
-      return 0;
-    if (end > 0x100000)
-      end = 0x100000;
-    if (end > start + ebda_len
-	&& highestlow < ((end - ebda_len) & (~0xf)) )
-      highestlow = (end - ebda_len) & (~0xf);
-    return 0;
-  }
+  struct grub_acpi_create_ebda_closure c;
+
+  c.highestlow = 0;
 
   ebda = (grub_uint8_t *) UINT_TO_PTR ((*((grub_uint16_t *)0x40e)) << 4);
   ebda_kb_len = *(grub_uint16_t *) ebda;
   if (! ebda || ebda_kb_len > 16)
     ebda_kb_len = 0;
-  ebda_len = (ebda_kb_len + 1) << 10;
+  c.ebda_len = (ebda_kb_len + 1) << 10;
 
   /* FIXME: use low-memory mm allocation once it's available. */
-  grub_mmap_iterate (find_hook);
-  targetebda = (grub_uint8_t *) UINT_TO_PTR (highestlow);
+  grub_mmap_iterate (find_hook, &c);
+  targetebda = (grub_uint8_t *) UINT_TO_PTR (c.highestlow);
   grub_dprintf ("acpi", "creating ebda @%llx\n",
-		(unsigned long long) highestlow);
-  if (! highestlow)
+		(unsigned long long) c.highestlow);
+  if (! c.highestlow)
     return grub_error (GRUB_ERR_OUT_OF_MEMORY,
 		       "couldn't find space for the new EBDA");
 
-  mmapregion = grub_mmap_register (PTR_TO_UINT64 (targetebda), ebda_len,
+  mmapregion = grub_mmap_register (PTR_TO_UINT64 (targetebda), c.ebda_len,
 				   GRUB_MACHINE_MEMORY_RESERVED);
   if (! mmapregion)
     return grub_errno;

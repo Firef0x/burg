@@ -282,7 +282,8 @@ grub_env_unset (const char *name)
 }
 
 void
-grub_env_iterate (int (*func) (struct grub_env_var *var))
+grub_env_iterate (int (*func) (struct grub_env_var *var, void *closure),
+		  void *closure)
 {
   struct grub_env_sorted_var *sorted_list = 0;
   struct grub_env_sorted_var *sorted_var;
@@ -320,7 +321,7 @@ grub_env_iterate (int (*func) (struct grub_env_var *var))
 
   /* Iterate FUNC on the sorted list.  */
   for (sorted_var = sorted_list; sorted_var; sorted_var = sorted_var->next)
-    if (func (sorted_var->var))
+    if (func (sorted_var->var, closure))
       break;
 
  fail:

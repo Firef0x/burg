@@ -300,8 +300,10 @@ grub_ufs_get_file_block (struct grub_ufs_data *data, unsigned int blk)
    POS.  Return the amount of read bytes in READ.  */
 static grub_ssize_t
 grub_ufs_read_file (struct grub_ufs_data *data,
-		    void NESTED_FUNC_ATTR (*read_hook) (grub_disk_addr_t sector,
-				       unsigned offset, unsigned length),
+		    void (*read_hook) (grub_disk_addr_t sector,
+				       unsigned offset, unsigned length,
+				       void *closure),
+		    void *closure,
 		    int pos, grub_size_t len, char *buf)
 {
   int blksz = UFS_BLKSZ (data);
@@ -347,6 +349,7 @@ grub_ufs_read_file (struct grub_ufs_data *data,
       if (blknr)
 	{
 	  data->disk->read_hook = read_hook;
+	  data->disk->closure = closure;
 	  grub_disk_read (data->disk,
 			  blknr << grub_num_to_cpu32 (data->sblock.log2_blksz,
 						      data->be),
@@ -479,7 +482,7 @@ grub_ufs_find_file (struct grub_ufs_data *data, const char *path)
       if (grub_strlen (name) == 0)
 	return GRUB_ERR_NONE;
 
-      if (grub_ufs_read_file (data, 0, pos, sizeof (dirent),
+      if (grub_ufs_read_file (data, 0, 0, pos, sizeof (dirent),
 			      (char *) &dirent) < 0)
 	return grub_errno;
 
@@ -491,7 +494,7 @@ grub_ufs_find_file (struct grub_ufs_data *data, const char *path)
       {
 	char filename[namelen + 1];
 
-	if (grub_ufs_read_file (data, 0, pos + sizeof (dirent),
+	if (grub_ufs_read_file (data, 0, 0, pos + sizeof (dirent),
 				namelen, filename) < 0)
 	  return grub_errno;
 
@@ -593,7 +596,9 @@ grub_ufs_mount (grub_disk_t disk)
 static grub_err_t
 grub_ufs_dir (grub_device_t device, const char *path,
 	       int (*hook) (const char *filename,
-			    const struct grub_dirhook_info *info))
+			    const struct grub_dirhook_info *info,
+			    void *closure),
+	      void *closure)
 {
   struct grub_ufs_data *data;
   struct grub_ufs_sblock *sblock;
@@ -630,7 +635,7 @@ grub_ufs_dir (grub_device_t device, const char *path,
       struct grub_ufs_dirent dirent;
       int namelen;
 
-      if (grub_ufs_read_file (data, 0, pos, sizeof (dirent),
+      if (grub_ufs_read_file (data, 0, 0, pos, sizeof (dirent),
 			      (char *) &dirent) < 0)
 	break;
 
@@ -647,7 +652,7 @@ grub_ufs_dir (grub_device_t device, const char *path,
 
 	grub_memset (&info, 0, sizeof (info));
 
-	if (grub_ufs_read_file (data, 0, pos + sizeof (dirent),
+	if (grub_ufs_read_file (data, 0, 0, pos + sizeof (dirent),
 				namelen, filename) < 0)
 	  break;
 
@@ -660,7 +665,7 @@ grub_ufs_dir (grub_device_t device, const char *path,
 	info.mtime = grub_num_to_cpu64 (inode.mtime, data->be);
 	info.mtimeset = 1;
 
-	if (hook (filename, &info))
+	if (hook (filename, &info, closure))
 	  break;
       }
 
@@ -716,7 +721,8 @@ grub_ufs_read (grub_file_t file, char *buf, grub_size_t len)
   struct grub_ufs_data *data =
     (struct grub_ufs_data *) file->data;
 
-  return grub_ufs_read_file (data, file->read_hook, file->offset, len, buf);
+  return grub_ufs_read_file (data, file->read_hook, file->closure,
+			     file->offset, len, buf);
 }
 
 

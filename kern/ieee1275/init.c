@@ -122,90 +122,94 @@ grub_machine_set_prefix (void)
   grub_free (prefix);
 }
 
+static int
+heap_init (grub_uint64_t addr, grub_uint64_t len, grub_uint32_t type,
+	   void *closure)
+{
+  unsigned long *total = closure;
+
+  if (type != 1)
+    return 0;
+
+  len -= 1; /* Required for some firmware.  */
+
+  /* Never exceed HEAP_MAX_SIZE  */
+  if (*total + len > HEAP_MAX_SIZE)
+    len = HEAP_MAX_SIZE - *total;
+
+  /* Avoid claiming anything above HEAP_MAX_ADDR, if possible. */
+  if ((addr < HEAP_MAX_ADDR) &&				/* if it's too late, don't bother */
+      (addr + len > HEAP_MAX_ADDR) &&				/* if it wasn't available anyway, don't bother */
+      (*total + (HEAP_MAX_ADDR - addr) > HEAP_MIN_SIZE))	/* only limit ourselves when we can afford to */
+    len = HEAP_MAX_ADDR - addr;
+
+  /* In theory, firmware should already prevent this from happening by not
+     listing our own image in /memory/available.  The check below is intended
+     as a safeguard in case that doesn't happen.  However, it doesn't protect
+     us from corrupting our module area, which extends up to a
+     yet-undetermined region above _end.  */
+  if ((addr < (grub_addr_t) grub_bss_end) &&
+      ((addr + len) > (grub_addr_t) grub_code_start))
+    {
+      grub_printf ("Warning: attempt to claim over our own code!\n");
+      len = 0;
+    }
+
+  if (len)
+    {
+      /* Claim and use it.  */
+      if (grub_claimmap (addr, len) < 0)
+	return grub_error (GRUB_ERR_OUT_OF_MEMORY,
+			   "Failed to claim heap at 0x%llx, len 0x%llx\n",
+			   addr, len);
+      grub_mm_init_region ((void *) (grub_addr_t) addr, len);
+    }
+
+  *total += len;
+  if (*total >= HEAP_MAX_SIZE)
+    return 1;
+
+  return 0;
+}
+
 /* Claim some available memory in the first /memory node. */
 static void grub_claim_heap (void)
 {
   unsigned long total = 0;
-
-  auto int NESTED_FUNC_ATTR heap_init (grub_uint64_t addr, grub_uint64_t len, grub_uint32_t type);
-  int NESTED_FUNC_ATTR heap_init (grub_uint64_t addr, grub_uint64_t len, grub_uint32_t type)
-  {
-    if (type != 1)
-      return 0;
-
-    len -= 1; /* Required for some firmware.  */
-
-    /* Never exceed HEAP_MAX_SIZE  */
-    if (total + len > HEAP_MAX_SIZE)
-      len = HEAP_MAX_SIZE - total;
-
-    /* Avoid claiming anything above HEAP_MAX_ADDR, if possible. */
-    if ((addr < HEAP_MAX_ADDR) &&				/* if it's too late, don't bother */
-        (addr + len > HEAP_MAX_ADDR) &&				/* if it wasn't available anyway, don't bother */
-        (total + (HEAP_MAX_ADDR - addr) > HEAP_MIN_SIZE))	/* only limit ourselves when we can afford to */
-       len = HEAP_MAX_ADDR - addr;
-
-    /* In theory, firmware should already prevent this from happening by not
-       listing our own image in /memory/available.  The check below is intended
-       as a safeguard in case that doesn't happen.  However, it doesn't protect
-       us from corrupting our module area, which extends up to a
-       yet-undetermined region above _end.  */
-    if ((addr < (grub_addr_t) grub_bss_end) &&
-	((addr + len) > (grub_addr_t) grub_code_start))
-      {
-        grub_printf ("Warning: attempt to claim over our own code!\n");
-        len = 0;
-      }
-
-    if (len)
-      {
-	/* Claim and use it.  */
-	if (grub_claimmap (addr, len) < 0)
-	  return grub_error (GRUB_ERR_OUT_OF_MEMORY,
-			     "Failed to claim heap at 0x%llx, len 0x%llx\n",
-			     addr, len);
-	grub_mm_init_region ((void *) (grub_addr_t) addr, len);
-      }
-
-    total += len;
-    if (total >= HEAP_MAX_SIZE)
-      return 1;
-
-    return 0;
-  }
 
   if (grub_ieee1275_test_flag (GRUB_IEEE1275_FLAG_FORCE_CLAIM))
     {
       grub_addr_t start;
 
       start = ALIGN_UP ((grub_addr_t) grub_bss_end, 4096);
-      heap_init (start, HEAP_MAX_ADDR - start, 1);
+      heap_init (start, HEAP_MAX_ADDR - start, 1, &total);
     }
   else
-    grub_machine_mmap_iterate (heap_init);
+    grub_machine_mmap_iterate (heap_init, &total);
 }
 
 #ifdef __i386__
 
 grub_uint32_t grub_upper_mem;
 
+static int
+find_ext_mem (grub_uint64_t addr, grub_uint64_t len, grub_uint32_t type,
+	      void *closure UNUSED)
+{
+  if (type == 1 && addr == 0x100000)
+    {
+      grub_upper_mem = len;
+      return 1;
+    }
+
+  return 0;
+}
+
 /* We need to call this before grub_claim_memory.  */
 static void
 grub_get_extended_memory (void)
 {
-  auto int NESTED_FUNC_ATTR find_ext_mem (grub_uint64_t addr, grub_uint64_t len, grub_uint32_t type);
-  int NESTED_FUNC_ATTR find_ext_mem (grub_uint64_t addr, grub_uint64_t len, grub_uint32_t type)
-    {
-      if (type == 1 && addr == 0x100000)
-        {
-          grub_upper_mem = len;
-          return 1;
-        }
-
-      return 0;
-    }
-
-  grub_machine_mmap_iterate (find_ext_mem);
+  grub_machine_mmap_iterate (find_ext_mem, 0);
 }
 
 #endif

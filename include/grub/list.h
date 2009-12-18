@@ -29,15 +29,16 @@ struct grub_list
 };
 typedef struct grub_list *grub_list_t;
 
-typedef int (*grub_list_hook_t) (grub_list_t item);
-typedef int (*grub_list_test_t) (grub_list_t new_item, grub_list_t item);
+typedef int (*grub_list_hook_t) (grub_list_t item, void *closure);
+typedef int (*grub_list_test_t) (grub_list_t new_item, grub_list_t item,
+				 void *closure);
 
 void grub_list_push (grub_list_t *head, grub_list_t item);
 void * grub_list_pop (grub_list_t *head);
 void grub_list_remove (grub_list_t *head, grub_list_t item);
-int grub_list_iterate (grub_list_t head, grub_list_hook_t hook);
+int grub_list_iterate (grub_list_t head, grub_list_hook_t hook, void *closure);
 void grub_list_insert (grub_list_t *head, grub_list_t item,
-		       grub_list_test_t test);
+		       grub_list_test_t test, void *closure);
 
 /* This function doesn't exist, so if assertion is false for some reason, the
    linker would fail.  */

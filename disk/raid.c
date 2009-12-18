@@ -80,14 +80,15 @@ grub_is_array_readable (struct grub_raid_array *array)
 }
 
 static int
-grub_raid_iterate (int (*hook) (const char *name))
+grub_raid_iterate (int (*hook) (const char *name, void *closure),
+		   void *closure)
 {
   struct grub_raid_array *array;
 
   for (array = array_list; array != NULL; array = array->next)
     {
       if (grub_is_array_readable (array))
-	if (hook (array->name))
+	if (hook (array->name, closure))
 	  return 1;
     }
 
@@ -621,41 +622,41 @@ free_array (void)
   array_list = 0;
 }
 
+static int
+grub_raid_register_hook (const char *name, void *closure UNUSED)
+{
+  grub_disk_t disk;
+  struct grub_raid_array array;
+
+  grub_dprintf ("raid", "Scanning for RAID devices on disk %s\n", name);
+
+  disk = grub_disk_open (name);
+  if (!disk)
+    return 0;
+
+  if ((disk->total_sectors != GRUB_ULONG_MAX) &&
+      (! grub_raid_list->detect (disk, &array)) &&
+      (! insert_array (disk, &array, grub_raid_list->name)))
+    return 0;
+
+  /* This error usually means it's not raid, no need to display
+     it.  */
+  if (grub_errno != GRUB_ERR_OUT_OF_RANGE)
+    grub_print_error ();
+
+  grub_errno = GRUB_ERR_NONE;
+
+  grub_disk_close (disk);
+
+  return 0;
+}
+
 void
 grub_raid_register (grub_raid_t raid)
 {
-  auto int hook (const char *name);
-  int hook (const char *name)
-    {
-      grub_disk_t disk;
-      struct grub_raid_array array;
-
-      grub_dprintf ("raid", "Scanning for RAID devices on disk %s\n", name);
-
-      disk = grub_disk_open (name);
-      if (!disk)
-        return 0;
-
-      if ((disk->total_sectors != GRUB_ULONG_MAX) &&
-	  (! grub_raid_list->detect (disk, &array)) &&
-	  (! insert_array (disk, &array, grub_raid_list->name)))
-	return 0;
-
-      /* This error usually means it's not raid, no need to display
-	 it.  */
-      if (grub_errno != GRUB_ERR_OUT_OF_RANGE)
-	grub_print_error ();
-
-      grub_errno = GRUB_ERR_NONE;
-
-      grub_disk_close (disk);
-
-      return 0;
-    }
-
   raid->next = grub_raid_list;
   grub_raid_list = raid;
-  grub_device_iterate (&hook);
+  grub_device_iterate (grub_raid_register_hook, 0);
 }
 
 void

@@ -131,6 +131,8 @@ struct grub_lexer_param
      expected, but not available.  */
   grub_reader_getline_t getline;
 
+  void *closure;
+
   /* A reference counter.  If this is >0 it means that the parser
      expects more tokens and `getline' should be called to fetch more.
      Otherwise the lexer can stop processing if the current buffer is
@@ -218,13 +220,15 @@ grub_script_arg_add (struct grub_parser_param *state,
 		     grub_script_arg_type_t type, char *str);
 
 struct grub_script *grub_script_parse (char *script,
-				       grub_reader_getline_t getline);
+				       grub_reader_getline_t getline,
+				       void *closure);
 void grub_script_free (struct grub_script *script);
 struct grub_script *grub_script_create (struct grub_script_cmd *cmd,
 					struct grub_script_mem *mem);
 
 struct grub_lexer_param *grub_script_lexer_init (char *s,
-						 grub_reader_getline_t getline);
+						 grub_reader_getline_t getline,
+						 void *closure);
 void grub_script_lexer_ref (struct grub_lexer_param *);
 void grub_script_lexer_deref (struct grub_lexer_param *);
 void grub_script_lexer_record_start (struct grub_lexer_param *);

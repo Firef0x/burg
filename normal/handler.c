@@ -131,37 +131,36 @@ insert_handler (char *name, char *module)
   grub_list_push (&handler_list, GRUB_AS_LIST (item));
 }
 
+static int
+iterate_handler (grub_handler_t handler, void *closure)
+{
+  const char *class_name = closure;
+  char name[grub_strlen (class_name) + grub_strlen (handler->name) + 2];
+
+  grub_strcpy (name, class_name);
+  grub_strcat (name, ".");
+  grub_strcat (name, handler->name);
+
+  insert_handler (name, 0);
+
+  return 0;
+}
+
+static int
+iterate_class (grub_handler_class_t class, void *closure UNUSED)
+{
+  grub_list_iterate (GRUB_AS_LIST (class->handler_list),
+		     (grub_list_hook_t) iterate_handler, (char *) class->name);
+
+  return 0;
+}
+
 /* Read the file handler.lst for auto-loading.  */
 void
 read_handler_list (void)
 {
   const char *prefix;
   static int first_time = 1;
-  const char *class_name;
-
-  auto int iterate_handler (grub_handler_t handler);
-  int iterate_handler (grub_handler_t handler)
-    {
-      char name[grub_strlen (class_name) + grub_strlen (handler->name) + 2];
-
-      grub_strcpy (name, class_name);
-      grub_strcat (name, ".");
-      grub_strcat (name, handler->name);
-
-      insert_handler (name, 0);
-
-      return 0;
-    }
-
-  auto int iterate_class (grub_handler_class_t class);
-  int iterate_class (grub_handler_class_t class)
-    {
-      class_name = class->name;
-      grub_list_iterate (GRUB_AS_LIST (class->handler_list),
-			 (grub_list_hook_t) iterate_handler);
-
-      return 0;
-    }
 
   /* Make sure that this function does not get executed twice.  */
   if (! first_time)
@@ -212,7 +211,7 @@ read_handler_list (void)
     }
 
   grub_list_iterate (GRUB_AS_LIST (grub_handler_class_list),
-		     (grub_list_hook_t) iterate_class);
+		     (grub_list_hook_t) iterate_class, 0);
 
   /* Ignore errors.  */
   grub_errno = GRUB_ERR_NONE;

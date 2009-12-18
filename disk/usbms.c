@@ -73,127 +73,127 @@ grub_usbms_reset (grub_usb_device_t dev, int interface)
   return grub_usb_control_msg (dev, 0x21, 255, 0, interface, 0, 0);
 }
 
-static void
-grub_usbms_finddevs (void)
+static int
+usb_iterate (grub_usb_device_t usbdev, void *closure UNUSED)
 {
-  auto int usb_iterate (grub_usb_device_t dev);
+  grub_usb_err_t err;
+  struct grub_usb_desc_device *descdev = &usbdev->descdev;
+  int i;
 
-  int usb_iterate (grub_usb_device_t usbdev)
+  if (descdev->class != 0 || descdev->subclass || descdev->protocol != 0)
+    return 0;
+
+  /* XXX: Just check configuration 0 for now.  */
+  for (i = 0; i < usbdev->config[0].descconf->numif; i++)
     {
-      grub_usb_err_t err;
-      struct grub_usb_desc_device *descdev = &usbdev->descdev;
-      int i;
+      struct grub_usbms_dev *usbms;
+      struct grub_usb_desc_if *interf;
+      int j;
+      grub_uint8_t luns;
 
-      if (descdev->class != 0 || descdev->subclass || descdev->protocol != 0)
-	return 0;
+      interf = usbdev->config[0].interf[i].descif;
 
-      /* XXX: Just check configuration 0 for now.  */
-      for (i = 0; i < usbdev->config[0].descconf->numif; i++)
+      /* If this is not a USB Mass Storage device with a supported
+	 protocol, just skip it.  */
+      if (interf->class != GRUB_USB_CLASS_MASS_STORAGE
+	  || interf->subclass != GRUB_USBMS_SUBCLASS_BULK
+	  || interf->protocol != GRUB_USBMS_PROTOCOL_BULK)
 	{
-	  struct grub_usbms_dev *usbms;
-	  struct grub_usb_desc_if *interf;
-	  int j;
-	  grub_uint8_t luns;
+	  continue;
+	}
 
-	  interf = usbdev->config[0].interf[i].descif;
+      devcnt++;
+      usbms = grub_zalloc (sizeof (struct grub_usbms_dev));
+      if (! usbms)
+	return 1;
 
-	  /* If this is not a USB Mass Storage device with a supported
-	     protocol, just skip it.  */
-	  if (interf->class != GRUB_USB_CLASS_MASS_STORAGE
-	      || interf->subclass != GRUB_USBMS_SUBCLASS_BULK
-	      || interf->protocol != GRUB_USBMS_PROTOCOL_BULK)
+      usbms->dev = usbdev;
+      usbms->interface = i;
+
+      /* Iterate over all endpoints of this interface, at least a
+	 IN and OUT bulk endpoint are required.  */
+      for (j = 0; j < interf->endpointcnt; j++)
+	{
+	  struct grub_usb_desc_endp *endp;
+	  endp = &usbdev->config[0].interf[i].descendp[j];
+
+	  if ((endp->endp_addr & 128) && (endp->attrib & 3) == 2)
 	    {
-	      continue;
+	      /* Bulk IN endpoint.  */
+	      usbms->in = endp;
+	      grub_usb_clear_halt (usbdev, endp->endp_addr & 128);
+	      usbms->in_maxsz = endp->maxpacket;
 	    }
-
-	  devcnt++;
-	  usbms = grub_zalloc (sizeof (struct grub_usbms_dev));
-	  if (! usbms)
-	    return 1;
-
-	  usbms->dev = usbdev;
-	  usbms->interface = i;
-
-	  /* Iterate over all endpoints of this interface, at least a
-	     IN and OUT bulk endpoint are required.  */
-	  for (j = 0; j < interf->endpointcnt; j++)
+	  else if (!(endp->endp_addr & 128) && (endp->attrib & 3) == 2)
 	    {
-	      struct grub_usb_desc_endp *endp;
-	      endp = &usbdev->config[0].interf[i].descendp[j];
-
-	      if ((endp->endp_addr & 128) && (endp->attrib & 3) == 2)
-		{
-		  /* Bulk IN endpoint.  */
-		  usbms->in = endp;
-		  grub_usb_clear_halt (usbdev, endp->endp_addr & 128);
-		  usbms->in_maxsz = endp->maxpacket;
-		}
-	      else if (!(endp->endp_addr & 128) && (endp->attrib & 3) == 2)
-		{
-		  /* Bulk OUT endpoint.  */
-		  usbms->out = endp;
-		  grub_usb_clear_halt (usbdev, endp->endp_addr & 128);
-		  usbms->out_maxsz = endp->maxpacket;
-		}
+	      /* Bulk OUT endpoint.  */
+	      usbms->out = endp;
+	      grub_usb_clear_halt (usbdev, endp->endp_addr & 128);
+	      usbms->out_maxsz = endp->maxpacket;
 	    }
+	}
 
-	  if (!usbms->in || !usbms->out)
-	    {
-	      grub_free (usbms);
-	      return 0;
-	    }
-
-	  /* Query the amount of LUNs.  */
-	  err = grub_usb_control_msg (usbdev, 0xA1, 254,
-				      0, i, 1, (char *) &luns);
-	  if (err)
-	    {
-	      /* In case of a stall, clear the stall.  */
-	      if (err == GRUB_USB_ERR_STALL)
-		{
-		  grub_usb_clear_halt (usbdev, usbms->in->endp_addr & 3);
-		  grub_usb_clear_halt (usbdev, usbms->out->endp_addr & 3);
-		}
-
-	      /* Just set the amount of LUNs to one.  */
-	      grub_errno = GRUB_ERR_NONE;
-	      usbms->luns = 1;
-	    }
-	  else
-	    usbms->luns = luns;
-
-	  /* XXX: Check the magic values, does this really make
-	     sense?  */
-	  grub_usb_control_msg (usbdev, (1 << 6) | 1, 255,
-				0, i, 0, 0);
-
-	  /* XXX: To make Qemu work?  */
-	  if (usbms->luns == 0)
-	    usbms->luns = 1;
-
-	  usbms->next = grub_usbms_dev_list;
-	  grub_usbms_dev_list = usbms;
-
-	  /* XXX: Activate the first configuration.  */
-	  grub_usb_set_configuration (usbdev, 1);
-
-	  /* Bulk-Only Mass Storage Reset, after the reset commands
-	     will be accepted.  */
-	  grub_usbms_reset (usbdev, i);
-
+      if (!usbms->in || !usbms->out)
+	{
+	  grub_free (usbms);
 	  return 0;
 	}
+
+      /* Query the amount of LUNs.  */
+      err = grub_usb_control_msg (usbdev, 0xA1, 254,
+				  0, i, 1, (char *) &luns);
+      if (err)
+	{
+	  /* In case of a stall, clear the stall.  */
+	  if (err == GRUB_USB_ERR_STALL)
+	    {
+	      grub_usb_clear_halt (usbdev, usbms->in->endp_addr & 3);
+	      grub_usb_clear_halt (usbdev, usbms->out->endp_addr & 3);
+	    }
+
+	  /* Just set the amount of LUNs to one.  */
+	  grub_errno = GRUB_ERR_NONE;
+	  usbms->luns = 1;
+	}
+      else
+	usbms->luns = luns;
+
+      /* XXX: Check the magic values, does this really make
+	 sense?  */
+      grub_usb_control_msg (usbdev, (1 << 6) | 1, 255,
+			    0, i, 0, 0);
+
+      /* XXX: To make Qemu work?  */
+      if (usbms->luns == 0)
+	usbms->luns = 1;
+
+      usbms->next = grub_usbms_dev_list;
+      grub_usbms_dev_list = usbms;
+
+      /* XXX: Activate the first configuration.  */
+      grub_usb_set_configuration (usbdev, 1);
+
+      /* Bulk-Only Mass Storage Reset, after the reset commands
+	 will be accepted.  */
+      grub_usbms_reset (usbdev, i);
 
       return 0;
     }
 
-  grub_usb_iterate (usb_iterate);
+  return 0;
+}
+
+static void
+grub_usbms_finddevs (void)
+{
+  grub_usb_iterate (usb_iterate, 0);
 }
 
 
 
 static int
-grub_usbms_iterate (int (*hook) (const char *name, int luns))
+grub_usbms_iterate (int (*hook) (const char *name, int luns, void *closure),
+		    void *closure)
 {
   grub_usbms_dev_t p;
   int cnt = 0;
@@ -203,7 +203,7 @@ grub_usbms_iterate (int (*hook) (const char *name, int luns))
       char devname[20];
       grub_sprintf (devname, "usb%d", cnt);
 
-      if (hook (devname, p->luns))
+      if (hook (devname, p->luns, closure))
 	return 1;
       cnt++;
     }

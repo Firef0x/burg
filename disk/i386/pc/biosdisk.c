@@ -52,16 +52,18 @@ grub_biosdisk_get_drive (const char *name)
 }
 
 static int
-grub_biosdisk_call_hook (int (*hook) (const char *name), int drive)
+grub_biosdisk_call_hook (int (*hook) (const char *name, void *closure),
+			 void *closure, int drive)
 {
   char name[10];
 
-    grub_sprintf (name, (drive & 0x80) ? "hd%d" : "fd%d", drive & (~0x80));
-  return hook (name);
+  grub_sprintf (name, (drive & 0x80) ? "hd%d" : "fd%d", drive & (~0x80));
+  return hook (name, closure);
 }
 
 static int
-grub_biosdisk_iterate (int (*hook) (const char *name))
+grub_biosdisk_iterate (int (*hook) (const char *name, void *closure),
+		       void *closure)
 {
   int drive;
   int num_floppies;
@@ -76,20 +78,20 @@ grub_biosdisk_iterate (int (*hook) (const char *name))
 	  break;
 	}
 
-      if (grub_biosdisk_call_hook (hook, drive))
+      if (grub_biosdisk_call_hook (hook, closure, drive))
 	return 1;
     }
 
   if (cd_drive)
     {
-      if (grub_biosdisk_call_hook (hook, cd_drive))
+      if (grub_biosdisk_call_hook (hook, closure, cd_drive))
       return 1;
     }
 
   /* For floppy disks, we can get the number safely.  */
   num_floppies = grub_biosdisk_get_num_floppies ();
   for (drive = 0; drive < num_floppies; drive++)
-    if (grub_biosdisk_call_hook (hook, drive))
+    if (grub_biosdisk_call_hook (hook, closure, drive))
       return 1;
 
   return 0;

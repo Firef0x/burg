@@ -278,13 +278,13 @@ grub_mb2_load_elf (grub_elf_t elf, int argc, char *argv[])
   if (grub_elf_is_elf32 (elf))
     {
       entry = elf->ehdr.ehdr32.e_entry;
-      err = grub_elf32_load (elf, grub_mb2_arch_elf32_hook, &kern_base,
+      err = grub_elf32_load (elf, grub_mb2_arch_elf32_hook, 0, &kern_base,
 			     &kern_size);
     }
   else if (grub_elf_is_elf64 (elf))
     {
       entry = elf->ehdr.ehdr64.e_entry;
-      err = grub_elf64_load (elf, grub_mb2_arch_elf64_hook, &kern_base,
+      err = grub_elf64_load (elf, grub_mb2_arch_elf64_hook, 0, &kern_base,
 			     &kern_size);
     }
   else

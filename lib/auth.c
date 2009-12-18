@@ -202,46 +202,61 @@ grub_auth_deauthenticate (const char *user)
   return GRUB_ERR_NONE;
 }
 
+struct is_authenticated_closure
+{
+  const char *userlist;
+  const char *superusers;
+};
+
+static int
+is_authenticated_hook (grub_list_t item, void *closure)
+{
+  struct is_authenticated_closure *c = closure;
+  const char *name;
+  if (!((struct grub_auth_user *) item)->authenticated)
+    return 0;
+  name = ((struct grub_auth_user *) item)->name;
+
+  return (c->userlist && grub_auth_strword (c->userlist, name))
+    || grub_auth_strword (c->superusers, name);
+}
+
 static int
 is_authenticated (const char *userlist)
 {
-  const char *superusers;
+  struct is_authenticated_closure c;
 
-  auto int hook (grub_list_t item);
-  int hook (grub_list_t item)
-  {
-    const char *name;
-    if (!((struct grub_auth_user *) item)->authenticated)
-      return 0;
-    name = ((struct grub_auth_user *) item)->name;
+  c.userlist = userlist;
+  c.superusers = grub_env_get ("superusers");
 
-    return (userlist && grub_auth_strword (userlist, name))
-      || grub_auth_strword (superusers, name);
-  }
-
-  superusers = grub_env_get ("superusers");
-
-  if (!superusers)
+  if (!c.superusers)
     return 1;
 
-  return grub_list_iterate (GRUB_AS_LIST (users), hook);
+  return grub_list_iterate (GRUB_AS_LIST (users), is_authenticated_hook, &c);
+}
+
+struct grub_auth_check_password_closure
+{
+  const char *login;
+  struct grub_auth_user *cur;
+};
+
+static int
+grub_auth_check_password_hook (grub_list_t item, void *closure)
+{
+  struct grub_auth_check_password_closure *c = closure;
+  if (grub_auth_strcmp (c->login, ((struct grub_auth_user *) item)->name) == 0)
+    c->cur = (struct grub_auth_user *) item;
+  return 0;
 }
 
 int
 grub_auth_check_password (const char *userlist, const char *login,
 			  const char *password)
 {
-  struct grub_auth_user *cur = NULL;
   static unsigned long punishment_delay = 1;
   int result = 0;
-
-  auto int hook (grub_list_t item);
-  int hook (grub_list_t item)
-  {
-    if (grub_auth_strcmp (login, ((struct grub_auth_user *) item)->name) == 0)
-      cur = (struct grub_auth_user *) item;
-    return 0;
-  }
+  struct grub_auth_check_password_closure c;
 
   if (is_authenticated (userlist))
     {
@@ -252,8 +267,10 @@ grub_auth_check_password (const char *userlist, const char *login,
   if (! login)
     return 0;
 
-  grub_list_iterate (GRUB_AS_LIST (users), hook);
-  if ((cur) && (cur->callback (login, password, cur->arg)))
+  c.login = login;
+  c.cur = NULL;
+  grub_list_iterate (GRUB_AS_LIST (users), grub_auth_check_password_hook, &c);
+  if ((c.cur) && (c.cur->callback (login, password, c.cur->arg)))
     {
       grub_auth_authenticate (login);
       result = (is_authenticated (userlist));

@@ -200,7 +200,9 @@ fail:
 static grub_err_t
 grub_cpio_dir (grub_device_t device, const char *path,
 	       int (*hook) (const char *filename,
-			    const struct grub_dirhook_info *info))
+			    const struct grub_dirhook_info *info,
+			    void *closure),
+	       void *closure)
 {
   struct grub_cpio_data *data;
   grub_uint32_t ofs;
@@ -246,7 +248,7 @@ grub_cpio_dir (grub_device_t device, const char *path,
 	      grub_memset (&info, 0, sizeof (info));
 	      info.dir = (p != NULL);
 
-	      hook (name + len, &info);
+	      hook (name + len, &info, closure);
 	      if (prev)
 		grub_free (prev);
 	      prev = name;

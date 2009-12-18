@@ -53,9 +53,10 @@ struct grub_pxe_data
 };
 
 static int
-grub_pxe_iterate (int (*hook) (const char *name))
+grub_pxe_iterate (int (*hook) (const char *name, void *closure),
+		  void *closure)
 {
-  if (hook ("pxe"))
+  if (hook ("pxe", closure))
     return 1;
   return 0;
 }
@@ -113,7 +114,9 @@ static struct grub_disk_dev grub_pxe_dev =
 static grub_err_t
 grub_pxefs_dir (grub_device_t device UNUSED, const char *path UNUSED,
 		int (*hook) (const char *filename,
-			     const struct grub_dirhook_info *info) UNUSED)
+			     const struct grub_dirhook_info *info,
+			     void *closure) UNUSED,
+		void *closure UNUSED)
 {
   return GRUB_ERR_NONE;
 }

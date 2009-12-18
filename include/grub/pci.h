@@ -68,12 +68,12 @@ grub_pci_get_function (grub_pci_device_t dev)
 #include <grub/cpu/pci.h>
 #endif
 
-typedef int NESTED_FUNC_ATTR (*grub_pci_iteratefunc_t)
-     (grub_pci_device_t dev, grub_pci_id_t pciid);
+typedef int (*grub_pci_iteratefunc_t)
+     (grub_pci_device_t dev, grub_pci_id_t pciid, void *closure);
 
 grub_pci_address_t grub_pci_make_address (grub_pci_device_t dev,
 					  int reg);
 
-void grub_pci_iterate (grub_pci_iteratefunc_t hook);
+void grub_pci_iterate (grub_pci_iteratefunc_t hook, void *closure);
 
 #endif /* GRUB_PCI_H */

@@ -152,8 +152,8 @@ grub_elf32_load_phdrs (grub_elf_t elf)
 
 static grub_err_t
 grub_elf32_phdr_iterate (grub_elf_t elf,
-			 int NESTED_FUNC_ATTR (*hook) (grub_elf_t, Elf32_Phdr *, void *),
-			 void *hook_arg)
+			 int (*hook) (grub_elf_t, Elf32_Phdr *, void *closure),
+			 void *closure)
 {
   Elf32_Phdr *phdrs;
   unsigned int i;
@@ -173,123 +173,143 @@ grub_elf32_phdr_iterate (grub_elf_t elf,
 		    (unsigned long) phdr->p_paddr,
 		    (unsigned long) phdr->p_memsz,
 		    (unsigned long) phdr->p_filesz);
-      if (hook (elf, phdr, hook_arg))
+      if (hook (elf, phdr, closure))
 	break;
     }
 
   return grub_errno;
 }
 
+struct grub_elf32_size_closure
+{
+  Elf32_Addr segments_start;
+  Elf32_Addr segments_end;
+  int nr_phdrs;
+};
+
+/* Run through the program headers to calculate the total memory size we
+ * should claim.  */
+static int
+grub_elf32_calcsize (grub_elf_t UNUSED _elf, Elf32_Phdr *phdr, void *closure)
+{
+  struct grub_elf32_size_closure *c = closure;
+
+  /* Only consider loadable segments.  */
+  if (phdr->p_type != PT_LOAD)
+    return 0;
+  c->nr_phdrs++;
+  if (phdr->p_paddr < c->segments_start)
+    c->segments_start = phdr->p_paddr;
+  if (phdr->p_paddr + phdr->p_memsz > c->segments_end)
+    c->segments_end = phdr->p_paddr + phdr->p_memsz;
+  return 0;
+}
+
 /* Calculate the amount of memory spanned by the segments.  */
 grub_size_t
 grub_elf32_size (grub_elf_t elf)
 {
-  Elf32_Addr segments_start = (Elf32_Addr) -1;
-  Elf32_Addr segments_end = 0;
-  int nr_phdrs = 0;
+  struct grub_elf32_size_closure c;
 
-  /* Run through the program headers to calculate the total memory size we
-   * should claim.  */
-  auto int NESTED_FUNC_ATTR calcsize (grub_elf_t _elf, Elf32_Phdr *phdr, void *_arg);
-  int NESTED_FUNC_ATTR calcsize (grub_elf_t UNUSED _elf, Elf32_Phdr *phdr, void UNUSED *_arg)
-    {
-      /* Only consider loadable segments.  */
-      if (phdr->p_type != PT_LOAD)
-	return 0;
-      nr_phdrs++;
-      if (phdr->p_paddr < segments_start)
-	segments_start = phdr->p_paddr;
-      if (phdr->p_paddr + phdr->p_memsz > segments_end)
-	segments_end = phdr->p_paddr + phdr->p_memsz;
-      return 0;
-    }
+  c.segments_start = (Elf32_Addr) -1;
+  c.segments_end = 0;
+  c.nr_phdrs = 0;
+  grub_elf32_phdr_iterate (elf, grub_elf32_calcsize, &c);
 
-  grub_elf32_phdr_iterate (elf, calcsize, 0);
-
-  if (nr_phdrs == 0)
+  if (c.nr_phdrs == 0)
     {
       grub_error (GRUB_ERR_BAD_OS, "No program headers present");
       return 0;
     }
 
-  if (segments_end < segments_start)
+  if (c.segments_end < c.segments_start)
     {
       /* Very bad addresses.  */
       grub_error (GRUB_ERR_BAD_OS, "Bad program header load addresses");
       return 0;
     }
 
-  return segments_end - segments_start;
+  return c.segments_end - c.segments_start;
 }
 
+struct grub_elf32_load_closure
+{
+  grub_addr_t load_base;
+  grub_size_t load_size;
+  grub_elf32_load_hook_t hook;
+  void *closure;
+};
+
+static int
+grub_elf32_load_segment (grub_elf_t elf, Elf32_Phdr *phdr, void *closure)
+{
+  struct grub_elf32_load_closure *c = closure;
+  grub_addr_t load_addr;
+  int do_load = 1;
+
+  load_addr = phdr->p_paddr;
+  if (c->hook && c->hook (phdr, &load_addr, &do_load, c->closure))
+    return 1;
+
+  if (! do_load)
+    return 0;
+
+  if (load_addr < c->load_base)
+    c->load_base = load_addr;
+
+  grub_dprintf ("elf", "Loading segment at 0x%llx, size 0x%llx\n",
+		(unsigned long long) load_addr,
+		(unsigned long long) phdr->p_memsz);
+
+  if (grub_file_seek (elf->file, phdr->p_offset) == (grub_off_t) -1)
+    {
+      grub_error_push ();
+      return grub_error (GRUB_ERR_BAD_OS,
+			 "Invalid offset in program header.");
+    }
+
+  if (phdr->p_filesz)
+    {
+      grub_ssize_t read;
+      read = grub_file_read (elf->file, (void *) load_addr, phdr->p_filesz);
+      if (read != (grub_ssize_t) phdr->p_filesz)
+	{
+	  /* XXX How can we free memory from `load_hook'? */
+	  grub_error_push ();
+	  return grub_error (GRUB_ERR_BAD_OS,
+			     "Couldn't read segment from file: "
+			     "wanted 0x%lx bytes; read 0x%lx bytes.",
+			     phdr->p_filesz, read);
+	}
+    }
+
+  if (phdr->p_filesz < phdr->p_memsz)
+    grub_memset ((void *) (long) (load_addr + phdr->p_filesz),
+		 0, phdr->p_memsz - phdr->p_filesz);
+
+  c->load_size += phdr->p_memsz;
+
+  return 0;
+}
 
 /* Load every loadable segment into memory specified by `_load_hook'.  */
 grub_err_t
-grub_elf32_load (grub_elf_t _elf, grub_elf32_load_hook_t _load_hook,
+grub_elf32_load (grub_elf_t _elf, grub_elf32_load_hook_t hook, void *closure,
 		 grub_addr_t *base, grub_size_t *size)
 {
-  grub_addr_t load_base = (grub_addr_t) -1ULL;
-  grub_size_t load_size = 0;
   grub_err_t err;
+  struct grub_elf32_load_closure c;
 
-  auto int NESTED_FUNC_ATTR grub_elf32_load_segment (grub_elf_t elf, Elf32_Phdr *phdr, void *hook);
-  int NESTED_FUNC_ATTR grub_elf32_load_segment (grub_elf_t elf, Elf32_Phdr *phdr, void *hook)
-  {
-    grub_elf32_load_hook_t load_hook = (grub_elf32_load_hook_t) hook;
-    grub_addr_t load_addr;
-    int do_load = 1;
-
-    load_addr = phdr->p_paddr;
-    if (load_hook && load_hook (phdr, &load_addr, &do_load))
-      return 1;
-
-    if (! do_load)
-      return 0;
-
-    if (load_addr < load_base)
-      load_base = load_addr;
-
-    grub_dprintf ("elf", "Loading segment at 0x%llx, size 0x%llx\n",
-		  (unsigned long long) load_addr,
-		  (unsigned long long) phdr->p_memsz);
-
-    if (grub_file_seek (elf->file, phdr->p_offset) == (grub_off_t) -1)
-      {
-	grub_error_push ();
-	return grub_error (GRUB_ERR_BAD_OS,
-			   "Invalid offset in program header.");
-      }
-
-    if (phdr->p_filesz)
-      {
-	grub_ssize_t read;
-	read = grub_file_read (elf->file, (void *) load_addr, phdr->p_filesz);
-	if (read != (grub_ssize_t) phdr->p_filesz)
-	  {
-	    /* XXX How can we free memory from `load_hook'? */
-	    grub_error_push ();
-	    return grub_error (GRUB_ERR_BAD_OS,
-			       "Couldn't read segment from file: "
-			       "wanted 0x%lx bytes; read 0x%lx bytes.",
-			       phdr->p_filesz, read);
-	  }
-      }
-
-    if (phdr->p_filesz < phdr->p_memsz)
-      grub_memset ((void *) (long) (load_addr + phdr->p_filesz),
-		   0, phdr->p_memsz - phdr->p_filesz);
-
-    load_size += phdr->p_memsz;
-
-    return 0;
-  }
-
-  err = grub_elf32_phdr_iterate (_elf, grub_elf32_load_segment, _load_hook);
+  c.hook = hook;
+  c.closure = closure;
+  c.load_base = (grub_addr_t) -1ULL;
+  c.load_size = 0;
+  err = grub_elf32_phdr_iterate (_elf, grub_elf32_load_segment, &c);
 
   if (base)
-    *base = load_base;
+    *base = c.load_base;
   if (size)
-    *size = load_size;
+    *size = c.load_size;
 
   return err;
 }
@@ -331,8 +351,8 @@ grub_elf64_load_phdrs (grub_elf_t elf)
 
 static grub_err_t
 grub_elf64_phdr_iterate (grub_elf_t elf,
-			 int NESTED_FUNC_ATTR (*hook) (grub_elf_t, Elf64_Phdr *, void *),
-			 void *hook_arg)
+			 int (*hook) (grub_elf_t, Elf64_Phdr *, void *closure),
+			 void *closure)
 {
   Elf64_Phdr *phdrs;
   unsigned int i;
@@ -352,124 +372,143 @@ grub_elf64_phdr_iterate (grub_elf_t elf,
 		    (unsigned long) phdr->p_paddr,
 		    (unsigned long) phdr->p_memsz,
 		    (unsigned long) phdr->p_filesz);
-      if (hook (elf, phdr, hook_arg))
+      if (hook (elf, phdr, closure))
 	break;
     }
 
   return grub_errno;
 }
 
+struct grub_elf64_size_closure
+{
+  Elf64_Addr segments_start;
+  Elf64_Addr segments_end;
+  int nr_phdrs;
+};
+
+/* Run through the program headers to calculate the total memory size we
+ * should claim.  */
+static int
+grub_elf64_calcsize (grub_elf_t UNUSED _elf, Elf64_Phdr *phdr, void *closure)
+{
+  struct grub_elf64_size_closure *c = closure;
+
+  /* Only consider loadable segments.  */
+  if (phdr->p_type != PT_LOAD)
+    return 0;
+  c->nr_phdrs++;
+  if (phdr->p_paddr < c->segments_start)
+    c->segments_start = phdr->p_paddr;
+  if (phdr->p_paddr + phdr->p_memsz > c->segments_end)
+    c->segments_end = phdr->p_paddr + phdr->p_memsz;
+  return 0;
+}
+
 /* Calculate the amount of memory spanned by the segments.  */
 grub_size_t
 grub_elf64_size (grub_elf_t elf)
 {
-  Elf64_Addr segments_start = (Elf64_Addr) -1;
-  Elf64_Addr segments_end = 0;
-  int nr_phdrs = 0;
+  struct grub_elf64_size_closure c;
 
-  /* Run through the program headers to calculate the total memory size we
-   * should claim.  */
-  auto int NESTED_FUNC_ATTR calcsize (grub_elf_t _elf, Elf64_Phdr *phdr, void *_arg);
-  int NESTED_FUNC_ATTR calcsize (grub_elf_t UNUSED _elf, Elf64_Phdr *phdr, void UNUSED *_arg)
-    {
-      /* Only consider loadable segments.  */
-      if (phdr->p_type != PT_LOAD)
-	return 0;
-      nr_phdrs++;
-      if (phdr->p_paddr < segments_start)
-	segments_start = phdr->p_paddr;
-      if (phdr->p_paddr + phdr->p_memsz > segments_end)
-	segments_end = phdr->p_paddr + phdr->p_memsz;
-      return 0;
-    }
+  c.segments_start = (Elf64_Addr) -1;
+  c.segments_end = 0;
+  c.nr_phdrs = 0;
+  grub_elf64_phdr_iterate (elf, grub_elf64_calcsize, &c);
 
-  grub_elf64_phdr_iterate (elf, calcsize, 0);
-
-  if (nr_phdrs == 0)
+  if (c.nr_phdrs == 0)
     {
       grub_error (GRUB_ERR_BAD_OS, "No program headers present");
       return 0;
     }
 
-  if (segments_end < segments_start)
+  if (c.segments_end < c.segments_start)
     {
       /* Very bad addresses.  */
       grub_error (GRUB_ERR_BAD_OS, "Bad program header load addresses");
       return 0;
     }
 
-  return segments_end - segments_start;
+  return c.segments_end - c.segments_start;
 }
 
+struct grub_elf64_load_closure
+{
+  grub_addr_t load_base;
+  grub_size_t load_size;
+  grub_elf64_load_hook_t hook;
+  void *closure;
+};
+
+static int
+grub_elf64_load_segment (grub_elf_t elf, Elf64_Phdr *phdr, void *closure)
+{
+  struct grub_elf64_load_closure *c = closure;
+  grub_addr_t load_addr;
+  int do_load = 1;
+
+  load_addr = phdr->p_paddr;
+  if (c->hook && c->hook (phdr, &load_addr, &do_load, c->closure))
+    return 1;
+
+  if (! do_load)
+    return 0;
+
+  if (load_addr < c->load_base)
+    c->load_base = load_addr;
+
+  grub_dprintf ("elf", "Loading segment at 0x%llx, size 0x%llx\n",
+		(unsigned long long) load_addr,
+		(unsigned long long) phdr->p_memsz);
+
+  if (grub_file_seek (elf->file, phdr->p_offset) == (grub_off_t) -1)
+    {
+      grub_error_push ();
+      return grub_error (GRUB_ERR_BAD_OS,
+			 "Invalid offset in program header.");
+    }
+
+  if (phdr->p_filesz)
+    {
+      grub_ssize_t read;
+      read = grub_file_read (elf->file, (void *) load_addr, phdr->p_filesz);
+      if (read != (grub_ssize_t) phdr->p_filesz)
+	{
+	  /* XXX How can we free memory from `load_hook'?  */
+	  grub_error_push ();
+	  return grub_error (GRUB_ERR_BAD_OS,
+			     "Couldn't read segment from file: "
+			     "wanted 0x%lx bytes; read 0x%lx bytes.",
+			     phdr->p_filesz, read);
+	}
+    }
+
+  if (phdr->p_filesz < phdr->p_memsz)
+    grub_memset ((void *) (long) (load_addr + phdr->p_filesz),
+		 0, phdr->p_memsz - phdr->p_filesz);
+
+  c->load_size += phdr->p_memsz;
+
+  return 0;
+}
 
 /* Load every loadable segment into memory specified by `_load_hook'.  */
 grub_err_t
-grub_elf64_load (grub_elf_t _elf, grub_elf64_load_hook_t _load_hook,
+grub_elf64_load (grub_elf_t _elf, grub_elf64_load_hook_t hook, void *closure,
 		 grub_addr_t *base, grub_size_t *size)
 {
-  grub_addr_t load_base = (grub_addr_t) -1ULL;
-  grub_size_t load_size = 0;
   grub_err_t err;
+  struct grub_elf64_load_closure c;
 
-  auto int NESTED_FUNC_ATTR grub_elf64_load_segment (grub_elf_t elf, Elf64_Phdr *phdr,
-						     void *hook);
-  int NESTED_FUNC_ATTR grub_elf64_load_segment (grub_elf_t elf, Elf64_Phdr *phdr, void *hook)
-  {
-    grub_elf64_load_hook_t load_hook = (grub_elf64_load_hook_t) hook;
-    grub_addr_t load_addr;
-    int do_load = 1;
-
-    load_addr = phdr->p_paddr;
-    if (load_hook && load_hook (phdr, &load_addr, &do_load))
-      return 1;
-
-    if (! do_load)
-      return 0;
-
-    if (load_addr < load_base)
-      load_base = load_addr;
-
-    grub_dprintf ("elf", "Loading segment at 0x%llx, size 0x%llx\n",
-		  (unsigned long long) load_addr,
-		  (unsigned long long) phdr->p_memsz);
-
-    if (grub_file_seek (elf->file, phdr->p_offset) == (grub_off_t) -1)
-      {
-	grub_error_push ();
-	return grub_error (GRUB_ERR_BAD_OS,
-			   "Invalid offset in program header.");
-      }
-
-    if (phdr->p_filesz)
-      {
-	grub_ssize_t read;
-	read = grub_file_read (elf->file, (void *) load_addr, phdr->p_filesz);
-	if (read != (grub_ssize_t) phdr->p_filesz)
-          {
-	    /* XXX How can we free memory from `load_hook'?  */
-	    grub_error_push ();
-	    return grub_error (GRUB_ERR_BAD_OS,
-			      "Couldn't read segment from file: "
-			      "wanted 0x%lx bytes; read 0x%lx bytes.",
-			      phdr->p_filesz, read);
-          }
-      }
-
-    if (phdr->p_filesz < phdr->p_memsz)
-      grub_memset ((void *) (long) (load_addr + phdr->p_filesz),
-		   0, phdr->p_memsz - phdr->p_filesz);
-
-    load_size += phdr->p_memsz;
-
-    return 0;
-  }
-
-  err = grub_elf64_phdr_iterate (_elf, grub_elf64_load_segment, _load_hook);
+  c.hook = hook;
+  c.closure = closure;
+  c.load_base = (grub_addr_t) -1ULL;
+  c.load_size = 0;
+  err = grub_elf64_phdr_iterate (_elf, grub_elf64_load_segment, &c);
 
   if (base)
-    *base = load_base;
+    *base = c.load_base;
   if (size)
-    *size = load_size;
+    *size = c.load_size;
 
   return err;
 }

@@ -59,7 +59,8 @@ struct grub_disk_dev
   enum grub_disk_dev_id id;
 
   /* Call HOOK with each device name, until HOOK returns non-zero.  */
-  int (*iterate) (int (*hook) (const char *name));
+  int (*iterate) (int (*hook) (const char *name, void *closure),
+		  void *closure);
 
   /* Open the device named NAME, and set up DISK.  */
   grub_err_t (*open) (const char *name, struct grub_disk *disk);
@@ -109,8 +110,9 @@ struct grub_disk
 
   /* Called when a sector was read. OFFSET is between 0 and
      the sector size minus 1, and LENGTH is between 0 and the sector size.  */
-  void NESTED_FUNC_ATTR (*read_hook) (grub_disk_addr_t sector,
-		     unsigned offset, unsigned length);
+  void (*read_hook) (grub_disk_addr_t sector,
+		     unsigned offset, unsigned length, void* closure);
+  void* closure;
 
   /* Device-specific data.  */
   void *data;
@@ -142,7 +144,8 @@ void grub_disk_cache_invalidate_all (void);
 
 void grub_disk_dev_register (grub_disk_dev_t dev);
 void grub_disk_dev_unregister (grub_disk_dev_t dev);
-int grub_disk_dev_iterate (int (*hook) (const char *name));
+int grub_disk_dev_iterate (int (*hook) (const char *name, void *closure),
+			   void *closure);
 
 grub_disk_t grub_disk_open (const char *name);
 void grub_disk_close (grub_disk_t disk);

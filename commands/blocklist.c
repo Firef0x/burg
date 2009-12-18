@@ -25,58 +25,68 @@
 #include <grub/partition.h>
 #include <grub/command.h>
 
+struct grub_cmd_blocklist_closure
+{
+  unsigned long start_sector;
+  unsigned num_sectors;
+  int num_entries;
+  grub_disk_addr_t part_start;
+};
+
+static void
+print_blocklist (grub_disk_addr_t sector, unsigned num,
+		 unsigned offset, unsigned length,
+		 struct grub_cmd_blocklist_closure *c)
+{
+  if (c->num_entries++)
+    grub_printf (",");
+
+  grub_printf ("%llu", (unsigned long long) (sector - c->part_start));
+  if (num > 0)
+    grub_printf ("+%u", num);
+  if (offset != 0 || length != 0)
+    grub_printf ("[%u-%u]", offset, offset + length);
+}
+
+static void
+read_blocklist (grub_disk_addr_t sector, unsigned offset,
+		unsigned length, void *closure)
+{
+  struct grub_cmd_blocklist_closure *c = closure;
+  if (c->num_sectors > 0)
+    {
+      if (c->start_sector + c->num_sectors == sector
+	  && offset == 0 && length == GRUB_DISK_SECTOR_SIZE)
+	{
+	  c->num_sectors++;
+	  return;
+	}
+
+      print_blocklist (c->start_sector, c->num_sectors, 0, 0, c);
+      c->num_sectors = 0;
+    }
+
+  if (offset == 0 && length == GRUB_DISK_SECTOR_SIZE)
+    {
+      c->start_sector = sector;
+      c->num_sectors++;
+    }
+  else
+    print_blocklist (sector, 0, offset, length, c);
+}
+
 static grub_err_t
 grub_cmd_blocklist (grub_command_t cmd __attribute__ ((unused)),
 		    int argc, char **args)
 {
   grub_file_t file;
   char buf[GRUB_DISK_SECTOR_SIZE];
-  unsigned long start_sector = 0;
-  unsigned num_sectors = 0;
-  int num_entries = 0;
-  grub_disk_addr_t part_start = 0;
-  auto void NESTED_FUNC_ATTR read_blocklist (grub_disk_addr_t sector, unsigned offset,
-			    unsigned length);
-  auto void NESTED_FUNC_ATTR print_blocklist (grub_disk_addr_t sector, unsigned num,
-			     unsigned offset, unsigned length);
+  struct grub_cmd_blocklist_closure c;
 
-  void NESTED_FUNC_ATTR read_blocklist (grub_disk_addr_t sector, unsigned offset,
-		       unsigned length)
-    {
-      if (num_sectors > 0)
-	{
-	  if (start_sector + num_sectors == sector
-	      && offset == 0 && length == GRUB_DISK_SECTOR_SIZE)
-	    {
-	      num_sectors++;
-	      return;
-	    }
-
-	  print_blocklist (start_sector, num_sectors, 0, 0);
-	  num_sectors = 0;
-	}
-
-      if (offset == 0 && length == GRUB_DISK_SECTOR_SIZE)
-	{
-	  start_sector = sector;
-	  num_sectors++;
-	}
-      else
-	print_blocklist (sector, 0, offset, length);
-    }
-
-  void NESTED_FUNC_ATTR print_blocklist (grub_disk_addr_t sector, unsigned num,
-			unsigned offset, unsigned length)
-    {
-      if (num_entries++)
-	grub_printf (",");
-
-      grub_printf ("%llu", (unsigned long long) (sector - part_start));
-      if (num > 0)
-	grub_printf ("+%u", num);
-      if (offset != 0 || length != 0)
-	grub_printf ("[%u-%u]", offset, offset + length);
-    }
+  c.start_sector = 0;
+  c.num_sectors = 0;
+  c.num_entries = 0;
+  c.part_start = 0;
 
   if (argc < 1)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, "no file specified");
@@ -90,15 +100,16 @@ grub_cmd_blocklist (grub_command_t cmd __attribute__ ((unused)),
 		       "this command is available only for disk devices.");
 
   if (file->device->disk->partition)
-    part_start = grub_partition_get_start (file->device->disk->partition);
+    c.part_start = grub_partition_get_start (file->device->disk->partition);
 
   file->read_hook = read_blocklist;
+  file->closure = &c;
 
   while (grub_file_read (file, buf, sizeof (buf)) > 0)
     ;
 
-  if (num_sectors > 0)
-    print_blocklist (start_sector, num_sectors, 0, 0);
+  if (c.num_sectors > 0)
+    print_blocklist (c.start_sector, c.num_sectors, 0, 0, &c);
 
   grub_file_close (file);
 

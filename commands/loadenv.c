@@ -113,6 +113,13 @@ read_envblk_file (grub_file_t file)
   return envblk;
 }
 
+static int
+set_var (const char *name, const char *value)
+{
+  grub_env_set (name, value);
+  return 0;
+}
+
 static grub_err_t
 grub_cmd_load_env (grub_extcmd_t cmd,
 		   int argc __attribute__ ((unused)),
@@ -121,13 +128,6 @@ grub_cmd_load_env (grub_extcmd_t cmd,
   struct grub_arg_list *state = cmd->state;
   grub_file_t file;
   grub_envblk_t envblk;
-
-  auto int set_var (const char *name, const char *value);
-  int set_var (const char *name, const char *value)
-  {
-    grub_env_set (name, value);
-    return 0;
-  }
 
   file = open_envblk_file ((state[0].set) ? state[0].arg : 0);
   if (! file)
@@ -145,6 +145,14 @@ grub_cmd_load_env (grub_extcmd_t cmd,
   return grub_errno;
 }
 
+/* Print all variables in current context.  */
+static int
+print_var (const char *name, const char *value)
+{
+  grub_printf ("%s=%s\n", name, value);
+  return 0;
+}
+
 static grub_err_t
 grub_cmd_list_env (grub_extcmd_t cmd,
 		   int argc __attribute__ ((unused)),
@@ -153,14 +161,6 @@ grub_cmd_list_env (grub_extcmd_t cmd,
   struct grub_arg_list *state = cmd->state;
   grub_file_t file;
   grub_envblk_t envblk;
-
-  /* Print all variables in current context.  */
-  auto int print_var (const char *name, const char *value);
-  int print_var (const char *name, const char *value)
-    {
-      grub_printf ("%s=%s\n", name, value);
-      return 0;
-    }
 
   file = open_envblk_file ((state[0].set) ? state[0].arg : 0);
   if (! file)
@@ -292,44 +292,51 @@ write_blocklists (grub_envblk_t envblk, struct blocklist *blocklists,
   return 1;
 }
 
+struct grub_cmd_save_env_closure
+{
+  struct blocklist *head;
+  struct blocklist *tail;
+};
+
+/* Store blocklists in a linked list.  */
+static void
+read_hook (grub_disk_addr_t sector, unsigned offset, unsigned length,
+	   void *closure)
+{
+  struct grub_cmd_save_env_closure *c = closure;
+  struct blocklist *block;
+
+  if (offset + length > GRUB_DISK_SECTOR_SIZE)
+    /* Seemingly a bug.  */
+    return;
+
+  block = grub_malloc (sizeof (*block));
+  if (! block)
+    return;
+
+  block->sector = sector;
+  block->offset = offset;
+  block->length = length;
+
+  /* Slightly complicated, because the list should be FIFO.  */
+  block->next = 0;
+  if (c->tail)
+    c->tail->next = block;
+  c->tail = block;
+  if (! c->head)
+    c->head = block;
+}
+
 static grub_err_t
 grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
 {
   struct grub_arg_list *state = cmd->state;
   grub_file_t file;
   grub_envblk_t envblk;
-  struct blocklist *head = 0;
-  struct blocklist *tail = 0;
+  struct grub_cmd_save_env_closure c;
 
-  /* Store blocklists in a linked list.  */
-  auto void NESTED_FUNC_ATTR read_hook (grub_disk_addr_t sector,
-                                        unsigned offset,
-                                        unsigned length);
-  void NESTED_FUNC_ATTR read_hook (grub_disk_addr_t sector,
-                                   unsigned offset, unsigned length)
-    {
-      struct blocklist *block;
-
-      if (offset + length > GRUB_DISK_SECTOR_SIZE)
-        /* Seemingly a bug.  */
-        return;
-
-      block = grub_malloc (sizeof (*block));
-      if (! block)
-        return;
-
-      block->sector = sector;
-      block->offset = offset;
-      block->length = length;
-
-      /* Slightly complicated, because the list should be FIFO.  */
-      block->next = 0;
-      if (tail)
-        tail->next = block;
-      tail = block;
-      if (! head)
-        head = block;
-    }
+  c.head = 0;
+  c.tail = 0;
 
   if (! argc)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, "No variable is specified");
@@ -345,12 +352,13 @@ grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
     }
 
   file->read_hook = read_hook;
+  file->closure = &c;
   envblk = read_envblk_file (file);
   file->read_hook = 0;
   if (! envblk)
     goto fail;
 
-  if (! check_blocklists (envblk, head, file))
+  if (! check_blocklists (envblk, c.head, file))
     goto fail;
 
   while (argc)
@@ -371,12 +379,12 @@ grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
       args++;
     }
 
-  write_blocklists (envblk, head, file);
+  write_blocklists (envblk, c.head, file);
 
  fail:
   if (envblk)
     grub_envblk_close (envblk);
-  free_blocklists (head);
+  free_blocklists (c.head);
   grub_file_close (file);
   return grub_errno;
 }

@@ -83,9 +83,8 @@ grub_macho_parse32 (grub_macho_t macho)
     }
 }
 
-typedef int NESTED_FUNC_ATTR (*grub_macho_iter_hook_t)
-(grub_macho_t , struct grub_macho_cmd *,
-	       void *);
+typedef int (*grub_macho_iter_hook_t) (grub_macho_t , struct grub_macho_cmd *,
+				       void *);
 
 static grub_err_t
 grub_macho32_cmds_iterate (grub_macho_t macho,
@@ -141,40 +140,53 @@ grub_macho32_readfile (grub_macho_t macho, void *dest)
   return GRUB_ERR_NONE;
 }
 
+struct grub_macho32_size_closure
+{
+  grub_addr_t *segments_start;
+  grub_addr_t *segments_end;
+  int flags;
+  int nr_phdrs;
+};
+
+/* Run through the program headers to calculate the total memory size we
+   should claim.  */
+static int
+grub_macho32_size_calcsize (grub_macho_t UNUSED _macho,
+			    struct grub_macho_cmd *hdr0, void *_arg)
+{
+  struct grub_macho32_size_closure *c = _arg;
+  struct grub_macho_segment32 *hdr = (struct grub_macho_segment32 *) hdr0;
+  if (hdr->cmd != GRUB_MACHO_CMD_SEGMENT32)
+    return 0;
+  if (! hdr->filesize && (c->flags & GRUB_MACHO_NOBSS))
+    return 0;
+
+  (c->nr_phdrs)++;
+  if (hdr->vmaddr < *(c->segments_start))
+    *(c->segments_start) = hdr->vmaddr;
+  if (hdr->vmaddr + hdr->vmsize > *(c->segments_end))
+    *(c->segments_end) = hdr->vmaddr + hdr->vmsize;
+  return 0;
+}
+
 /* Calculate the amount of memory spanned by the segments. */
 grub_err_t
 grub_macho32_size (grub_macho_t macho, grub_addr_t *segments_start,
 		   grub_addr_t *segments_end, int flags)
 {
-  int nr_phdrs = 0;
+  struct grub_macho32_size_closure c;
 
-  /* Run through the program headers to calculate the total memory size we
-     should claim.  */
-  auto int NESTED_FUNC_ATTR calcsize (grub_macho_t _macho,
-				      struct grub_macho_cmd *phdr, void *_arg);
-  int NESTED_FUNC_ATTR calcsize (grub_macho_t UNUSED _macho,
-				 struct grub_macho_cmd *hdr0, void UNUSED *_arg)
-    {
-      struct grub_macho_segment32 *hdr = (struct grub_macho_segment32 *) hdr0;
-      if (hdr->cmd != GRUB_MACHO_CMD_SEGMENT32)
-	return 0;
-      if (! hdr->filesize && (flags & GRUB_MACHO_NOBSS))
-	return 0;
-
-      nr_phdrs++;
-      if (hdr->vmaddr < *segments_start)
-	*segments_start = hdr->vmaddr;
-      if (hdr->vmaddr + hdr->vmsize > *segments_end)
-	*segments_end = hdr->vmaddr + hdr->vmsize;
-      return 0;
-    }
+  c.segments_start = segments_start;
+  c.segments_end = segments_end;
+  c.flags = flags;
+  c.nr_phdrs = 0;
 
   *segments_start = (grub_uint32_t) -1;
   *segments_end = 0;
 
-  grub_macho32_cmds_iterate (macho, calcsize, 0);
+  grub_macho32_cmds_iterate (macho, grub_macho32_size_calcsize, &c);
 
-  if (nr_phdrs == 0)
+  if (c.nr_phdrs == 0)
     return grub_error (GRUB_ERR_BAD_OS, "No program headers present");
 
   if (*segments_end < *segments_start)
@@ -184,81 +196,90 @@ grub_macho32_size (grub_macho_t macho, grub_addr_t *segments_start,
   return GRUB_ERR_NONE;
 }
 
+struct grub_macho32_load_closure
+{
+  char *offset;
+  int flags;
+  grub_err_t err;
+};
+
+static int
+do_load (grub_macho_t _macho, struct grub_macho_cmd *hdr0, void *_arg)
+{
+  struct grub_macho32_load_closure *c = _arg;
+  struct grub_macho_segment32 *hdr = (struct grub_macho_segment32 *) hdr0;
+
+  if (hdr->cmd != GRUB_MACHO_CMD_SEGMENT32)
+    return 0;
+
+  if (! hdr->filesize && (c->flags & GRUB_MACHO_NOBSS))
+    return 0;
+  if (! hdr->vmsize)
+    return 0;
+
+  if (grub_file_seek (_macho->file, hdr->fileoff
+		      + _macho->offset32) == (grub_off_t) -1)
+    {
+      grub_error_push ();
+      grub_error (GRUB_ERR_BAD_OS,
+		  "Invalid offset in program header.");
+      return 1;
+    }
+
+  if (hdr->filesize)
+    {
+      grub_ssize_t read;
+      read = grub_file_read (_macho->file, c->offset + hdr->vmaddr,
+			     min (hdr->filesize, hdr->vmsize));
+      if (read != (grub_ssize_t) min (hdr->filesize, hdr->vmsize))
+	{
+	  /* XXX How can we free memory from `load_hook'? */
+	  grub_error_push ();
+	  c->err = grub_error (GRUB_ERR_BAD_OS,
+			       "Couldn't read segment from file: "
+			       "wanted 0x%lx bytes; read 0x%lx bytes.",
+			       hdr->filesize, read);
+	  return 1;
+	}
+    }
+
+  if (hdr->filesize < hdr->vmsize)
+    grub_memset (c->offset + hdr->vmaddr + hdr->filesize,
+		 0, hdr->vmsize - hdr->filesize);
+  return 0;
+}
+
 /* Load every loadable segment into memory specified by `_load_hook'.  */
 grub_err_t
 grub_macho32_load (grub_macho_t macho, char *offset, int flags)
 {
-  grub_err_t err = 0;
-  auto int NESTED_FUNC_ATTR do_load(grub_macho_t _macho,
-			       struct grub_macho_cmd *hdr0,
-			       void UNUSED *_arg);
-  int NESTED_FUNC_ATTR do_load(grub_macho_t _macho,
-			       struct grub_macho_cmd *hdr0,
-			       void UNUSED *_arg)
-  {
-    struct grub_macho_segment32 *hdr = (struct grub_macho_segment32 *) hdr0;
+  struct grub_macho32_load_closure c;
 
-    if (hdr->cmd != GRUB_MACHO_CMD_SEGMENT32)
-      return 0;
+  c.offset = offset;
+  c.flags = flags;
+  c.err = 0;
+  grub_macho32_cmds_iterate (macho, do_load, &c);
 
-    if (! hdr->filesize && (flags & GRUB_MACHO_NOBSS))
-      return 0;
-    if (! hdr->vmsize)
-      return 0;
+  return c.err;
+}
 
-    if (grub_file_seek (_macho->file, hdr->fileoff
-			+ _macho->offset32) == (grub_off_t) -1)
-      {
-	grub_error_push ();
-	grub_error (GRUB_ERR_BAD_OS,
-		    "Invalid offset in program header.");
-	return 1;
-      }
-
-    if (hdr->filesize)
-      {
-	grub_ssize_t read;
-	read = grub_file_read (_macho->file, offset + hdr->vmaddr,
-				   min (hdr->filesize, hdr->vmsize));
-	if (read != (grub_ssize_t) min (hdr->filesize, hdr->vmsize))
-	  {
-	    /* XXX How can we free memory from `load_hook'? */
-	    grub_error_push ();
-	    err=grub_error (GRUB_ERR_BAD_OS,
-			    "Couldn't read segment from file: "
-			    "wanted 0x%lx bytes; read 0x%lx bytes.",
-			    hdr->filesize, read);
-	    return 1;
-	  }
-      }
-
-    if (hdr->filesize < hdr->vmsize)
-      grub_memset (offset + hdr->vmaddr + hdr->filesize,
-		   0, hdr->vmsize - hdr->filesize);
-    return 0;
-  }
-
-  grub_macho32_cmds_iterate (macho, do_load, 0);
-
-  return err;
+static int
+grub_macho32_get_entry_point_hook (grub_macho_t UNUSED _macho,
+				   struct grub_macho_cmd *hdr,
+				   void *_arg)
+{
+  grub_uint32_t *entry_point = _arg;
+  if (hdr->cmd == GRUB_MACHO_CMD_THREAD)
+    *entry_point = ((struct grub_macho_thread32 *) hdr)->entry_point;
+  return 0;
 }
 
 grub_uint32_t
 grub_macho32_get_entry_point (grub_macho_t macho)
 {
   grub_uint32_t entry_point = 0;
-  auto int NESTED_FUNC_ATTR hook(grub_macho_t _macho,
-			       struct grub_macho_cmd *hdr,
-			       void UNUSED *_arg);
-  int NESTED_FUNC_ATTR hook(grub_macho_t UNUSED _macho,
-			       struct grub_macho_cmd *hdr,
-			       void UNUSED *_arg)
-  {
-    if (hdr->cmd == GRUB_MACHO_CMD_THREAD)
-      entry_point = ((struct grub_macho_thread32 *) hdr)->entry_point;
-    return 0;
-  }
-  grub_macho32_cmds_iterate (macho, hook, 0);
+  grub_macho32_cmds_iterate (macho, grub_macho32_get_entry_point_hook,
+			     &entry_point);
   return entry_point;
 }
 

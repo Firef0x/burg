@@ -21,19 +21,21 @@
 #include <grub/misc.h>
 #include <grub/command.h>
 
+static int
+hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
+      void *closure UNUSED)
+{
+  grub_printf ("base_addr = 0x%llx, length = 0x%llx, type = 0x%x\n",
+	       (long long) addr, (long long) size, type);
+  return 0;
+}
+
 static grub_err_t
 grub_cmd_lsmmap (grub_command_t cmd __attribute__ ((unused)),
 		 int argc __attribute__ ((unused)), char **args __attribute__ ((unused)))
 
 {
-  auto int NESTED_FUNC_ATTR hook (grub_uint64_t, grub_uint64_t, grub_uint32_t);
-  int NESTED_FUNC_ATTR hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type)
-    {
-      grub_printf ("base_addr = 0x%llx, length = 0x%llx, type = 0x%x\n",
-		   (long long) addr, (long long) size, type);
-      return 0;
-    }
-  grub_machine_mmap_iterate (hook);
+  grub_machine_mmap_iterate (hook, 0);
 
   return 0;
 }

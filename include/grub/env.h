@@ -56,7 +56,8 @@ struct grub_env_var
 grub_err_t grub_env_set (const char *name, const char *val);
 char *grub_env_get (const char *name);
 void grub_env_unset (const char *name);
-void grub_env_iterate (int (*func) (struct grub_env_var *var));
+void grub_env_iterate (int (*func) (struct grub_env_var *var, void *closure),
+		       void *closure);
 grub_err_t grub_register_variable_hook (const char *name,
 					grub_env_read_hook_t read_hook,
 					grub_env_write_hook_t write_hook);

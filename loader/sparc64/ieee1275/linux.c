@@ -178,74 +178,108 @@ align_addr(grub_addr_t val, grub_addr_t align)
   return (val + (align - 1)) & ~(align - 1);
 }
 
+struct alloc_phys_closure
+{
+  grub_addr_t size;
+  grub_addr_t ret;
+};
+
+static int
+choose (grub_uint64_t addr, grub_uint64_t len UNUSED, grub_uint32_t type,
+	void *closure)
+{
+  struct alloc_phys_closure *c = closure;
+  grub_addr_t end = addr + len;
+
+  if (type != 1)
+    return 0;
+
+  addr = align_addr (addr, FOUR_MB);
+  if (addr >= end)
+    return 0;
+
+  if (addr >= grub_phys_start && addr < grub_phys_end)
+    {
+      addr = align_addr (grub_phys_end, FOUR_MB);
+      if (addr >= end)
+	return 0;
+    }
+  if ((addr + c->size) >= grub_phys_start
+      && (addr + c->size) < grub_phys_end)
+    {
+      addr = align_addr (grub_phys_end, FOUR_MB);
+      if (addr >= end)
+	return 0;
+    }
+
+  if (loaded)
+    {
+      grub_addr_t linux_end = align_addr (linux_paddr + linux_size, FOUR_MB);
+
+      if (addr >= linux_paddr && addr < linux_end)
+	{
+	  addr = linux_end;
+	  if (addr >= end)
+	    return 0;
+	}
+      if ((addr + c->size) >= linux_paddr
+	  && (addr + c->size) < linux_end)
+	{
+	  addr = linux_end;
+	  if (addr >= end)
+	    return 0;
+	}
+    }
+
+  c->ret = addr;
+  return 1;
+}
+
 static grub_addr_t
 alloc_phys (grub_addr_t size)
 {
-  grub_addr_t ret = (grub_addr_t) -1;
+  struct alloc_phys_closure c;
 
-  auto int NESTED_FUNC_ATTR choose (grub_uint64_t addr, grub_uint64_t len __attribute__((unused)), grub_uint32_t type);
-  int NESTED_FUNC_ATTR choose (grub_uint64_t addr, grub_uint64_t len __attribute__((unused)), grub_uint32_t type)
-  {
-    grub_addr_t end = addr + len;
+  c.size = size;
+  c.ret = (grub_addr_t) -1;
+  grub_machine_mmap_iterate (choose, &c);
 
-    if (type != 1)
+  return c.ret;
+}
+
+struct grub_linux_load64_closure
+{
+  grub_addr_t off, base;
+};
+
+/* Now load the segments into the area we claimed.  */
+static grub_err_t
+offset_phdr (Elf64_Phdr *phdr, grub_addr_t *addr, int *do_load, void *closure)
+{
+  struct grub_linux_load64_closure *c = closure;
+
+  if (phdr->p_type != PT_LOAD)
+    {
+      *do_load = 0;
       return 0;
+    }
+  *do_load = 1;
 
-    addr = align_addr (addr, FOUR_MB);
-    if (addr >= end)
-      return 0;
-
-    if (addr >= grub_phys_start && addr < grub_phys_end)
-      {
-	addr = align_addr (grub_phys_end, FOUR_MB);
-	if (addr >= end)
-	  return 0;
-      }
-    if ((addr + size) >= grub_phys_start
-	&& (addr + size) < grub_phys_end)
-      {
-	addr = align_addr (grub_phys_end, FOUR_MB);
-	if (addr >= end)
-	  return 0;
-      }
-
-    if (loaded)
-      {
-	grub_addr_t linux_end = align_addr (linux_paddr + linux_size, FOUR_MB);
-
-	if (addr >= linux_paddr && addr < linux_end)
-	  {
-	    addr = linux_end;
-	    if (addr >= end)
-	      return 0;
-	  }
-	if ((addr + size) >= linux_paddr
-	    && (addr + size) < linux_end)
-	  {
-	    addr = linux_end;
-	    if (addr >= end)
-	      return 0;
-	  }
-      }
-
-    ret = addr;
-    return 1;
-  }
-
-  grub_machine_mmap_iterate (choose);
-
-  return ret;
+  /* Adjust the program load address to linux_addr.  */
+  *addr = (phdr->p_paddr - c->base) + (linux_addr - c->off);
+  return 0;
 }
 
 static grub_err_t
 grub_linux_load64 (grub_elf_t elf)
 {
-  grub_addr_t off, paddr, base;
+  grub_addr_t paddr;
   int ret;
+  struct grub_linux_load64_closure c;
 
   linux_entry = elf->ehdr.ehdr64.e_entry;
   linux_addr = 0x40004000;
-  off = 0x4000;
+  c.off = 0x4000;
   linux_size = grub_elf64_size (elf);
   if (linux_size == 0)
     return grub_errno;
@@ -253,12 +287,12 @@ grub_linux_load64 (grub_elf_t elf)
   grub_dprintf ("loader", "Attempting to claim at 0x%lx, size 0x%lx.\n",
 		linux_addr, linux_size);
 
-  paddr = alloc_phys (linux_size + off);
+  paddr = alloc_phys (linux_size + c.off);
   if (paddr == (grub_addr_t) -1)
     return grub_error (GRUB_ERR_OUT_OF_MEMORY,
 		       "Could not allocate physical memory.");
-  ret = grub_ieee1275_map_physical (paddr, linux_addr - off,
-				    linux_size + off, IEEE1275_MAP_DEFAULT);
+  ret = grub_ieee1275_map_physical (paddr, linux_addr - c.off,
+				    linux_size + c.off, IEEE1275_MAP_DEFAULT);
   if (ret)
     return grub_error (GRUB_ERR_OUT_OF_MEMORY,
 		       "Could not map physical memory.");
@@ -268,24 +302,8 @@ grub_linux_load64 (grub_elf_t elf)
 
   linux_paddr = paddr;
 
-  base = linux_entry - off;
-
-  /* Now load the segments into the area we claimed.  */
-  auto grub_err_t offset_phdr (Elf64_Phdr *phdr, grub_addr_t *addr, int *do_load);
-  grub_err_t offset_phdr (Elf64_Phdr *phdr, grub_addr_t *addr, int *do_load)
-    {
-      if (phdr->p_type != PT_LOAD)
-	{
-	  *do_load = 0;
-	  return 0;
-	}
-      *do_load = 1;
-
-      /* Adjust the program load address to linux_addr.  */
-      *addr = (phdr->p_paddr - base) + (linux_addr - off);
-      return 0;
-    }
-  return grub_elf64_load (elf, offset_phdr, 0, 0);
+  c.base = linux_entry - c.off;
+  return grub_elf64_load (elf, offset_phdr, &c, 0, 0);
 }
 
 static grub_err_t
@@ -436,21 +454,22 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
   return grub_errno;
 }
 
+static int
+get_physbase (grub_uint64_t addr, grub_uint64_t len UNUSED, grub_uint32_t type,
+	      void *closure UNUSED)
+{
+  if (type != 1)
+    return 0;
+  if (addr < phys_base)
+    phys_base = addr;
+  return 0;
+}
+
 static void
 determine_phys_base (void)
 {
-  auto int NESTED_FUNC_ATTR get_physbase (grub_uint64_t addr, grub_uint64_t len __attribute__((unused)), grub_uint32_t type);
-  int NESTED_FUNC_ATTR get_physbase (grub_uint64_t addr, grub_uint64_t len __attribute__((unused)), grub_uint32_t type)
-  {
-    if (type != 1)
-      return 0;
-    if (addr < phys_base)
-      phys_base = addr;
-    return 0;
-  }
-
   phys_base = ~(grub_uint64_t) 0;
-  grub_machine_mmap_iterate (get_physbase);
+  grub_machine_mmap_iterate (get_physbase, 0);
 }
 
 static void

@@ -102,7 +102,7 @@ grub_menu_region_create_bitmap (const char *name, int scale,
   if (! region)
     return 0;
 
-  if (grub_parser_split_cmdline (name, 0, &argc, &argv))
+  if (grub_parser_split_cmdline (name, 0, 0, &argc, &argv))
     return 0;
 
   if (argv[0] == 0)

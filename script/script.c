@@ -296,7 +296,7 @@ grub_script_create (struct grub_script_cmd *cmd, struct grub_script_mem *mem)
 /* Parse the script passed in SCRIPT and return the parsed
    datastructure that is ready to be interpreted.  */
 struct grub_script *
-grub_script_parse (char *script, grub_reader_getline_t getline)
+grub_script_parse (char *script, grub_reader_getline_t getline, void *closure)
 {
   struct grub_script *parsed;
   struct grub_script_mem *membackup;
@@ -312,7 +312,7 @@ grub_script_parse (char *script, grub_reader_getline_t getline)
     return 0;
 
   /* Initialize the lexer.  */
-  lexstate = grub_script_lexer_init (script, getline);
+  lexstate = grub_script_lexer_init (script, getline, closure);
   if (! lexstate)
     {
       grub_free (parsed);

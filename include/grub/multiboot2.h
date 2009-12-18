@@ -45,10 +45,12 @@ void
 grub_mb2_arch_unload (struct multiboot2_tag_header *tags);
 
 grub_err_t
-grub_mb2_arch_elf32_hook (Elf32_Phdr *phdr, grub_addr_t *addr, int *do_load);
+grub_mb2_arch_elf32_hook (Elf32_Phdr *phdr, grub_addr_t *addr, int *do_load,
+			  void *);
 
 grub_err_t
-grub_mb2_arch_elf64_hook (Elf64_Phdr *phdr, grub_addr_t *addr, int *do_load);
+grub_mb2_arch_elf64_hook (Elf64_Phdr *phdr, grub_addr_t *addr, int *do_load,
+			  void *);
 
 grub_err_t
 grub_mb2_arch_module_alloc (grub_size_t size, grub_addr_t *addr);

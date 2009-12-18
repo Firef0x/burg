@@ -28,8 +28,8 @@
 
 #define DEFAULT_VIDEO_MODE "1024x768x32,800x600x32,640x480x32"
 
-static int NESTED_FUNC_ATTR video_hook (grub_video_adapter_t p __attribute__ ((unused)),
-					struct grub_video_mode_info *info)
+static int video_hook (grub_video_adapter_t p __attribute__ ((unused)),
+		       struct grub_video_mode_info *info, void *closure UNUSED)
 {
   if (info->mode_type & GRUB_VIDEO_MODE_TYPE_PURE_TEXT)
     return 0;
@@ -49,7 +49,7 @@ grub_xnu_set_video (struct grub_xnu_boot_params *params)
 
   modevar = grub_env_get ("gfxpayload");
   if (! modevar || *modevar == 0)
-    err = grub_video_set_mode (DEFAULT_VIDEO_MODE, video_hook);
+    err = grub_video_set_mode (DEFAULT_VIDEO_MODE, video_hook, 0);
   else
     {
       tmp = grub_malloc (grub_strlen (modevar)
@@ -58,7 +58,7 @@ grub_xnu_set_video (struct grub_xnu_boot_params *params)
 	return grub_error (GRUB_ERR_OUT_OF_MEMORY,
 			   "couldn't allocate temporary storag");
       grub_sprintf (tmp, "%s;" DEFAULT_VIDEO_MODE, modevar);
-      err = grub_video_set_mode (tmp, video_hook);
+      err = grub_video_set_mode (tmp, video_hook, 0);
       grub_free (tmp);
     }
 

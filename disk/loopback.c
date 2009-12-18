@@ -145,12 +145,13 @@ grub_cmd_loopback (grub_extcmd_t cmd, int argc, char **args)
 
 
 static int
-grub_loopback_iterate (int (*hook) (const char *name))
+grub_loopback_iterate (int (*hook) (const char *name, void *closure),
+		       void *closure)
 {
   struct grub_loopback *d;
   for (d = loopback_list; d; d = d->next)
     {
-      if (hook (d->devname))
+      if (hook (d->devname, closure))
 	return 1;
     }
   return 0;

@@ -28,7 +28,7 @@
 
 grub_err_t
 grub_mb2_arch_elf32_hook (Elf32_Phdr *phdr, UNUSED grub_addr_t *addr,
-			  int *do_load)
+			  int *do_load, void *closure UNUSED)
 {
   Elf32_Addr paddr = phdr->p_paddr;
 
@@ -49,7 +49,7 @@ grub_mb2_arch_elf32_hook (Elf32_Phdr *phdr, UNUSED grub_addr_t *addr,
 
 grub_err_t
 grub_mb2_arch_elf64_hook (Elf64_Phdr *phdr, UNUSED grub_addr_t *addr,
-			  int *do_load)
+			  int *do_load, void *closure UNUSED)
 {
   Elf64_Addr paddr = phdr->p_paddr;
 

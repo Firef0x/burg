@@ -87,7 +87,9 @@ execute_command (char *name, int n, char **args)
 static grub_disk_addr_t skip, leng;
 
 static void
-read_file (char *pathname, int (*hook) (grub_off_t ofs, char *buf, int len))
+read_file (char *pathname,
+	   int (*hook) (grub_off_t ofs, char *buf, int len, void *closure),
+	   void *closure)
 {
   static char buf[BUF_SIZE];
   grub_file_t file;
@@ -117,7 +119,7 @@ read_file (char *pathname, int (*hook) (grub_off_t ofs, char *buf, int len))
             grub_util_error ("Disk read fails at offset %lld, length %d.",
                              skip, len);
 
-          if (hook (skip, buf, len))
+          if (hook (skip, buf, len, closure))
             break;
 
           skip += len;
@@ -161,7 +163,7 @@ read_file (char *pathname, int (*hook) (grub_off_t ofs, char *buf, int len))
 	  break;
 	}
 
-      if ((sz == 0) || (hook (ofs, buf, sz)))
+      if ((sz == 0) || (hook (ofs, buf, sz, closure)))
 	break;
 
       ofs += sz;
@@ -171,24 +173,24 @@ read_file (char *pathname, int (*hook) (grub_off_t ofs, char *buf, int len))
   grub_file_close (file);
 }
 
+static int
+cp_hook (grub_off_t ofs UNUSED, char *buf, int len, void *closure)
+{
+  FILE *file = closure;
+
+  if ((int) fwrite (buf, 1, len, file) != len)
+    {
+      grub_util_error ("write error.");
+      return 1;
+    }
+
+  return 0;
+}
+
 static void
 cmd_cp (char *src, char *dest)
 {
   FILE *ff;
-
-  auto int cp_hook (grub_off_t ofs, char *buf, int len);
-  int cp_hook (grub_off_t ofs, char *buf, int len)
-  {
-    (void) ofs;
-
-    if ((int) fwrite (buf, 1, len, ff) != len)
-      {
-	grub_util_error ("write error.");
-	return 1;
-      }
-
-    return 0;
-  }
 
   ff = fopen (dest, "wb");
   if (ff == NULL)
@@ -196,38 +198,40 @@ cmd_cp (char *src, char *dest)
       grub_util_error ("open error.");
       return;
     }
-  read_file (src, cp_hook);
+  read_file (src, cp_hook, ff);
   fclose (ff);
+}
+
+static int
+cmp_hook (grub_off_t ofs, char *buf, int len, void *closure)
+{
+  FILE *file = closure;
+  static char buf_1[BUF_SIZE];
+
+  if ((int) fread (buf_1, 1, len, file) != len)
+    {
+      grub_util_error ("read error at offset %llu.", ofs);
+      return 1;
+    }
+
+  if (grub_memcmp (buf, buf_1, len))
+    {
+      int i;
+
+      for (i = 0; i < len; i++, ofs++)
+	if (buf_1[i] != buf[i])
+	  {
+	    grub_util_error ("compare fail at offset %llu.", ofs);
+	    return 1;
+	  }
+    }
+  return 0;
 }
 
 static void
 cmd_cmp (char *src, char *dest)
 {
   FILE *ff;
-  static char buf_1[BUF_SIZE];
-
-  auto int cmp_hook (grub_off_t ofs, char *buf, int len);
-  int cmp_hook (grub_off_t ofs, char *buf, int len)
-  {
-    if ((int) fread (buf_1, 1, len, ff) != len)
-      {
-	grub_util_error ("read error at offset %llu.", ofs);
-	return 1;
-      }
-
-    if (grub_memcmp (buf, buf_1, len))
-      {
-	int i;
-
-	for (i = 0; i < len; i++, ofs++)
-	  if (buf_1[i] != buf[i])
-	    {
-	      grub_util_error ("compare fail at offset %llu.", ofs);
-	      return 1;
-	    }
-      }
-    return 0;
-  }
 
   ff = fopen (dest, "rb");
   if (ff == NULL)
@@ -239,21 +243,29 @@ cmd_cmp (char *src, char *dest)
   if ((skip) && (fseeko (ff, skip, SEEK_SET)))
     grub_util_error ("seek error.");
 
-  read_file (src, cmp_hook);
+  read_file (src, cmp_hook, ff);
   fclose (ff);
+}
+
+int hex_hook (grub_off_t ofs, char *buf, int len, void *closure UNUSED)
+{
+  hexdump (ofs, buf, len);
+  return 0;
 }
 
 static void
 cmd_hex (char *pathname)
 {
-  auto int hex_hook (grub_off_t ofs, char *buf, int len);
-  int hex_hook (grub_off_t ofs, char *buf, int len)
-  {
-    hexdump (ofs, buf, len);
-    return 0;
-  }
+  read_file (pathname, hex_hook, 0);
+}
 
-  read_file (pathname, hex_hook);
+static int
+crc_hook (grub_off_t ofs UNUSED, char *buf, int len, void *closure)
+{
+  grub_uint32_t *crc = closure;
+
+  *crc = grub_getcrc32 (*crc, buf, len);
+  return 0;
 }
 
 static void
@@ -261,16 +273,7 @@ cmd_crc (char *pathname)
 {
   grub_uint32_t crc = 0;
 
-  auto int crc_hook (grub_off_t ofs, char *buf, int len);
-  int crc_hook (grub_off_t ofs, char *buf, int len)
-  {
-    (void) ofs;
-
-    crc = grub_getcrc32 (crc, buf, len);
-    return 0;
-  }
-
-  read_file (pathname, crc_hook);
+  read_file (pathname, crc_hook, &crc);
   printf ("%08x\n", crc);
 }
 

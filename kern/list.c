@@ -62,12 +62,12 @@ grub_list_remove (grub_list_t *head, grub_list_t item)
 }
 
 int
-grub_list_iterate (grub_list_t head, grub_list_hook_t hook)
+grub_list_iterate (grub_list_t head, grub_list_hook_t hook, void *closure)
 {
   grub_list_t p;
 
   for (p = head; p; p = p->next)
-    if (hook (p))
+    if (hook (p, closure))
       return 1;
 
   return 0;
@@ -75,40 +75,18 @@ grub_list_iterate (grub_list_t head, grub_list_hook_t hook)
 
 void
 grub_list_insert (grub_list_t *head, grub_list_t item,
-		  grub_list_test_t test)
+		  grub_list_test_t test, void *closure)
 {
   grub_list_t *p, q;
 
   for (p = head, q = *p; q; p = &(q->next), q = q->next)
-    if (test (item, q))
+    if (test (item, q, closure))
       break;
 
   *p = item;
   item->next = q;
 }
 
-#if 0
-void *
-grub_named_list_find (grub_named_list_t head, const char *name)
-{
-  grub_named_list_t result = NULL;
-
-  auto int list_find (grub_named_list_t item);
-  int list_find (grub_named_list_t item)
-    {
-      if (! grub_strcmp (item->name, name))
-	{
-	  result = item;
-	  return 1;
-	}
-
-      return 0;
-    }
-
-  grub_list_iterate (GRUB_AS_LIST (head), (grub_list_hook_t) list_find);
-  return result;
-}
-#else
 void *
 grub_named_list_find (grub_named_list_t head, const char *name)
 {
@@ -122,34 +100,41 @@ grub_named_list_find (grub_named_list_t head, const char *name)
 
   return 0;
 }
-#endif
+
+struct grub_prio_list_insert_closure
+{
+  int inactive;
+};
+
+static int
+grub_prio_list_insert_test (grub_prio_list_t new_item, grub_prio_list_t item,
+			    void *closure)
+{
+  struct grub_prio_list_insert_closure *c = closure;
+  int r;
+
+  r = grub_strcmp (new_item->name, item->name);
+  if (r)
+    return (r < 0);
+
+  if (new_item->prio >= (item->prio & GRUB_PRIO_LIST_PRIO_MASK))
+    {
+      item->prio &= ~GRUB_PRIO_LIST_FLAG_ACTIVE;
+      return 1;
+    }
+
+  c->inactive = 1;
+  return 0;
+}
 
 void
 grub_prio_list_insert (grub_prio_list_t *head, grub_prio_list_t nitem)
 {
-  int inactive = 0;
+  struct grub_prio_list_insert_closure c;
 
-  auto int test (grub_prio_list_t new_item, grub_prio_list_t item);
-  int test (grub_prio_list_t new_item, grub_prio_list_t item)
-    {
-      int r;
-
-      r = grub_strcmp (new_item->name, item->name);
-      if (r)
-	return (r < 0);
-
-      if (new_item->prio >= (item->prio & GRUB_PRIO_LIST_PRIO_MASK))
-	{
-	  item->prio &= ~GRUB_PRIO_LIST_FLAG_ACTIVE;
-	  return 1;
-	}
-
-      inactive = 1;
-      return 0;
-    }
-
+  c.inactive = 0;
   grub_list_insert (GRUB_AS_LIST_P (head), GRUB_AS_LIST (nitem),
-		    (grub_list_test_t) test);
-  if (! inactive)
+		    (grub_list_test_t) grub_prio_list_insert_test, &c);
+  if (! c.inactive)
     nitem->prio |= GRUB_PRIO_LIST_FLAG_ACTIVE;
 }

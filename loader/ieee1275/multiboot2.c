@@ -37,7 +37,7 @@ typedef void (*kernel_entry_t) (unsigned long, void *, int (void *),
 /* Claim the memory occupied by the multiboot kernel.  */
 grub_err_t
 grub_mb2_arch_elf32_hook (Elf32_Phdr *phdr, UNUSED grub_addr_t *addr,
-			  int *do_load)
+			  int *do_load, void *closure UNUSED)
 {
   int rc;
 
@@ -62,7 +62,7 @@ grub_mb2_arch_elf32_hook (Elf32_Phdr *phdr, UNUSED grub_addr_t *addr,
 /* Claim the memory occupied by the multiboot kernel.  */
 grub_err_t
 grub_mb2_arch_elf64_hook (Elf64_Phdr *phdr, UNUSED grub_addr_t *addr,
-			  int *do_load)
+			  int *do_load, void *closure UNUSED)
 {
   int rc;
 

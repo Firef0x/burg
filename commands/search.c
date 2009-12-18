@@ -46,112 +46,130 @@ enum options
     SEARCH_NO_FLOPPY,
  };
 
+struct search_fs_closure
+{
+  const char *key;
+  const char *var;
+  int no_floppy;
+  enum options type;
+  int count;
+  char *buf;
+};
+
+static int
+iterate_device (const char *name, void *closure)
+{
+  struct search_fs_closure *c = closure;
+  int found = 0;
+
+  /* Skip floppy drives when requested.  */
+  if (c->no_floppy &&
+      name[0] == 'f' && name[1] == 'd' && name[2] >= '0' && name[2] <= '9')
+    return 0;
+
+  if (c->type == SEARCH_FILE)
+    {
+      grub_size_t len;
+      char *p;
+      grub_file_t file;
+
+      len = grub_strlen (name) + 2 + grub_strlen (c->key) + 1;
+      p = grub_realloc (c->buf, len);
+      if (! p)
+	return 1;
+
+      c->buf = p;
+      grub_sprintf (c->buf, "(%s)%s", name, c->key);
+
+      file = grub_file_open (c->buf);
+      if (file)
+	{
+	  found = 1;
+	  grub_file_close (file);
+	}
+    }
+  else
+    {
+      /* type is SEARCH_FS_UUID or SEARCH_LABEL */
+      grub_device_t dev;
+      grub_fs_t fs;
+      int (*compare_fn) (const char *, const char *);
+      char *quid;
+
+      dev = grub_device_open (name);
+      if (dev)
+	{
+	  fs = grub_fs_probe (dev);
+	  compare_fn =
+	    (c->type == SEARCH_FS_UUID) ? grub_strcasecmp : grub_strcmp;
+
+	  if (fs && ((c->type == SEARCH_FS_UUID) ? fs->uuid : fs->label))
+	    {
+	      if (c->type == SEARCH_FS_UUID)
+		fs->uuid (dev, &quid);
+	      else
+		fs->label (dev, &quid);
+
+	      if (grub_errno == GRUB_ERR_NONE && quid)
+		{
+		  if (compare_fn (quid, c->key) == 0)
+		    found = 1;
+
+		  grub_free (quid);
+		}
+	    }
+
+	  grub_device_close (dev);
+	}
+    }
+
+  if (found)
+    {
+      c->count++;
+      if (c->var)
+	grub_env_set (c->var, name);
+      else
+	grub_printf (" %s", name);
+    }
+
+  grub_errno = GRUB_ERR_NONE;
+  return (found && c->var);
+}
+
 static void
 search_fs (const char *key, const char *var, int no_floppy, enum options type)
 {
-  int count = 0;
-  char *buf = NULL;
-  grub_fs_autoload_hook_t saved_autoload;
+  struct search_fs_closure c;
 
-  auto int iterate_device (const char *name);
-  int iterate_device (const char *name)
-  {
-    int found = 0;
-
-    /* Skip floppy drives when requested.  */
-    if (no_floppy &&
-	name[0] == 'f' && name[1] == 'd' && name[2] >= '0' && name[2] <= '9')
-      return 0;
-
-    if (type == SEARCH_FILE)
-      {
-	grub_size_t len;
-	char *p;
-	grub_file_t file;
-
-	len = grub_strlen (name) + 2 + grub_strlen (key) + 1;
-	p = grub_realloc (buf, len);
-	if (! p)
-	  return 1;
-
-	buf = p;
-	grub_sprintf (buf, "(%s)%s", name, key);
-
-	file = grub_file_open (buf);
-	if (file)
-	  {
-	    found = 1;
-	    grub_file_close (file);
-	  }
-      }
-    else
-      {
-	/* type is SEARCH_FS_UUID or SEARCH_LABEL */
-	grub_device_t dev;
-	grub_fs_t fs;
-	int (*compare_fn) (const char *, const char *);
-	char *quid;
-
-	dev = grub_device_open (name);
-	if (dev)
-	  {
-	    fs = grub_fs_probe (dev);
-	    compare_fn =
-	      (type == SEARCH_FS_UUID) ? grub_strcasecmp : grub_strcmp;
-
-	    if (fs && ((type == SEARCH_FS_UUID) ? fs->uuid : fs->label))
-	      {
-		if (type == SEARCH_FS_UUID)
-		  fs->uuid (dev, &quid);
-		else
-		  fs->label (dev, &quid);
-
-		if (grub_errno == GRUB_ERR_NONE && quid)
-		  {
-		    if (compare_fn (quid, key) == 0)
-		      found = 1;
-
-		    grub_free (quid);
-		  }
-	      }
-
-	    grub_device_close (dev);
-	  }
-      }
-
-    if (found)
-      {
-	count++;
-	if (var)
-	  grub_env_set (var, name);
-	else
-	  grub_printf (" %s", name);
-      }
-
-    grub_errno = GRUB_ERR_NONE;
-    return (found && var);
-  }
+  c.key = key;
+  c.var = var;
+  c.no_floppy = no_floppy;
+  c.type = type;
+  c.count = 0;
+  c.buf = NULL;
 
   /* First try without autoloading if we're setting variable. */
   if (var)
     {
+      grub_fs_autoload_hook_t saved_autoload;
+
       saved_autoload = grub_fs_autoload_hook;
       grub_fs_autoload_hook = 0;
-      grub_device_iterate (iterate_device);
+      grub_device_iterate (iterate_device, &c);
 
       /* Restore autoload hook.  */
       grub_fs_autoload_hook = saved_autoload;
 
       /* Retry with autoload if nothing found.  */
-      if (grub_errno == GRUB_ERR_NONE && count == 0)
-	grub_device_iterate (iterate_device);
+      if (grub_errno == GRUB_ERR_NONE && c.count == 0)
+	grub_device_iterate (iterate_device, &c);
     }
   else
-    grub_device_iterate (iterate_device);
+    grub_device_iterate (iterate_device, &c);
 
-  grub_free (buf);
+  grub_free (c.buf);
 
-  if (grub_errno == GRUB_ERR_NONE && count == 0)
+  if (grub_errno == GRUB_ERR_NONE && c.count == 0)
     grub_error (GRUB_ERR_FILE_NOT_FOUND, "no such device: %s", key);
 }
 

@@ -29,9 +29,10 @@ static char *memdisk_addr;
 static grub_off_t memdisk_size = 0;
 
 static int
-grub_memdisk_iterate (int (*hook) (const char *name))
+grub_memdisk_iterate (int (*hook) (const char *name, void *closure),
+		      void *closure)
 {
-  return hook ("memdisk");
+  return hook ("memdisk", closure);
 }
 
 static grub_err_t
@@ -80,32 +81,32 @@ static struct grub_disk_dev grub_memdisk_dev =
     .next = 0
   };
 
-GRUB_MOD_INIT(memdisk)
+static int
+memdisk_hook (struct grub_module_header *header)
 {
-  auto int hook (struct grub_module_header *);
-  int hook (struct grub_module_header *header)
+  if (header->type == OBJ_TYPE_MEMDISK)
     {
-      if (header->type == OBJ_TYPE_MEMDISK)
-	{
-	  char *memdisk_orig_addr;
-	  memdisk_orig_addr = (char *) header + sizeof (struct grub_module_header);
+      char *memdisk_orig_addr;
+      memdisk_orig_addr = (char *) header + sizeof (struct grub_module_header);
 
-	  grub_dprintf ("memdisk", "Found memdisk image at %p\n", memdisk_orig_addr);
+      grub_dprintf ("memdisk", "Found memdisk image at %p\n", memdisk_orig_addr);
 
-	  memdisk_size = header->size - sizeof (struct grub_module_header);
-	  memdisk_addr = grub_malloc (memdisk_size);
+      memdisk_size = header->size - sizeof (struct grub_module_header);
+      memdisk_addr = grub_malloc (memdisk_size);
 
-	  grub_dprintf ("memdisk", "Copying memdisk image to dynamic memory\n");
-	  grub_memmove (memdisk_addr, memdisk_orig_addr, memdisk_size);
+      grub_dprintf ("memdisk", "Copying memdisk image to dynamic memory\n");
+      grub_memmove (memdisk_addr, memdisk_orig_addr, memdisk_size);
 
-	  grub_disk_dev_register (&grub_memdisk_dev);
-	  return 1;
-	}
-
-      return 0;
+      grub_disk_dev_register (&grub_memdisk_dev);
+      return 1;
     }
 
-  grub_module_iterate (hook);
+  return 0;
+}
+
+GRUB_MOD_INIT(memdisk)
+{
+  grub_module_iterate (memdisk_hook);
 }
 
 GRUB_MOD_FINI(memdisk)

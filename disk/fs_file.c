@@ -24,43 +24,56 @@
 #include <grub/mm.h>
 #include <grub/partition.h>
 
+struct search_fs_file_closure
+{
+  const char *key;
+  unsigned long *count;
+  char *filename;
+  grub_device_t ret;
+};
+
+static int
+iterate_device (const char *name, void *closure)
+{
+  struct search_fs_file_closure *c = closure;
+  int len;
+  grub_file_t file;
+
+  (*c->count)++;
+
+  len = grub_strlen (name) + 2 + grub_strlen (c->key) + 1;
+  c->filename = grub_realloc (c->filename, len);
+  if (! c->filename)
+    return 1;
+
+  grub_sprintf (c->filename, "(%s)%s", name, c->key);
+  file = grub_file_open (c->filename);
+  if (file)
+    {
+      grub_file_close (file);
+      c->ret = grub_device_open (name);
+      return 1;
+    }
+
+  grub_errno = GRUB_ERR_NONE;
+  return 0;
+}
+
 static grub_device_t
 search_fs_file (const char *key, unsigned long *count)
 {
-  char *filename = NULL;
-  grub_device_t ret = NULL;
-  *count = 0;
+  struct search_fs_file_closure c;
 
-  auto int iterate_device (const char *name);
-  int iterate_device (const char *name)
-  {
-    int len;
-    grub_file_t file;
+  c.key = key;
+  c.count = count;
+  *(c.count) = 0;
+  c.filename = NULL;
+  c.ret = NULL;
 
-    (*count)++;
+  grub_device_iterate (iterate_device, &c);
+  grub_free (c.filename);
 
-    len = grub_strlen (name) + 2 + grub_strlen (key) + 1;
-    filename = grub_realloc (filename, len);
-    if (! filename)
-      return 1;
-
-    grub_sprintf (filename, "(%s)%s", name, key);
-    file = grub_file_open (filename);
-    if (file)
-      {
-	grub_file_close (file);
-	ret = grub_device_open (name);
-	return 1;
-      }
-
-    grub_errno = GRUB_ERR_NONE;
-    return 0;
-  }
-
-  grub_device_iterate (iterate_device);
-  grub_free (filename);
-
-  return ret;
+  return c.ret;
 }
 
 static grub_err_t

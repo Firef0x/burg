@@ -188,7 +188,7 @@ AC_CHECK_SIZEOF(long)
 
 grub_apple_cc
 if test x$grub_cv_apple_cc = xyes ; then
-  CFLAGS="$CFLAGS -DAPPLE_CC=1 -fnested-functions"
+  CFLAGS="$CFLAGS -DAPPLE_CC=1"
   ASFLAGS="$ASFLAGS -DAPPLE_CC=1"
 fi
 
@@ -305,8 +305,8 @@ TARGET_ASFLAGS="$TARGET_ASFLAGS $machine_CFLAGS"
 
 grub_apple_target_cc
 if test x$grub_cv_apple_target_cc = xyes ; then
-  TARGET_CFLAGS="$TARGET_CFLAGS -DAPPLE_CC=1 -fnested-functions"
-  CFLAGS="$CFLAGS -DAPPLE_CC=1 -fnested-functions"
+  TARGET_CFLAGS="$TARGET_CFLAGS -DAPPLE_CC=1"
+  CFLAGS="$CFLAGS -DAPPLE_CC=1"
   TARGET_ASFLAGS="$TARGET_ASFLAGS -DAPPLE_CC=1"
   TARGET_APPLE_CC=1
 else
@@ -381,7 +381,7 @@ fi
 #
 
 # Need __enable_execute_stack() for nested function trampolines?
-grub_CHECK_ENABLE_EXECUTE_STACK
+#grub_CHECK_ENABLE_EXECUTE_STACK
 
 # Position independent executable.
 grub_CHECK_PIE
@@ -447,11 +447,11 @@ if test "x$target_cpu" = xi386; then
   grub_I386_ASM_PREFIX_REQUIREMENT
   grub_I386_ASM_ADDR32
   grub_I386_ASM_ABSOLUTE_WITHOUT_ASTERISK
-else
-  AC_DEFINE([NESTED_FUNC_ATTR], [], [Catch gcc bug])
+#else
+#  AC_DEFINE([NESTED_FUNC_ATTR], [], [Catch gcc bug])
 fi
 
-AH_BOTTOM([#if defined(__i386__) && !defined(GRUB_UTIL)
+#AH_BOTTOM([#if defined(__i386__) && !defined(GRUB_UTIL)
 #define NESTED_FUNC_ATTR __attribute__ ((__regparm__ (1)))
 #else
 #define NESTED_FUNC_ATTR

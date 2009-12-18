@@ -24,9 +24,9 @@
 #include <grub/err.h>
 #include <grub/handler.h>
 
-typedef grub_err_t (*grub_reader_getline_t) (char **, int);
+typedef grub_err_t (*grub_reader_getline_t) (char **, int, void *);
 
-grub_err_t grub_reader_loop (grub_reader_getline_t getline);
+grub_err_t grub_reader_loop (grub_reader_getline_t getline, void *closure);
 
 void grub_rescue_reader (void);
 

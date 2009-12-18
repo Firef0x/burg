@@ -965,39 +965,49 @@ clear_completions (void)
   grub_refresh ();
 }
 
+struct run_closure
+{
+  struct screen *screen;
+  int currline;
+};
+
+static grub_err_t
+editor_getline (char **line, int cont UNUSED, void *closure)
+{
+  struct run_closure *c = closure;
+  struct line *linep = c->screen->lines + c->currline;
+  char *p;
+
+  if (c->currline > c->screen->num_lines)
+    {
+      *line = 0;
+      return 0;
+    }
+
+  /* Trim down space characters.  */
+  for (p = linep->buf + linep->len - 1;
+       p >= linep->buf && grub_isspace (*p);
+       p--)
+    ;
+  *++p = '\0';
+
+  linep->len = p - linep->buf;
+  for (p = linep->buf; grub_isspace (*p); p++)
+    ;
+  *line = grub_strdup (p);
+  (c->currline)++;
+  return 0;
+}
+
 /* Execute the command list in the screen SCREEN.  */
 static int
 run (struct screen *screen)
 {
-  int currline = 0;
   char *nextline;
+  struct run_closure c;
 
-  auto grub_err_t editor_getline (char **line, int cont);
-  grub_err_t editor_getline (char **line, int cont __attribute__ ((unused)))
-    {
-      struct line *linep = screen->lines + currline;
-      char *p;
-
-      if (currline > screen->num_lines)
-	{
-	  *line = 0;
-	  return 0;
-	}
-
-      /* Trim down space characters.  */
-      for (p = linep->buf + linep->len - 1;
-	   p >= linep->buf && grub_isspace (*p);
-	   p--)
-	;
-      *++p = '\0';
-
-      linep->len = p - linep->buf;
-      for (p = linep->buf; grub_isspace (*p); p++)
-	;
-      *line = grub_strdup (p);
-      currline++;
-      return 0;
-    }
+  c.screen = screen;
+  c.currline = 0;
 
   grub_cls ();
   grub_printf ("  ");
@@ -1006,10 +1016,11 @@ run (struct screen *screen)
 
 
   /* Execute the script, line for line.  */
-  while (currline < screen->num_lines)
+  while (c.currline < screen->num_lines)
     {
-      editor_getline (&nextline, 0);
-      if (grub_parser_get_current ()->parse_line (nextline, editor_getline))
+      editor_getline (&nextline, 0, &c);
+      if (grub_parser_get_current ()->parse_line (nextline, editor_getline,
+						  &c))
 	break;
     }
 

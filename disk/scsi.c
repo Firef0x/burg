@@ -190,36 +190,46 @@ grub_scsi_write12 (grub_disk_t disk, grub_disk_addr_t sector,
 }
 #endif
 
+struct grub_scsi_iterate_closure
+{
+  int (*hook) (const char *name, void *closure);
+  void *closure;
+};
+
+static int
+scsi_iterate (const char *name, int luns, void *closure)
+{
+  struct grub_scsi_iterate_closure *c = closure;
+  char sname[40];
+  int i;
+
+  /* In case of a single LUN, just return `usbX'.  */
+  if (luns == 1)
+    return c->hook (name, c->closure);
+
+  /* In case of multiple LUNs, every LUN will get a prefix to
+     distinguish it.  */
+  for (i = 0; i < luns; i++)
+    {
+      grub_sprintf (sname, "%s%c", name, 'a' + i);
+      if (c->hook (sname, c->closure))
+	return 1;
+    }
+  return 0;
+}
+
 
 static int
-grub_scsi_iterate (int (*hook) (const char *name))
+grub_scsi_iterate (int (*hook) (const char *name, void *closure),
+		   void *closure)
 {
   grub_scsi_dev_t p;
+  struct grub_scsi_iterate_closure c;
 
-  auto int scsi_iterate (const char *name, int luns);
-
-  int scsi_iterate (const char *name, int luns)
-    {
-      char sname[40];
-      int i;
-
-      /* In case of a single LUN, just return `usbX'.  */
-      if (luns == 1)
-	return hook (name);
-
-      /* In case of multiple LUNs, every LUN will get a prefix to
-	 distinguish it.  */
-      for (i = 0; i < luns; i++)
-	{
-	  grub_sprintf (sname, "%s%c", name, 'a' + i);
-	  if (hook (sname))
-	    return 1;
-	}
-      return 0;
-    }
-
+  c.hook = hook;
+  c.closure = closure;
   for (p = grub_scsi_dev_list; p; p = p->next)
-    if (p->iterate && (p->iterate) (scsi_iterate))
+    if (p->iterate && (p->iterate) (scsi_iterate, &c))
       return 1;
 
   return 0;

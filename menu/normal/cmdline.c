@@ -73,6 +73,94 @@ print_completion (const char *item, grub_completion_type_t type, int count)
     grub_printf (" %s", item);
 }
 
+struct grub_cmdline_get_closure
+{
+  unsigned max_len;
+  int echo_char;
+  char *buf;
+  unsigned xpos, ypos, ystart;
+  grub_size_t lpos, llen;
+  grub_size_t plen;
+};
+
+static void
+cl_set_pos (struct grub_cmdline_get_closure *c)
+{
+  c->xpos = (c->plen + c->lpos) % 79;
+  c->ypos = c->ystart + (c->plen + c->lpos) / 79;
+  grub_gotoxy (c->xpos, c->ypos);
+
+  grub_refresh ();
+}
+
+static void
+cl_print (int pos, int c, struct grub_cmdline_get_closure *cc)
+{
+  char *p;
+
+  for (p = cc->buf + pos; *p; p++)
+    {
+      if ((cc->xpos)++ > 78)
+	{
+	  grub_putchar ('\n');
+
+	  cc->xpos = 1;
+	  if ((cc->ypos) == (unsigned) (grub_getxy () & 0xFF))
+	    (cc->ystart)--;
+	  else
+	    (cc->ypos)++;
+	}
+
+      if (c)
+	grub_putchar (c);
+      else
+	grub_putchar (*p);
+    }
+}
+
+static void
+cl_insert (const char *str, struct grub_cmdline_get_closure *c)
+{
+  grub_size_t len = grub_strlen (str);
+
+  if (len + c->llen < c->max_len)
+    {
+      grub_memmove (c->buf + c->lpos + len, c->buf + c->lpos,
+		    c->llen - c->lpos + 1);
+      grub_memmove (c->buf + c->lpos, str, len);
+
+      c->llen += len;
+      c->lpos += len;
+      cl_print (c->lpos - len, c->echo_char, c);
+      cl_set_pos (c);
+    }
+
+  grub_refresh ();
+}
+
+static void
+cl_delete (unsigned len, struct grub_cmdline_get_closure *c)
+{
+  if (c->lpos + len <= c->llen)
+    {
+      grub_size_t saved_lpos = c->lpos;
+
+      c->lpos = c->llen - len;
+      cl_set_pos (c);
+      cl_print (c->lpos, ' ', c);
+      c->lpos = saved_lpos;
+      cl_set_pos (c);
+
+      grub_memmove (c->buf + c->lpos, c->buf + c->lpos + len,
+		    c->llen - c->lpos + 1);
+      c->llen -= len;
+      cl_print (c->lpos, c->echo_char, c);
+      cl_set_pos (c);
+    }
+
+  grub_refresh ();
+}
+
 /* Get a command-line. If ECHO_CHAR is not zero, echo it instead of input
    characters. If READLINE is non-zero, readline-like key bindings are
    available. If ESC is pushed, return zero, otherwise return non-zero.  */
@@ -81,91 +169,17 @@ int
 grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 		  int echo_char, int readline, int history)
 {
-  unsigned xpos, ypos, ystart;
-  grub_size_t lpos, llen;
-  grub_size_t plen;
   char buf[max_len];
   int key;
   int histpos = 0;
-  auto void cl_insert (const char *str);
-  auto void cl_delete (unsigned len);
-  auto void cl_print (int pos, int c);
-  auto void cl_set_pos (void);
+  struct grub_cmdline_get_closure c;
 
-  void cl_set_pos (void)
-    {
-      xpos = (plen + lpos) % 79;
-      ypos = ystart + (plen + lpos) / 79;
-      grub_gotoxy (xpos, ypos);
+  c.max_len = max_len;
+  c.echo_char = echo_char;
+  c.buf = buf;
 
-      grub_refresh ();
-    }
-
-  void cl_print (int pos, int c)
-    {
-      char *p;
-
-      for (p = buf + pos; *p; p++)
-	{
-	  if (xpos++ > 78)
-	    {
-	      grub_putchar ('\n');
-
-	      xpos = 1;
-	      if (ypos == (unsigned) (grub_getxy () & 0xFF))
-		ystart--;
-	      else
-		ypos++;
-	    }
-
-	  if (c)
-	    grub_putchar (c);
-	  else
-	    grub_putchar (*p);
-	}
-    }
-
-  void cl_insert (const char *str)
-    {
-      grub_size_t len = grub_strlen (str);
-
-      if (len + llen < max_len)
-	{
-	  grub_memmove (buf + lpos + len, buf + lpos, llen - lpos + 1);
-	  grub_memmove (buf + lpos, str, len);
-
-	  llen += len;
-	  lpos += len;
-	  cl_print (lpos - len, echo_char);
-	  cl_set_pos ();
-	}
-
-      grub_refresh ();
-    }
-
-  void cl_delete (unsigned len)
-    {
-      if (lpos + len <= llen)
-	{
-	  grub_size_t saved_lpos = lpos;
-
-	  lpos = llen - len;
-	  cl_set_pos ();
-	  cl_print (lpos, ' ');
-	  lpos = saved_lpos;
-	  cl_set_pos ();
-
-	  grub_memmove (buf + lpos, buf + lpos + len, llen - lpos + 1);
-	  llen -= len;
-	  cl_print (lpos, echo_char);
-	  cl_set_pos ();
-	}
-
-      grub_refresh ();
-    }
-
-  plen = grub_strlen (prompt);
-  lpos = llen = 0;
+  c.plen = grub_strlen (prompt);
+  c.lpos = c.llen = 0;
   buf[0] = '\0';
 
   if ((grub_getxy () >> 8) != 0)
@@ -173,10 +187,10 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 
   grub_printf ("%s", prompt);
 
-  xpos = plen;
-  ystart = ypos = (grub_getxy () & 0xFF);
+  c.xpos = c.plen;
+  c.ystart = c.ypos = (grub_getxy () & 0xFF);
 
-  cl_insert (cmdline);
+  cl_insert (cmdline, &c);
 
   if (history && grub_history_used () == 0)
     grub_history_add (buf);
@@ -188,28 +202,28 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 	  switch (key)
 	    {
 	    case 1:	/* Ctrl-a */
-	      lpos = 0;
-	      cl_set_pos ();
+	      c.lpos = 0;
+	      cl_set_pos (&c);
 	      break;
 
 	    case 2:	/* Ctrl-b */
-	      if (lpos > 0)
+	      if (c.lpos > 0)
 		{
-		  lpos--;
-		  cl_set_pos ();
+		  c.lpos--;
+		  cl_set_pos (&c);
 		}
 	      break;
 
 	    case 5:	/* Ctrl-e */
-	      lpos = llen;
-	      cl_set_pos ();
+	      c.lpos = c.llen;
+	      cl_set_pos (&c);
 	      break;
 
 	    case 6:	/* Ctrl-f */
-	      if (lpos < llen)
+	      if (c.lpos < c.llen)
 		{
-		  lpos++;
-		  cl_set_pos ();
+		  c.lpos++;
+		  cl_set_pos (&c);
 		}
 	      break;
 
@@ -220,39 +234,39 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 
 		/* Backup the next character and make it 0 so it will
 		   be easy to use string functions.  */
-		char backup = buf[lpos];
-		buf[lpos] = '\0';
+		char backup = buf[c.lpos];
+		buf[c.lpos] = '\0';
 
 		insert = grub_complete (buf, &restore, print_completion);
 		/* Restore the original string.  */
-		buf[lpos] = backup;
+		buf[c.lpos] = backup;
 
 		if (restore)
 		  {
 		    /* Restore the prompt.  */
 		    grub_printf ("\n%s%s", prompt, buf);
-		    xpos = plen;
-		    ystart = ypos = (grub_getxy () & 0xFF);
+		    c.xpos = c.plen;
+		    c.ystart = c.ypos = (grub_getxy () & 0xFF);
 		  }
 
 		if (insert)
 		  {
-		    cl_insert (insert);
+		    cl_insert (insert, &c);
 		    grub_free (insert);
 		  }
 	      }
 	      break;
 
 	    case 11:	/* Ctrl-k */
-	      if (lpos < llen)
+	      if (c.lpos < c.llen)
 		{
 		  if (kill_buf)
 		    grub_free (kill_buf);
 
-		  kill_buf = grub_strdup (buf + lpos);
+		  kill_buf = grub_strdup (buf + c.lpos);
 		  grub_errno = GRUB_ERR_NONE;
 
-		  cl_delete (llen - lpos);
+		  cl_delete (c.llen - c.lpos, &c);
 		}
 	      break;
 
@@ -261,7 +275,7 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 	      {
 		char *hist;
 
-		lpos = 0;
+		c.lpos = 0;
 
 		if (histpos > 0)
 		  {
@@ -269,9 +283,9 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 		    histpos--;
 		  }
 
-		cl_delete (llen);
+		cl_delete (c.llen, &c);
 		hist = grub_history_get (histpos);
-		cl_insert (hist);
+		cl_insert (hist, &c);
 
 		break;
 	      }
@@ -280,7 +294,7 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 	      {
 		char *hist;
 
-		lpos = 0;
+		c.lpos = 0;
 
 		if (histpos < grub_history_used () - 1)
 		  {
@@ -288,17 +302,17 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 		    histpos++;
 		  }
 
-		cl_delete (llen);
+		cl_delete (c.llen, &c);
 		hist = grub_history_get (histpos);
 
-		cl_insert (hist);
+		cl_insert (hist, &c);
 	      }
 	      break;
 
 	    case 21:	/* Ctrl-u */
-	      if (lpos > 0)
+	      if (c.lpos > 0)
 		{
-		  grub_size_t n = lpos;
+		  grub_size_t n = c.lpos;
 
 		  if (kill_buf)
 		    grub_free (kill_buf);
@@ -311,15 +325,15 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 		      kill_buf[n] = '\0';
 		    }
 
-		  lpos = 0;
-		  cl_set_pos ();
-		  cl_delete (n);
+		  c.lpos = 0;
+		  cl_set_pos (&c);
+		  cl_delete (n, &c);
 		}
 	      break;
 
 	    case 25:	/* Ctrl-y */
 	      if (kill_buf)
-		cl_insert (kill_buf);
+		cl_insert (kill_buf, &c);
 	      break;
 	    }
 	}
@@ -330,18 +344,18 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 	  return 0;
 
 	case '\b':
-	  if (lpos > 0)
+	  if (c.lpos > 0)
 	    {
-	      lpos--;
-	      cl_set_pos ();
+	      c.lpos--;
+	      cl_set_pos (&c);
 	    }
           else
             break;
 	  /* fall through */
 
 	case 4:	/* Ctrl-d */
-	  if (lpos < llen)
-	    cl_delete (1);
+	  if (c.lpos < c.llen)
+	    cl_delete (1, &c);
 	  break;
 
 	default:
@@ -351,7 +365,7 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 
 	      str[0] = key;
 	      str[1] = '\0';
-	      cl_insert (str);
+	      cl_insert (str, &c);
 	    }
 	  break;
 	}
@@ -361,10 +375,10 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
   grub_refresh ();
 
   /* If ECHO_CHAR is NUL, remove leading spaces.  */
-  lpos = 0;
+  c.lpos = 0;
   if (! echo_char)
-    while (buf[lpos] == ' ')
-      lpos++;
+    while (buf[c.lpos] == ' ')
+      c.lpos++;
 
   if (history)
     {
@@ -376,7 +390,7 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 	}
     }
 
-  grub_memcpy (cmdline, buf + lpos, llen - lpos + 1);
+  grub_memcpy (cmdline, buf + c.lpos, c.llen - c.lpos + 1);
 
   return 1;
 }

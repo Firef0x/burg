@@ -48,7 +48,9 @@ struct grub_fs
   /* Call HOOK with each file under DIR.  */
   grub_err_t (*dir) (grub_device_t device, const char *path,
 		     int (*hook) (const char *filename,
-				  const struct grub_dirhook_info *info));
+				  const struct grub_dirhook_info *info,
+				  void *closure),
+		     void *closure);
 
   /* Open a file named NAME and initialize FILE.  */
   grub_err_t (*open) (struct grub_file *file, const char *name);
@@ -104,9 +106,11 @@ grub_fs_unregister (grub_fs_t fs)
 }
 
 static inline void
-grub_fs_iterate (int (*hook) (const grub_fs_t fs))
+grub_fs_iterate (int (*hook) (const grub_fs_t fs, void *closure),
+		 void *closure)
 {
-  grub_list_iterate (GRUB_AS_LIST (grub_fs_list), (grub_list_hook_t) hook);
+  grub_list_iterate (GRUB_AS_LIST (grub_fs_list), (grub_list_hook_t) hook,
+		     closure);
 }
 
 grub_fs_t grub_fs_probe (grub_device_t device);

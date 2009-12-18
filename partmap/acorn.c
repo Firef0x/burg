@@ -93,7 +93,9 @@ fail:
 static grub_err_t
 acorn_partition_map_iterate (grub_disk_t disk,
 			     int (*hook) (grub_disk_t disk,
-					  const grub_partition_t partition))
+					  const grub_partition_t partition,
+					  void *closure),
+			     void *closure)
 {
   struct grub_partition part;
   struct grub_disk raw;
@@ -123,7 +125,7 @@ acorn_partition_map_iterate (grub_disk_t disk,
       part.offset = 6;
       part.index = i;
 
-      if (hook (disk, &part))
+      if (hook (disk, &part, closure))
 	return grub_errno;
     }
 

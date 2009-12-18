@@ -45,29 +45,30 @@ grub_machine_mmap_init ()
 }
 
 grub_err_t
-grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t))
+grub_machine_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
+					grub_uint32_t, void *), void *closure)
 {
   if (hook (0x0,
 	    (grub_addr_t) grub_code_start,
-	    GRUB_MACHINE_MEMORY_AVAILABLE))
+	    GRUB_MACHINE_MEMORY_AVAILABLE, closure))
     return 1;
 
   if (hook (GRUB_MEMORY_MACHINE_UPPER,
 	    0x100000 - GRUB_MEMORY_MACHINE_UPPER,
-	    GRUB_MACHINE_MEMORY_RESERVED))
+	    GRUB_MACHINE_MEMORY_RESERVED, closure))
     return 1;
 
   /* Protect boot.img, which contains the gdt.  It is mapped at the top of memory
      (it is also mapped below 0x100000, but we already reserved that area).  */
   if (hook ((grub_uint32_t) -GRUB_BOOT_MACHINE_SIZE,
 	    GRUB_BOOT_MACHINE_SIZE,
-	    GRUB_MACHINE_MEMORY_RESERVED))
+	    GRUB_MACHINE_MEMORY_RESERVED, closure))
     return 1;
 
   /* Everything else is free.  */
   if (hook (0x100000,
 	    min (mem_size, (grub_uint32_t) -GRUB_BOOT_MACHINE_SIZE) - 0x100000,
-	    GRUB_MACHINE_MEMORY_AVAILABLE))
+	    GRUB_MACHINE_MEMORY_AVAILABLE, closure))
     return 1;
 
   return 0;

@@ -107,6 +107,17 @@ grub_multiboot_unload (void)
   return GRUB_ERR_NONE;
 }
 
+static int
+grub_get_multiboot_mmap_len_hook (grub_uint64_t addr UNUSED,
+				  grub_uint64_t size UNUSED,
+				  grub_uint32_t type UNUSED,
+				  void *closure)
+{
+  int *count = closure;
+  (*count)++;
+  return 0;
+}
+
 /* Return the length of the Multiboot mmap that will be needed to allocate
    our platform's map.  */
 static grub_uint32_t
@@ -114,39 +125,35 @@ grub_get_multiboot_mmap_len (void)
 {
   grub_size_t count = 0;
 
-  auto int NESTED_FUNC_ATTR hook (grub_uint64_t, grub_uint64_t, grub_uint32_t);
-  int NESTED_FUNC_ATTR hook (grub_uint64_t addr __attribute__ ((unused)),
-			     grub_uint64_t size __attribute__ ((unused)),
-			     grub_uint32_t type __attribute__ ((unused)))
-    {
-      count++;
-      return 0;
-    }
-
-  grub_mmap_iterate (hook);
+  grub_mmap_iterate (grub_get_multiboot_mmap_len_hook, &count);
 
   return count * sizeof (struct multiboot_mmap_entry);
+}
+
+static int
+grub_fill_multiboot_mmap_hook (grub_uint64_t addr, grub_uint64_t size,
+			       grub_uint32_t type, void *closure)
+{
+  struct multiboot_mmap_entry **mmap_entry = closure;
+
+  (*mmap_entry)->addr = addr;
+  (*mmap_entry)->len = size;
+  (*mmap_entry)->type = type;
+  (*mmap_entry)->size = sizeof (struct multiboot_mmap_entry) -
+    sizeof ((*mmap_entry)->size);
+  (*mmap_entry)++;
+
+  return 0;
 }
 
 /* Fill previously allocated Multiboot mmap.  */
 static void
 grub_fill_multiboot_mmap (struct multiboot_mmap_entry *first_entry)
 {
-  struct multiboot_mmap_entry *mmap_entry = (struct multiboot_mmap_entry *) first_entry;
+  struct multiboot_mmap_entry *mmap_entry =
+    (struct multiboot_mmap_entry *) first_entry;
 
-  auto int NESTED_FUNC_ATTR hook (grub_uint64_t, grub_uint64_t, grub_uint32_t);
-  int NESTED_FUNC_ATTR hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type)
-    {
-      mmap_entry->addr = addr;
-      mmap_entry->len = size;
-      mmap_entry->type = type;
-      mmap_entry->size = sizeof (struct multiboot_mmap_entry) - sizeof (mmap_entry->size);
-      mmap_entry++;
-
-      return 0;
-    }
-
-  grub_mmap_iterate (hook);
+  grub_mmap_iterate (grub_fill_multiboot_mmap_hook, &mmap_entry);
 }
 
 #define MULTIBOOT_LOAD_ELF64

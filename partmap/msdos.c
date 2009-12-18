@@ -90,7 +90,9 @@ grub_partition_parse (const char *str)
 static grub_err_t
 pc_partition_map_iterate (grub_disk_t disk,
 			  int (*hook) (grub_disk_t disk,
-				       const grub_partition_t partition))
+				       const grub_partition_t partition,
+				       void *closure),
+			  void *closure)
 {
   struct grub_partition p;
   struct grub_msdos_partition pcdata;
@@ -170,7 +172,7 @@ pc_partition_map_iterate (grub_disk_t disk,
 	    {
 	      pcdata.dos_part++;
 
-	      if (hook (disk, &p))
+	      if (hook (disk, &p, closure))
 		return 1;
 
 	      /* Check if this is a BSD partition.  */
@@ -212,7 +214,7 @@ pc_partition_map_iterate (grub_disk_t disk,
 		      pcdata.bsd_type = be->fs_type;
 
 		      if (be->fs_type != GRUB_PC_PARTITION_BSD_TYPE_UNUSED)
-			if (hook (disk, &p))
+			if (hook (disk, &p, closure))
 			  return 1;
 		    }
 		}
@@ -247,6 +249,25 @@ pc_partition_map_iterate (grub_disk_t disk,
   return grub_errno;
 }
 
+static int
+find_func (grub_disk_t d __attribute__ ((unused)),
+	   const grub_partition_t partition, void *closure)
+{
+  grub_partition_t p = closure;
+  struct grub_msdos_partition *pcdata = p->data;
+  struct grub_msdos_partition *partdata = partition->data;
+
+  if ((pcdata->dos_part == partdata->dos_part || pcdata->dos_part == -1)
+      && pcdata->bsd_part == partdata->bsd_part)
+    {
+      grub_memcpy (p, partition, sizeof (*p));
+      p->data = pcdata;
+      grub_memcpy (pcdata, partdata, sizeof (*pcdata));
+      return 1;
+    }
+
+  return 0;
+}
 
 static grub_partition_t
 pc_partition_map_probe (grub_disk_t disk, const char *str)
@@ -254,31 +275,12 @@ pc_partition_map_probe (grub_disk_t disk, const char *str)
   grub_partition_t p;
   struct grub_msdos_partition *pcdata;
 
-  auto int find_func (grub_disk_t d, const grub_partition_t partition);
-
-  int find_func (grub_disk_t d __attribute__ ((unused)),
-		 const grub_partition_t partition)
-    {
-      struct grub_msdos_partition *partdata = partition->data;
-
-      if ((pcdata->dos_part == partdata->dos_part || pcdata->dos_part == -1)
-	  && pcdata->bsd_part == partdata->bsd_part)
-	{
-	  grub_memcpy (p, partition, sizeof (*p));
-	  p->data = pcdata;
-	  grub_memcpy (pcdata, partdata, sizeof (*pcdata));
-	  return 1;
-	}
-
-      return 0;
-    }
-
   p = grub_partition_parse (str);
   if (! p)
     return 0;
 
   pcdata = p->data;
-  pc_partition_map_iterate (disk, find_func);
+  pc_partition_map_iterate (disk, find_func, p);
   if (grub_errno)
     goto fail;
 

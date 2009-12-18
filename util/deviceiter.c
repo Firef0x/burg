@@ -412,8 +412,8 @@ check_device (const char *device)
 }
 
 void
-grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
-			   int floppy_disks)
+grub_util_iterate_devices (int (*hook) (const char *, int, void *),
+			   void *closure, int floppy_disks)
 {
   int i;
 
@@ -428,7 +428,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
 	break;
       /* In floppies, write the map, whether check_device succeeds
 	 or not, because the user just may not insert floppies.  */
-      if (hook (name, 1))
+      if (hook (name, 1, closure))
 	return;
     }
 
@@ -451,7 +451,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
 	  if (realpath (discn, name))
 	    {
 	      strcat (name, "/disc");
-	      if (hook (name, 0))
+	      if (hook (name, 0, closure))
 		return;
 	    }
 	}
@@ -467,7 +467,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
       get_ide_disk_name (name, i);
       if (check_device (name))
 	{
-	  if (hook (name, 0))
+	  if (hook (name, 0, closure))
 	    return;
 	}
     }
@@ -481,7 +481,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
       get_virtio_disk_name (name, i);
       if (check_device (name))
 	{
-	  if (hook (name, 0))
+	  if (hook (name, 0, closure))
 	    return;
 	}
     }
@@ -494,7 +494,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
       get_ataraid_disk_name (name, i);
       if (check_device (name))
 	{
-	  if (hook (name, 0))
+	  if (hook (name, 0, closure))
 	    return;
         }
     }
@@ -507,7 +507,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
       get_xvd_disk_name (name, i);
       if (check_device (name))
 	{
-	  if (hook (name, 0))
+	  if (hook (name, 0, closure))
 	    return;
 	}
     }
@@ -521,7 +521,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
       get_scsi_disk_name (name, i);
       if (check_device (name))
 	{
-	  if (hook (name, 0))
+	  if (hook (name, 0, closure))
 	    return;
 	}
     }
@@ -544,7 +544,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
 	    get_dac960_disk_name (name, controller, drive);
 	    if (check_device (name))
 	      {
-		if (hook (name, 0))
+		if (hook (name, 0, closure))
 		  return;
 	      }
 	  }
@@ -565,7 +565,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
 	    get_acceleraid_disk_name (name, controller, drive);
 	    if (check_device (name))
 	      {
-		if (hook (name, 0))
+		if (hook (name, 0, closure))
 		  return;
 	      }
 	  }
@@ -586,7 +586,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
 	    get_cciss_disk_name (name, controller, drive);
 	    if (check_device (name))
 	      {
-		if (hook (name, 0))
+		if (hook (name, 0, closure))
 		  return;
 	      }
 	  }
@@ -607,7 +607,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
 	    get_ida_disk_name (name, controller, drive);
 	    if (check_device (name))
 	      {
-		if (hook (name, 0))
+		if (hook (name, 0, closure))
 		  return;
 	      }
 	  }
@@ -625,7 +625,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
 	get_i2o_disk_name (name, unit);
 	if (check_device (name))
 	  {
-	    if (hook (name, 0))
+	    if (hook (name, 0, closure))
 	      return;
 	  }
       }
@@ -639,7 +639,7 @@ grub_util_iterate_devices (int NESTED_FUNC_ATTR (*hook) (const char *, int),
       get_mmc_disk_name (name, i);
       if (check_device (name))
 	{
-	  if (hook (name, 0))
+	  if (hook (name, 0, closure))
 	    return;
 	}
     }

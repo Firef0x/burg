@@ -41,7 +41,9 @@ enum grub_ieee1275_parse_type
 /* Walk children of 'devpath', calling hook for each.  */
 int
 grub_children_iterate (char *devpath,
-		       int (*hook) (struct grub_ieee1275_devalias *alias))
+		       int (*hook) (struct grub_ieee1275_devalias *alias,
+				    void *closure),
+		       void *closure)
 {
   grub_ieee1275_phandle_t dev;
   grub_ieee1275_phandle_t child;
@@ -102,7 +104,7 @@ grub_children_iterate (char *devpath,
       alias.type = childtype;
       alias.path = childpath;
       alias.name = fullname;
-      ret = hook (&alias);
+      ret = hook (&alias, closure);
       if (ret)
 	break;
     }
@@ -119,7 +121,8 @@ grub_children_iterate (char *devpath,
 /* Iterate through all device aliases.  This function can be used to
    find a device of a specific type.  */
 int
-grub_devalias_iterate (int (*hook) (struct grub_ieee1275_devalias *alias))
+grub_devalias_iterate (int (*hook) (struct grub_ieee1275_devalias *alias,
+				    void *closure), void *closure)
 {
   grub_ieee1275_phandle_t aliases;
   char *aliasname, *devtype;
@@ -196,7 +199,7 @@ grub_devalias_iterate (int (*hook) (struct grub_ieee1275_devalias *alias))
       alias.name = aliasname;
       alias.path = devpath;
       alias.type = devtype;
-      ret = hook (&alias);
+      ret = hook (&alias, closure);
 
 nextprop:
       grub_free (devpath);
@@ -269,37 +272,49 @@ grub_ieee1275_get_devargs (const char *path)
   return grub_strdup (colon + 1);
 }
 
+struct grub_ieee1275_get_devname_closure
+{
+  const char *path;
+  char *newpath;
+  int pathlen;
+};
+
+static int
+match_alias (struct grub_ieee1275_devalias *curalias, void *closure)
+{
+  struct grub_ieee1275_get_devname_closure *c = closure;
+
+  /* briQ firmware can change capitalization in /chosen/bootpath.  */
+  if (! grub_strncasecmp (curalias->path, c->path, c->pathlen))
+    {
+      c->newpath = grub_strdup (curalias->name);
+      return 1;
+    }
+
+  return 0;
+}
+
 /* Get the device path of the Open Firmware node name `path'.  */
 static char *
 grub_ieee1275_get_devname (const char *path)
 {
   char *colon = grub_strchr (path, ':');
-  char *newpath = 0;
-  int pathlen = grub_strlen (path);
-  auto int match_alias (struct grub_ieee1275_devalias *alias);
+  struct grub_ieee1275_get_devname_closure c;
 
-  int match_alias (struct grub_ieee1275_devalias *curalias)
-    {
-      /* briQ firmware can change capitalization in /chosen/bootpath.  */
-      if (! grub_strncasecmp (curalias->path, path, pathlen))
-        {
-	  newpath = grub_strdup (curalias->name);
-	  return 1;
-	}
-
-      return 0;
-    }
+  c.path = path;
+  c.newpath = 0;
+  c.pathlen = grub_strlen (path);
 
   if (colon)
-    pathlen = (int)(colon - path);
+    c.pathlen = (int)(colon - path);
 
   /* Try to find an alias for this device.  */
-  grub_devalias_iterate (match_alias);
+  grub_devalias_iterate (match_alias, &c);
 
-  if (! newpath)
-    newpath = grub_strndup (path, pathlen);
+  if (! c.newpath)
+    c.newpath = grub_strndup (path, c.pathlen);
 
-  return newpath;
+  return c.newpath;
 }
 
 static char *

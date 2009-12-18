@@ -38,7 +38,7 @@
 void grub_machine_mmap_init (void);
 
 grub_err_t grub_machine_mmap_iterate
-     (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t));
+  (int (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t, void *), void*);
 
 #endif
 

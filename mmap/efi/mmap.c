@@ -31,9 +31,8 @@ GRUB_EXPORT(grub_machine_mmap_iterate);
   ((grub_efi_memory_descriptor_t *) ((char *) (desc) + (size)))
 
 grub_err_t
-grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
-							 grub_uint64_t,
-							 grub_uint32_t))
+grub_machine_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
+					grub_uint32_t, void *), void *closure)
 {
   grub_efi_uintn_t mmap_size = 0;
   grub_efi_memory_descriptor_t *map_buf = 0;
@@ -71,7 +70,7 @@ grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
 	{
 	case GRUB_EFI_RUNTIME_SERVICES_CODE:
 	  hook (desc->physical_start, desc->num_pages * 4096,
-		GRUB_MACHINE_MEMORY_CODE);
+		GRUB_MACHINE_MEMORY_CODE, closure);
 	  break;
 
 	default:
@@ -85,7 +84,7 @@ grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
 	case GRUB_EFI_MEMORY_MAPPED_IO_PORT_SPACE:
 	case GRUB_EFI_PAL_CODE:
 	  hook (desc->physical_start, desc->num_pages * 4096,
-		GRUB_MACHINE_MEMORY_RESERVED);
+		GRUB_MACHINE_MEMORY_RESERVED, closure);
 	  break;
 
 	case GRUB_EFI_LOADER_CODE:
@@ -94,17 +93,17 @@ grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
 	case GRUB_EFI_BOOT_SERVICES_DATA:
 	case GRUB_EFI_CONVENTIONAL_MEMORY:
 	  hook (desc->physical_start, desc->num_pages * 4096,
-		GRUB_MACHINE_MEMORY_AVAILABLE);
+		GRUB_MACHINE_MEMORY_AVAILABLE, closure);
 	  break;
 
 	case GRUB_EFI_ACPI_RECLAIM_MEMORY:
 	  hook (desc->physical_start, desc->num_pages * 4096,
-		GRUB_MACHINE_MEMORY_ACPI);
+		GRUB_MACHINE_MEMORY_ACPI, closure);
 	  break;
 
 	case GRUB_EFI_ACPI_MEMORY_NVS:
 	  hook (desc->physical_start, desc->num_pages * 4096,
-		GRUB_MACHINE_MEMORY_NVS);
+		GRUB_MACHINE_MEMORY_NVS, closure);
 	  break;
 	}
     }

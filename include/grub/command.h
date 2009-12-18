@@ -105,10 +105,11 @@ grub_command_execute (const char *name, int argc, char **argv)
 }
 
 static inline int
-grub_command_iterate (int (*func) (grub_command_t))
+grub_command_iterate (int (*func) (grub_command_t, void *closure),
+		      void *closure)
 {
   return grub_list_iterate (GRUB_AS_LIST (grub_command_list),
-			    (grub_list_hook_t) func);
+			    (grub_list_hook_t) func, closure);
 }
 
 void grub_register_core_commands (void);

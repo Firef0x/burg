@@ -219,12 +219,13 @@ grub_disk_dev_unregister (grub_disk_dev_t dev)
 }
 
 int
-grub_disk_dev_iterate (int (*hook) (const char *name))
+grub_disk_dev_iterate (int (*hook) (const char *name, void *closure),
+		       void *closure)
 {
   grub_disk_dev_t p;
 
   for (p = grub_disk_dev_list; p; p = p->next)
-    if (p->iterate && (p->iterate) (hook))
+    if (p->iterate && (p->iterate) (hook, closure))
       return 1;
 
   return 0;
@@ -483,7 +484,7 @@ grub_disk_read (grub_disk_t disk, grub_disk_addr_t sector,
 		    (disk->read_hook) (sector, real_offset,
 				       ((size > GRUB_DISK_SECTOR_SIZE)
 					? GRUB_DISK_SECTOR_SIZE
-					: size));
+					: size), disk->closure);
 		    sector++;
 		    size -= GRUB_DISK_SECTOR_SIZE - real_offset;
 		    real_offset = 0;
@@ -510,7 +511,7 @@ grub_disk_read (grub_disk_t disk, grub_disk_addr_t sector,
 	      (disk->read_hook) (s, real_offset,
 				 ((l > GRUB_DISK_SECTOR_SIZE)
 				  ? GRUB_DISK_SECTOR_SIZE
-				  : l));
+				  : l), disk->closure);
 
 	      if (l < GRUB_DISK_SECTOR_SIZE - real_offset)
 		break;

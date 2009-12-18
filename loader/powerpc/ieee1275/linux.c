@@ -100,6 +100,23 @@ grub_linux_unload (void)
 }
 
 static grub_err_t
+grub_linux_load32_offset_phdr (Elf32_Phdr *phdr, grub_addr_t *addr, int *do_load,
+			       void *closure UNUSED)
+{
+  if (phdr->p_type != PT_LOAD)
+    {
+      *do_load = 0;
+      return 0;
+    }
+  *do_load = 1;
+
+  /* Linux's program headers incorrectly contain virtual addresses.
+   * Translate those to physical, and offset to the area we claimed.  */
+  *addr = (phdr->p_paddr & ~ELF32_LOADMASK) + linux_addr;
+  return 0;
+}
+
+static grub_err_t
 grub_linux_load32 (grub_elf_t elf)
 {
   Elf32_Addr entry;
@@ -131,22 +148,23 @@ grub_linux_load32 (grub_elf_t elf)
     return grub_error (GRUB_ERR_OUT_OF_MEMORY, "Could not claim memory.");
 
   /* Now load the segments into the area we claimed.  */
-  auto grub_err_t offset_phdr (Elf32_Phdr *phdr, grub_addr_t *addr, int *do_load);
-  grub_err_t offset_phdr (Elf32_Phdr *phdr, grub_addr_t *addr, int *do_load)
-    {
-      if (phdr->p_type != PT_LOAD)
-	{
-	  *do_load = 0;
-	  return 0;
-	}
-      *do_load = 1;
+  return grub_elf32_load (elf, grub_linux_load32_offset_phdr, 0, 0, 0);
+}
 
-      /* Linux's program headers incorrectly contain virtual addresses.
-       * Translate those to physical, and offset to the area we claimed.  */
-      *addr = (phdr->p_paddr & ~ELF32_LOADMASK) + linux_addr;
+static grub_err_t
+grub_linux_load64_offset_phdr (Elf64_Phdr *phdr, grub_addr_t *addr, int *do_load,
+			       void *closure UNUSED)
+{
+  if (phdr->p_type != PT_LOAD)
+    {
+      *do_load = 0;
       return 0;
     }
-  return grub_elf32_load (elf, offset_phdr, 0, 0);
+  *do_load = 1;
+  /* Linux's program headers incorrectly contain virtual addresses.
+   * Translate those to physical, and offset to the area we claimed.  */
+  *addr = (phdr->p_paddr & ~ELF64_LOADMASK) + linux_addr;
+  return 0;
 }
 
 static grub_err_t
@@ -181,21 +199,7 @@ grub_linux_load64 (grub_elf_t elf)
     return grub_error (GRUB_ERR_OUT_OF_MEMORY, "Could not claim memory.");
 
   /* Now load the segments into the area we claimed.  */
-  auto grub_err_t offset_phdr (Elf64_Phdr *phdr, grub_addr_t *addr, int *do_load);
-  grub_err_t offset_phdr (Elf64_Phdr *phdr, grub_addr_t *addr, int *do_load)
-    {
-      if (phdr->p_type != PT_LOAD)
-	{
-	  *do_load = 0;
-	  return 0;
-	}
-      *do_load = 1;
-      /* Linux's program headers incorrectly contain virtual addresses.
-       * Translate those to physical, and offset to the area we claimed.  */
-      *addr = (phdr->p_paddr & ~ELF64_LOADMASK) + linux_addr;
-      return 0;
-    }
-  return grub_elf64_load (elf, offset_phdr, 0, 0);
+  return grub_elf64_load (elf, grub_linux_load64_offset_phdr, 0, 0, 0);
 }
 
 static grub_err_t

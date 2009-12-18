@@ -36,11 +36,66 @@ static int curhandle = 1;
 
 #endif
 
-grub_err_t
-grub_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
-						 grub_uint64_t, grub_uint32_t))
+struct grub_mmap_iterate_closure
 {
+  int i;
+  struct grub_mmap_scan *scanline_events;
+  int *priority;
+};
 
+static int
+count_hook (grub_uint64_t addr UNUSED, grub_uint64_t size UNUSED,
+	    grub_uint32_t type UNUSED, void *closure)
+{
+  struct grub_mmap_iterate_closure *c = closure;
+
+  c->i++;
+  return 0;
+}
+
+/* Scanline events. */
+struct grub_mmap_scan
+{
+  /* At which memory address. */
+  grub_uint64_t pos;
+  /* 0 = region starts, 1 = region ends. */
+  int type;
+  /* Which type of memory region? */
+  int memtype;
+};
+
+static int
+fill_hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
+	   void *closure)
+{
+  struct grub_mmap_iterate_closure *c = closure;
+  struct grub_mmap_scan *scanline_events = c->scanline_events;
+  int i = c->i;
+
+  scanline_events[i].pos = addr;
+  scanline_events[i].type = 0;
+  if (type <= GRUB_MACHINE_MEMORY_MAX_TYPE && c->priority[type])
+    scanline_events[i].memtype = type;
+  else
+    {
+      grub_dprintf ("mmap", "Unknown memory type %d. Assuming unusable\n",
+		    type);
+      scanline_events[i].memtype = GRUB_MACHINE_MEMORY_RESERVED;
+    }
+  i++;
+
+  scanline_events[i].pos = addr + size;
+  scanline_events[i].type = 1;
+  scanline_events[i].memtype = scanline_events[i - 1].memtype;
+  i++;
+
+  return 0;
+}
+
+grub_err_t
+grub_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
+				grub_uint32_t, void *), void *closure)
+{
   /* This function resolves overlapping regions and sorts the memory map.
      It uses scanline (sweeping) algorithm.
   */
@@ -73,16 +128,6 @@ grub_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
 
   int i, k, done;
 
-  /* Scanline events. */
-  struct grub_mmap_scan
-  {
-    /* At which memory address. */
-    grub_uint64_t pos;
-    /* 0 = region starts, 1 = region ends. */
-    int type;
-    /* Which type of memory region? */
-    int memtype;
-  };
   struct grub_mmap_scan *scanline_events;
   struct grub_mmap_scan t;
 
@@ -95,46 +140,11 @@ grub_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
   int present[GRUB_MACHINE_MEMORY_MAX_TYPE + 2];
   /* Number of mmap chunks. */
   int mmap_num;
+  struct grub_mmap_iterate_closure c;
 
 #ifndef GRUB_MMAP_REGISTER_BY_FIRMWARE
   struct grub_mmap_region *cur;
 #endif
-
-  auto int NESTED_FUNC_ATTR count_hook (grub_uint64_t, grub_uint64_t,
-					grub_uint32_t);
-  int NESTED_FUNC_ATTR count_hook (grub_uint64_t addr __attribute__ ((unused)),
-				   grub_uint64_t size __attribute__ ((unused)),
-				   grub_uint32_t type __attribute__ ((unused)))
-  {
-    mmap_num++;
-    return 0;
-  }
-
-  auto int NESTED_FUNC_ATTR fill_hook (grub_uint64_t, grub_uint64_t,
-					grub_uint32_t);
-  int NESTED_FUNC_ATTR fill_hook (grub_uint64_t addr,
-				  grub_uint64_t size,
-				  grub_uint32_t type)
-  {
-    scanline_events[i].pos = addr;
-    scanline_events[i].type = 0;
-    if (type <= GRUB_MACHINE_MEMORY_MAX_TYPE && priority[type])
-      scanline_events[i].memtype = type;
-    else
-      {
-	grub_dprintf ("mmap", "Unknown memory type %d. Assuming unusable\n",
-		      type);
-	scanline_events[i].memtype = GRUB_MACHINE_MEMORY_RESERVED;
-      }
-    i++;
-
-    scanline_events[i].pos = addr + size;
-    scanline_events[i].type = 1;
-    scanline_events[i].memtype = scanline_events[i - 1].memtype;
-    i++;
-
-    return 0;
-  }
 
   mmap_num = 0;
 
@@ -143,7 +153,9 @@ grub_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
     mmap_num++;
 #endif
 
-  grub_machine_mmap_iterate (count_hook);
+  c.i = mmap_num;
+  grub_machine_mmap_iterate (count_hook, &c);
+  mmap_num = c.i;
 
   /* Initialize variables. */
   grub_memset (present, 0, sizeof (present));
@@ -178,7 +190,10 @@ grub_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
     }
 #endif /* ! GRUB_MMAP_REGISTER_BY_FIRMWARE */
 
-  grub_machine_mmap_iterate (fill_hook);
+  c.i = i;
+  c.scanline_events = scanline_events;
+  c.priority = priority;
+  grub_machine_mmap_iterate (fill_hook, &c);
 
   /* Primitive bubble sort. It has complexity O(n^2) but since we're
      unlikely to have more than 100 chunks it's probably one of the
@@ -221,7 +236,8 @@ grub_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
 	  && lastaddr != scanline_events[i].pos
 	  && lasttype != -1
 	  && lasttype != GRUB_MACHINE_MEMORY_HOLE
-	  && hook (lastaddr, scanline_events[i].pos - lastaddr, lasttype))
+	  && hook (lastaddr, scanline_events[i].pos - lastaddr, lasttype,
+		   closure))
 	{
 	  grub_free (scanline_events);
 	  return GRUB_ERR_NONE;
@@ -320,63 +336,67 @@ fill_mask (grub_uint64_t addr, grub_uint64_t mask, grub_uint64_t iterator)
   return ret;
 }
 
+struct grub_cmd_badram_closure
+{
+  grub_uint64_t badaddr, badmask;
+};
+
+static int
+grub_cmd_badram_hook (grub_uint64_t addr, grub_uint64_t size,
+		      grub_uint32_t type UNUSED, void *closure)
+{
+  struct grub_cmd_badram_closure *c = closure;
+  grub_uint64_t iterator, low, high, cur;
+  int tail, var;
+  int i;
+  grub_dprintf ("badram", "hook %llx+%llx\n", (unsigned long long) addr,
+		(unsigned long long) size);
+
+  /* How many trailing zeros? */
+  for (tail = 0; ! (c->badmask & (1ULL << tail)); tail++);
+
+  /* How many zeros in mask? */
+  var = 0;
+  for (i = 0; i < 64; i++)
+    if (! (c->badmask & (1ULL << i)))
+      var++;
+
+  if (fill_mask (c->badaddr, c->badmask, 0) >= addr)
+    iterator = 0;
+  else
+    {
+      low = 0;
+      high = ~0ULL;
+      /* Find starting value. Keep low and high such that
+	 fill_mask (low) < addr and fill_mask (high) >= addr;
+      */
+      while (high - low > 1)
+	{
+	  cur = (low + high) / 2;
+	  if (fill_mask (c->badaddr, c->badmask, cur) >= addr)
+	    high = cur;
+	  else
+	    low = cur;
+	}
+      iterator = high;
+    }
+
+  for (; iterator < (1ULL << (var - tail))
+	 && (cur = fill_mask (c->badaddr, c->badmask, iterator)) < addr + size;
+       iterator++)
+    {
+      grub_dprintf ("badram", "%llx (size %llx) is a badram range\n",
+		    (unsigned long long) cur, (1ULL << tail));
+      grub_mmap_register (cur, (1ULL << tail), GRUB_MACHINE_MEMORY_HOLE);
+    }
+  return 0;
+}
+
 static grub_err_t
 grub_cmd_badram (grub_command_t cmd __attribute__ ((unused)),
 		 int argc, char **args)
 {
   char * str;
-  grub_uint64_t badaddr, badmask;
-
-  auto int NESTED_FUNC_ATTR hook (grub_uint64_t, grub_uint64_t, grub_uint32_t);
-  int NESTED_FUNC_ATTR hook (grub_uint64_t addr,
-			     grub_uint64_t size,
-			     grub_uint32_t type __attribute__ ((unused)))
-  {
-    grub_uint64_t iterator, low, high, cur;
-    int tail, var;
-    int i;
-    grub_dprintf ("badram", "hook %llx+%llx\n", (unsigned long long) addr,
-		  (unsigned long long) size);
-
-    /* How many trailing zeros? */
-    for (tail = 0; ! (badmask & (1ULL << tail)); tail++);
-
-    /* How many zeros in mask? */
-    var = 0;
-    for (i = 0; i < 64; i++)
-      if (! (badmask & (1ULL << i)))
-	var++;
-
-    if (fill_mask (badaddr, badmask, 0) >= addr)
-      iterator = 0;
-    else
-      {
-	low = 0;
-	high = ~0ULL;
-	/* Find starting value. Keep low and high such that
-	   fill_mask (low) < addr and fill_mask (high) >= addr;
-	*/
-	while (high - low > 1)
-	  {
-	    cur = (low + high) / 2;
-	    if (fill_mask (badaddr, badmask, cur) >= addr)
-	      high = cur;
-	    else
-	      low = cur;
-	  }
-	iterator = high;
-      }
-
-    for (; iterator < (1ULL << (var - tail))
-	   && (cur = fill_mask (badaddr, badmask, iterator)) < addr + size;
-	 iterator++)
-      {
-	grub_dprintf ("badram", "%llx (size %llx) is a badram range\n",
-		      (unsigned long long) cur, (1ULL << tail));
-	grub_mmap_register (cur, (1ULL << tail), GRUB_MACHINE_MEMORY_HOLE);
-      }
-    return 0;
-  }
 
   if (argc != 1)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, "badram string required");
@@ -387,11 +407,13 @@ grub_cmd_badram (grub_command_t cmd __attribute__ ((unused)),
 
   while (1)
     {
+      struct grub_cmd_badram_closure c;
+
       /* Parse address and mask.  */
-      badaddr = grub_strtoull (str, &str, 16);
+      c.badaddr = grub_strtoull (str, &str, 16);
       if (*str == ',')
 	str++;
-      badmask = grub_strtoull (str, &str, 16);
+      c.badmask = grub_strtoull (str, &str, 16);
       if (*str == ',')
 	str++;
 
@@ -403,12 +425,13 @@ grub_cmd_badram (grub_command_t cmd __attribute__ ((unused)),
 
       /* When part of a page is tainted, we discard the whole of it.  There's
 	 no point in providing sub-page chunks.  */
-      badmask &= ~(CHUNK_SIZE - 1);
+      c.badmask &= ~(CHUNK_SIZE - 1);
 
       grub_dprintf ("badram", "badram %llx:%llx\n",
-		    (unsigned long long) badaddr, (unsigned long long) badmask);
+		    (unsigned long long) c.badaddr,
+		    (unsigned long long) c.badmask);
 
-      grub_mmap_iterate (hook);
+      grub_mmap_iterate (grub_cmd_badram_hook, &c);
     }
 }
 

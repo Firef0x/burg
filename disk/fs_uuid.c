@@ -27,52 +27,64 @@
 #include <grub/fs.h>
 #include <grub/partition.h>
 
+struct search_fs_uuid_closure
+{
+  const char *key;
+  unsigned long *count;
+  grub_device_t ret;
+};
+
+static int
+iterate_device (const char *name, void *closure)
+{
+  struct search_fs_uuid_closure *c = closure;
+  grub_device_t dev;
+
+  dev = grub_device_open (name);
+  if (dev)
+    {
+      grub_fs_t fs;
+
+      fs = grub_fs_probe (dev);
+      if (fs && fs->uuid)
+	{
+	  char *uuid;
+
+	  (fs->uuid) (dev, &uuid);
+	  if (grub_errno == GRUB_ERR_NONE && uuid)
+	    {
+	      (*c->count)++;
+
+	      if (grub_strcasecmp (uuid, c->key) == 0)
+		{
+		  c->ret = dev;
+		  grub_free (uuid);
+		  return 1;
+		}
+	      grub_free (uuid);
+	    }
+	}
+
+      grub_device_close (dev);
+    }
+
+  grub_errno = GRUB_ERR_NONE;
+  return 0;
+}
+
 static grub_device_t
 search_fs_uuid (const char *key, unsigned long *count)
 {
-  *count = 0;
-  grub_device_t ret = NULL;
+  struct search_fs_uuid_closure c;
 
-  auto int iterate_device (const char *name);
-  int iterate_device (const char *name)
-    {
-      grub_device_t dev;
+  c.key = key;
+  c.count = count;
+  *(c.count) = 0;
+  c.ret = NULL;
 
-      dev = grub_device_open (name);
-      if (dev)
-	{
-	  grub_fs_t fs;
+  grub_device_iterate (iterate_device, &c);
 
-	  fs = grub_fs_probe (dev);
-	  if (fs && fs->uuid)
-	    {
-	      char *uuid;
-
-	      (fs->uuid) (dev, &uuid);
-	      if (grub_errno == GRUB_ERR_NONE && uuid)
-		{
-		  (*count)++;
-
-		  if (grub_strcasecmp (uuid, key) == 0)
-		    {
-		      ret = dev;
-		      grub_free (uuid);
-		      return 1;
-		    }
-		  grub_free (uuid);
-		}
-	    }
-
-	  grub_device_close (dev);
-	}
-
-      grub_errno = GRUB_ERR_NONE;
-      return 0;
-    }
-
-  grub_device_iterate (iterate_device);
-
-  return ret;
+  return c.ret;
 }
 
 static grub_err_t

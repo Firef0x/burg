@@ -174,7 +174,8 @@ grub_usb_root_hub (grub_usb_controller_t controller)
 }
 
 int
-grub_usb_iterate (int (*hook) (grub_usb_device_t dev))
+grub_usb_iterate (int (*hook) (grub_usb_device_t dev, void *closure),
+		  void *closure)
 {
   int i;
 
@@ -182,7 +183,7 @@ grub_usb_iterate (int (*hook) (grub_usb_device_t dev))
     {
       if (grub_usb_devs[i])
 	{
-	  if (hook (grub_usb_devs[i]))
+	  if (hook (grub_usb_devs[i], closure))
 	      return 1;
 	}
     }

@@ -42,7 +42,8 @@ grub_lvm_getvalue (char **p, char *str)
 }
 
 static int
-grub_lvm_iterate (int (*hook) (const char *name))
+grub_lvm_iterate (int (*hook) (const char *name, void *closure),
+		  void *closure)
 {
   struct grub_lvm_vg *vg;
   for (vg = vg_list; vg; vg = vg->next)
@@ -50,7 +51,7 @@ grub_lvm_iterate (int (*hook) (const char *name))
       struct grub_lvm_lv *lv;
       if (vg->lvs)
 	for (lv = vg->lvs; lv; lv = lv->next)
-	  if (hook (lv->name))
+	  if (hook (lv->name, closure))
 	    return 1;
     }
 
@@ -203,7 +204,7 @@ grub_lvm_write (grub_disk_t disk __attribute ((unused)),
 }
 
 static int
-grub_lvm_scan_device (const char *name)
+grub_lvm_scan_device (const char *name, void *closure UNUSED)
 {
   grub_err_t err;
   grub_disk_t disk;
@@ -600,7 +601,7 @@ static struct grub_disk_dev grub_lvm_dev =
 
 GRUB_MOD_INIT(lvm)
 {
-  grub_device_iterate (&grub_lvm_scan_device);
+  grub_device_iterate (&grub_lvm_scan_device, 0);
   if (grub_errno)
     {
       grub_print_error ();

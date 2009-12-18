@@ -291,67 +291,75 @@ extern grub_uint8_t grub_linux_trampoline_start[];
 extern grub_uint8_t grub_linux_trampoline_end[];
 #endif
 
+struct grub_linux_boot_closure
+{
+  struct linux_kernel_params *params;
+  int e820_num;
+};
+
+static int
+grub_linux_boot_hook (grub_uint64_t addr, grub_uint64_t size,
+		      grub_uint32_t type, void *closure)
+{
+  struct grub_linux_boot_closure *c = closure;
+
+  switch (type)
+    {
+    case GRUB_MACHINE_MEMORY_AVAILABLE:
+      grub_e820_add_region (c->params->e820_map, &c->e820_num,
+			    addr, size, GRUB_E820_RAM);
+      break;
+
+#ifdef GRUB_MACHINE_MEMORY_ACPI
+    case GRUB_MACHINE_MEMORY_ACPI:
+      grub_e820_add_region (c->params->e820_map, &c->e820_num,
+			    addr, size, GRUB_E820_ACPI);
+      break;
+#endif
+
+#ifdef GRUB_MACHINE_MEMORY_NVS
+    case GRUB_MACHINE_MEMORY_NVS:
+      grub_e820_add_region (c->params->e820_map, &c->e820_num,
+			    addr, size, GRUB_E820_NVS);
+      break;
+#endif
+
+#ifdef GRUB_MACHINE_MEMORY_CODE
+    case GRUB_MACHINE_MEMORY_CODE:
+      grub_e820_add_region (c->params->e820_map, &c->e820_num,
+			    addr, size, GRUB_E820_EXEC_CODE);
+      break;
+#endif
+
+    default:
+      grub_e820_add_region (c->params->e820_map, &c->e820_num,
+			    addr, size, GRUB_E820_RESERVED);
+    }
+  return 0;
+}
+
 static grub_err_t
 grub_linux_boot (void)
 {
-  struct linux_kernel_params *params;
   grub_efi_uintn_t mmap_size;
   grub_efi_uintn_t map_key;
   grub_efi_uintn_t desc_size;
   grub_efi_uint32_t desc_version;
-  int e820_num;
+  struct grub_linux_boot_closure c;
 
-  params = real_mode_mem;
+  c.params = real_mode_mem;
 
   grub_dprintf ("linux", "code32_start = %x, idt_desc = %lx, gdt_desc = %lx\n",
-		(unsigned) params->code32_start,
+		(unsigned) c.params->code32_start,
 		(unsigned long) &(idt_desc.limit),
 		(unsigned long) &(gdt_desc.limit));
   grub_dprintf ("linux", "idt = %x:%lx, gdt = %x:%lx\n",
 		(unsigned) idt_desc.limit, (unsigned long) idt_desc.base,
 		(unsigned) gdt_desc.limit, (unsigned long) gdt_desc.base);
 
-  auto int NESTED_FUNC_ATTR hook (grub_uint64_t, grub_uint64_t, grub_uint32_t);
-  int NESTED_FUNC_ATTR hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type)
-    {
-      switch (type)
-        {
-        case GRUB_MACHINE_MEMORY_AVAILABLE:
-	  grub_e820_add_region (params->e820_map, &e820_num,
-				addr, size, GRUB_E820_RAM);
-	  break;
-
-#ifdef GRUB_MACHINE_MEMORY_ACPI
-        case GRUB_MACHINE_MEMORY_ACPI:
-	  grub_e820_add_region (params->e820_map, &e820_num,
-				addr, size, GRUB_E820_ACPI);
-	  break;
-#endif
-
-#ifdef GRUB_MACHINE_MEMORY_NVS
-        case GRUB_MACHINE_MEMORY_NVS:
-	  grub_e820_add_region (params->e820_map, &e820_num,
-				addr, size, GRUB_E820_NVS);
-	  break;
-#endif
-
-#ifdef GRUB_MACHINE_MEMORY_CODE
-        case GRUB_MACHINE_MEMORY_CODE:
-	  grub_e820_add_region (params->e820_map, &e820_num,
-				addr, size, GRUB_E820_EXEC_CODE);
-	  break;
-#endif
-
-        default:
-          grub_e820_add_region (params->e820_map, &e820_num,
-                                addr, size, GRUB_E820_RESERVED);
-        }
-      return 0;
-    }
-
-  e820_num = 0;
-  grub_mmap_iterate (hook);
-  params->mmap_size = e820_num;
+  c.e820_num = 0;
+  grub_mmap_iterate (grub_linux_boot_hook, &c);
+  c.params->mmap_size = c.e820_num;
 
   mmap_size = find_mmap_size ();
   if (grub_efi_get_memory_map (&mmap_size, mmap_buf, &map_key,
@@ -364,22 +372,22 @@ grub_linux_boot (void)
   /* Note that no boot services are available from here.  */
 
   /* Pass EFI parameters.  */
-  if (grub_le_to_cpu16 (params->version) >= 0x0206)
+  if (grub_le_to_cpu16 (c.params->version) >= 0x0206)
     {
-      params->v0206.efi_mem_desc_size = desc_size;
-      params->v0206.efi_mem_desc_version = desc_version;
-      params->v0206.efi_mmap = (grub_uint32_t) (unsigned long) mmap_buf;
-      params->v0206.efi_mmap_size = mmap_size;
+      c.params->v0206.efi_mem_desc_size = desc_size;
+      c.params->v0206.efi_mem_desc_version = desc_version;
+      c.params->v0206.efi_mmap = (grub_uint32_t) (unsigned long) mmap_buf;
+      c.params->v0206.efi_mmap_size = mmap_size;
 #ifdef __x86_64__
-      params->v0206.efi_mmap_hi = (grub_uint32_t) ((grub_uint64_t) mmap_buf >> 32);
+      c.params->v0206.efi_mmap_hi = (grub_uint32_t) ((grub_uint64_t) mmap_buf >> 32);
 #endif
     }
-  else if (grub_le_to_cpu16 (params->version) >= 0x0204)
+  else if (grub_le_to_cpu16 (c.params->version) >= 0x0204)
     {
-      params->v0204.efi_mem_desc_size = desc_size;
-      params->v0204.efi_mem_desc_version = desc_version;
-      params->v0204.efi_mmap = (grub_uint32_t) (unsigned long) mmap_buf;
-      params->v0204.efi_mmap_size = mmap_size;
+      c.params->v0204.efi_mem_desc_size = desc_size;
+      c.params->v0204.efi_mem_desc_version = desc_version;
+      c.params->v0204.efi_mmap = (grub_uint32_t) (unsigned long) mmap_buf;
+      c.params->v0204.efi_mmap_size = mmap_size;
     }
 
 #ifdef __x86_64__
@@ -390,7 +398,7 @@ grub_linux_boot (void)
 
   ((void (*) (unsigned long, void *)) ((char *) prot_mode_mem
                                      + (prot_mode_pages << 12)))
-    (params->code32_start, real_mode_mem);
+    (c.params->code32_start, real_mode_mem);
 
 #else
 
@@ -402,7 +410,7 @@ grub_linux_boot (void)
   asm volatile ("lgdt %0" : : "m" (gdt_desc));
 
   /* Pass parameters.  */
-  asm volatile ("movl %0, %%ecx" : : "m" (params->code32_start));
+  asm volatile ("movl %0, %%ecx" : : "m" (c.params->code32_start));
   asm volatile ("movl %0, %%esi" : : "m" (real_mode_mem));
 
   asm volatile ("xorl %%ebx, %%ebx" : : );
@@ -465,77 +473,85 @@ find_line_len (grub_uint32_t *fb_base, grub_uint32_t *line_len)
   return 0;
 }
 
+struct find_framebuf_closure
+{
+  grub_uint32_t *fb_base;
+  grub_uint32_t *line_len;
+  int found;
+};
+
+static int
+find_card (grub_pci_device_t dev, grub_pci_id_t pciid, void *closure)
+{
+  struct find_framebuf_closure *c = closure;
+  grub_pci_address_t addr;
+
+  addr = grub_pci_make_address (dev, 2);
+  if (grub_pci_read (addr) >> 24 == 0x3)
+    {
+      int i;
+
+      grub_printf ("Display controller: %d:%d.%d\nDevice id: %x\n",
+		   grub_pci_get_bus (dev), grub_pci_get_device (dev),
+		   grub_pci_get_function (dev), pciid);
+      addr += 8;
+      for (i = 0; i < 6; i++, addr += 4)
+	{
+	  grub_uint32_t old_bar1, old_bar2, type;
+	  grub_uint64_t base64;
+
+	  old_bar1 = grub_pci_read (addr);
+	  if ((! old_bar1) || (old_bar1 & GRUB_PCI_ADDR_SPACE_IO))
+	    continue;
+
+	  type = old_bar1 & GRUB_PCI_ADDR_MEM_TYPE_MASK;
+	  if (type == GRUB_PCI_ADDR_MEM_TYPE_64)
+	    {
+	      if (i == 5)
+		break;
+
+	      old_bar2 = grub_pci_read (addr + 4);
+	    }
+	  else
+	    old_bar2 = 0;
+
+	  base64 = old_bar2;
+	  base64 <<= 32;
+	  base64 |= (old_bar1 & GRUB_PCI_ADDR_MEM_MASK);
+
+	  grub_printf ("%s(%d): 0x%llx\n",
+		       ((old_bar1 & GRUB_PCI_ADDR_MEM_PREFETCH) ?
+			"VMEM" : "MMIO"), i,
+		       (unsigned long long) base64);
+
+	  if ((old_bar1 & GRUB_PCI_ADDR_MEM_PREFETCH) && (! c->found))
+	    {
+	      *(c->fb_base) = base64;
+	      if (find_line_len (c->fb_base, c->line_len))
+		c->found++;
+	    }
+
+	  if (type == GRUB_PCI_ADDR_MEM_TYPE_64)
+	    {
+	      i++;
+	      addr += 4;
+	    }
+	}
+    }
+
+  return c->found;
+}
+
 static int
 find_framebuf (grub_uint32_t *fb_base, grub_uint32_t *line_len)
 {
-  int found = 0;
+  struct find_framebuf_closure c;
 
-  auto int NESTED_FUNC_ATTR find_card (grub_pci_device_t dev,
-				       grub_pci_id_t pciid);
-
-  int NESTED_FUNC_ATTR find_card (grub_pci_device_t dev,
-				  grub_pci_id_t pciid)
-    {
-      grub_pci_address_t addr;
-
-      addr = grub_pci_make_address (dev, 2);
-      if (grub_pci_read (addr) >> 24 == 0x3)
-	{
-	  int i;
-
-	  grub_printf ("Display controller: %d:%d.%d\nDevice id: %x\n",
-		       grub_pci_get_bus (dev), grub_pci_get_device (dev),
-		       grub_pci_get_function (dev), pciid);
-	  addr += 8;
-	  for (i = 0; i < 6; i++, addr += 4)
-	    {
-	      grub_uint32_t old_bar1, old_bar2, type;
-	      grub_uint64_t base64;
-
-	      old_bar1 = grub_pci_read (addr);
-	      if ((! old_bar1) || (old_bar1 & GRUB_PCI_ADDR_SPACE_IO))
-		continue;
-
-	      type = old_bar1 & GRUB_PCI_ADDR_MEM_TYPE_MASK;
-	      if (type == GRUB_PCI_ADDR_MEM_TYPE_64)
-		{
-		  if (i == 5)
-		    break;
-
-		  old_bar2 = grub_pci_read (addr + 4);
-		}
-	      else
-		old_bar2 = 0;
-
-	      base64 = old_bar2;
-	      base64 <<= 32;
-	      base64 |= (old_bar1 & GRUB_PCI_ADDR_MEM_MASK);
-
-	      grub_printf ("%s(%d): 0x%llx\n",
-			   ((old_bar1 & GRUB_PCI_ADDR_MEM_PREFETCH) ?
-			    "VMEM" : "MMIO"), i,
-			   (unsigned long long) base64);
-
-	      if ((old_bar1 & GRUB_PCI_ADDR_MEM_PREFETCH) && (! found))
-		{
-		  *fb_base = base64;
-		  if (find_line_len (fb_base, line_len))
-		    found++;
-		}
-
-	      if (type == GRUB_PCI_ADDR_MEM_TYPE_64)
-		{
-		  i++;
-		  addr += 4;
-		}
-	    }
-	}
-
-      return found;
-    }
-
-  grub_pci_iterate (find_card);
-  return found;
+  c.fb_base = fb_base;
+  c.line_len = line_len;
+  c.found = 0;
+  grub_pci_iterate (find_card, &c);
+  return c.found;
 }
 
 static int

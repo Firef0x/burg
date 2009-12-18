@@ -129,6 +129,57 @@ static char *compute_dest_ofpath (const char *dest)
 }
 
 static void
+save_first_sector (grub_disk_addr_t sector, unsigned int offset,
+		   unsigned int length, void *closure)
+{
+  grub_disk_addr_t *first_sector = closure;
+
+  grub_util_info ("first sector is <%llu,%u,%u>", sector, offset, length);
+
+  if (offset != 0 || length != GRUB_DISK_SECTOR_SIZE)
+    grub_util_error ("The first sector of the core file "
+		     "is not sector-aligned");
+
+  *first_sector = sector;
+}
+
+struct save_blocklists_closure
+{
+  struct boot_blocklist *first_block;
+  struct boot_blocklist **block;
+  grub_uint16_t last_length;
+};
+
+static void
+save_blocklists (grub_disk_addr_t sector, unsigned int offset,
+		 unsigned int length, void *closure)
+{
+  struct save_blocklists_closure *c = closure;
+  struct boot_blocklist *prev = *c->block + 1;
+
+  grub_util_info ("saving <%llu,%u,%u>", sector, offset, length);
+
+  if (offset != 0 || c->last_length != GRUB_DISK_SECTOR_SIZE)
+    grub_util_error ("Non-sector-aligned data is found in the core file");
+
+  if (*c->block != c->first_block
+      && (grub_be_to_cpu64 (prev->start)
+	  + grub_be_to_cpu16 (prev->len)) == sector)
+    prev->len = grub_cpu_to_be16 (grub_be_to_cpu16 (prev->len) + 1);
+  else
+    {
+      (*c->block)->start = grub_cpu_to_be64 (sector);
+      (*c->block)->len = grub_cpu_to_be16 (1);
+
+      (*c->block)--;
+      if ((*c->block)->len)
+	grub_util_error ("The sectors of the core file are too fragmented");
+    }
+
+  c->last_length = length;
+}
+
+static void
 setup (const char *prefix, const char *dir,
        const char *boot_file, const char *core_file,
        const char *root, const char *dest)
@@ -144,59 +195,11 @@ setup (const char *prefix, const char *dir,
   char *tmp_img;
   int i;
   grub_disk_addr_t first_sector;
-  grub_uint16_t last_length = GRUB_DISK_SECTOR_SIZE;
   grub_file_t file;
   FILE *fp;
   struct { grub_uint64_t start; grub_uint64_t end; } embed_region;
+  struct save_blocklists_closure c;
   embed_region.start = embed_region.end = ~0UL;
-
-  auto void NESTED_FUNC_ATTR save_first_sector (grub_disk_addr_t sector,
-						unsigned int offset,
-						unsigned int length);
-  auto void NESTED_FUNC_ATTR save_blocklists (grub_disk_addr_t sector,
-					      unsigned int offset,
-					      unsigned int length);
-
-  void NESTED_FUNC_ATTR save_first_sector (grub_disk_addr_t sector,
-					   unsigned int offset,
-					   unsigned int length)
-    {
-      grub_util_info ("first sector is <%llu,%u,%u>", sector, offset, length);
-
-      if (offset != 0 || length != GRUB_DISK_SECTOR_SIZE)
-	grub_util_error ("The first sector of the core file "
-			 "is not sector-aligned");
-
-      first_sector = sector;
-    }
-
-  void NESTED_FUNC_ATTR save_blocklists (grub_disk_addr_t sector,
-					 unsigned int offset,
-					 unsigned int length)
-    {
-      struct boot_blocklist *prev = block + 1;
-
-      grub_util_info ("saving <%llu,%u,%u>", sector, offset, length);
-
-      if (offset != 0 || last_length != GRUB_DISK_SECTOR_SIZE)
-	grub_util_error ("Non-sector-aligned data is found in the core file");
-
-      if (block != first_block
-	  && (grub_be_to_cpu64 (prev->start)
-	      + grub_be_to_cpu16 (prev->len)) == sector)
-	prev->len = grub_cpu_to_be16 (grub_be_to_cpu16 (prev->len) + 1);
-      else
-	{
-	  block->start = grub_cpu_to_be64 (sector);
-	  block->len = grub_cpu_to_be16 (1);
-
-	  block--;
-	  if (block->len)
-	    grub_util_error ("The sectors of the core file are too fragmented");
-	}
-
-      last_length = length;
-    }
 
   dest_ofpath = compute_dest_ofpath (dest);
 
@@ -344,12 +347,17 @@ setup (const char *prefix, const char *dir,
     grub_util_error ("%s", grub_errmsg);
 
   file->read_hook = save_first_sector;
+  file->closure = &first_sector;
   if (grub_file_read (file, tmp_img, GRUB_DISK_SECTOR_SIZE)
       != GRUB_DISK_SECTOR_SIZE)
     grub_util_error ("Failed to read the first sector of the core image");
 
   block = first_block;
+  c.last_length = GRUB_DISK_SECTOR_SIZE;
+  c.first_block = first_block;
+  c.block = &block;
   file->read_hook = save_blocklists;
+  file->closure = &c;
   if (grub_file_read (file, tmp_img, core_size - GRUB_DISK_SECTOR_SIZE)
       != (grub_ssize_t) core_size - GRUB_DISK_SECTOR_SIZE)
     grub_util_error ("Failed to read the rest sectors of the core image");

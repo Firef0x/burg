@@ -70,49 +70,59 @@ ofdisk_hash_add (char *devpath)
   return p;
 }
 
-static int
-grub_ofdisk_iterate (int (*hook) (const char *name))
+struct grub_ofdisk_iterate_closure
 {
-  auto int dev_iterate (struct grub_ieee1275_devalias *alias);
+  int (*hook) (const char *name, void *closure);
+  void *closure;
+};
 
-  int dev_iterate (struct grub_ieee1275_devalias *alias)
+static int
+dev_iterate (struct grub_ieee1275_devalias *alias, void *closure)
+{
+  struct grub_ofdisk_iterate_closure *c = closure;
+  int ret = 0;
+
+  grub_dprintf ("disk", "disk name = %s\n", alias->name);
+
+  if (grub_ieee1275_test_flag (GRUB_IEEE1275_FLAG_OFDISK_SDCARD_ONLY))
     {
-      int ret = 0;
+      grub_ieee1275_phandle_t dev;
+      char tmp[8];
 
-      grub_dprintf ("disk", "disk name = %s\n", alias->name);
-
-      if (grub_ieee1275_test_flag (GRUB_IEEE1275_FLAG_OFDISK_SDCARD_ONLY))
+      if (grub_ieee1275_finddevice (alias->path, &dev))
 	{
-	  grub_ieee1275_phandle_t dev;
-	  char tmp[8];
-
-	  if (grub_ieee1275_finddevice (alias->path, &dev))
-	    {
-	      grub_dprintf ("disk", "finddevice (%s) failed\n", alias->path);
-	      return 0;
-	    }
-
-	  if (grub_ieee1275_get_property (dev, "iconname", tmp,
-					  sizeof tmp, 0))
-	    {
-	      grub_dprintf ("disk", "get iconname failed\n");
-	      return 0;
-	    }
-
-	  if (grub_strcmp (tmp, "sdmmc"))
-	    {
-	      grub_dprintf ("disk", "device is not an SD card\n");
-	      return 0;
-	    }
+	  grub_dprintf ("disk", "finddevice (%s) failed\n", alias->path);
+	  return 0;
 	}
 
-      if (! grub_strcmp (alias->type, "block") &&
-	  grub_strncmp (alias->name, "cdrom", 5))
-	ret = hook (alias->name);
-      return ret;
+      if (grub_ieee1275_get_property (dev, "iconname", tmp,
+				      sizeof tmp, 0))
+	{
+	  grub_dprintf ("disk", "get iconname failed\n");
+	  return 0;
+	}
+
+      if (grub_strcmp (tmp, "sdmmc"))
+	{
+	  grub_dprintf ("disk", "device is not an SD card\n");
+	  return 0;
+	}
     }
 
-  return grub_devalias_iterate (dev_iterate);
+  if (! grub_strcmp (alias->type, "block") &&
+      grub_strncmp (alias->name, "cdrom", 5))
+    ret = c->hook (alias->name, c->closure);
+  return ret;
+}
+
+static int
+grub_ofdisk_iterate (int (*hook) (const char *name, void *closure), void *closure)
+{
+  struct grub_ofdisk_iterate_closure c;
+
+  c.hook = hook;
+  c.closure = closure;
+  return grub_devalias_iterate (dev_iterate, &c);
 }
 
 static char *

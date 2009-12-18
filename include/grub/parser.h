@@ -61,7 +61,7 @@ grub_parser_state_t grub_parser_cmdline_state (grub_parser_state_t state,
 
 grub_err_t grub_parser_split_cmdline (const char *cmdline,
 				      grub_reader_getline_t getline,
-				      int *argc, char ***argv);
+				      void *closure, int *argc, char ***argv);
 
 struct grub_parser
 {
@@ -77,7 +77,8 @@ struct grub_parser
   /* Clean up the parser.  */
   grub_err_t (*fini) (void);
 
-  grub_err_t (*parse_line) (char *line, grub_reader_getline_t getline);
+  grub_err_t (*parse_line) (char *line, grub_reader_getline_t getline,
+			    void *closure);
 };
 typedef struct grub_parser *grub_parser_t;
 

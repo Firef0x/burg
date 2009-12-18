@@ -37,9 +37,9 @@ struct grub_elf_file
 typedef struct grub_elf_file *grub_elf_t;
 
 typedef grub_err_t (*grub_elf32_load_hook_t)
-  (Elf32_Phdr *phdr, grub_addr_t *addr, int *load);
+  (Elf32_Phdr *phdr, grub_addr_t *addr, int *load, void *);
 typedef grub_err_t (*grub_elf64_load_hook_t)
-  (Elf64_Phdr *phdr, grub_addr_t *addr, int *load);
+  (Elf64_Phdr *phdr, grub_addr_t *addr, int *load, void *);
 
 grub_elf_t grub_elf_open (const char *);
 grub_elf_t grub_elf_file (grub_file_t);
@@ -47,12 +47,12 @@ grub_err_t grub_elf_close (grub_elf_t);
 
 int grub_elf_is_elf32 (grub_elf_t);
 grub_size_t grub_elf32_size (grub_elf_t);
-grub_err_t grub_elf32_load (grub_elf_t, grub_elf32_load_hook_t, grub_addr_t *,
-			    grub_size_t *);
+grub_err_t grub_elf32_load (grub_elf_t, grub_elf32_load_hook_t, void *,
+			    grub_addr_t *, grub_size_t *);
 
 int grub_elf_is_elf64 (grub_elf_t);
 grub_size_t grub_elf64_size (grub_elf_t);
-grub_err_t grub_elf64_load (grub_elf_t, grub_elf64_load_hook_t, grub_addr_t *,
-			    grub_size_t *);
+grub_err_t grub_elf64_load (grub_elf_t, grub_elf64_load_hook_t, void *,
+			    grub_addr_t *, grub_size_t *);
 
 #endif /* ! GRUB_ELFLOAD_HEADER */

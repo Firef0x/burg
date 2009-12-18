@@ -70,36 +70,37 @@ static grub_usb_device_t usbdev;
 #define USB_HID_SET_IDLE	0x0A
 #define USB_HID_SET_PROTOCOL	0x0B
 
-static void
-grub_usb_hid (void)
+static int
+usb_iterate (grub_usb_device_t dev, void *closure __attribute__ ((unused)))
 {
   struct grub_usb_desc_device *descdev;
 
-  auto int usb_iterate (grub_usb_device_t dev);
-  int usb_iterate (grub_usb_device_t dev)
-    {
-      descdev = &dev->descdev;
+  descdev = &dev->descdev;
 
-      grub_dprintf ("usb_keyboard", "%x %x %x\n",
-		   descdev->class, descdev->subclass, descdev->protocol);
+  grub_dprintf ("usb_keyboard", "%x %x %x\n",
+		descdev->class, descdev->subclass, descdev->protocol);
 
 #if 0
-      if (descdev->class != 0x09
-	  || descdev->subclass == 0x01
-	  || descdev->protocol != 0x02)
-	return 0;
+  if (descdev->class != 0x09
+      || descdev->subclass == 0x01
+      || descdev->protocol != 0x02)
+    return 0;
 #endif
 
-      if (descdev->class != 0 || descdev->subclass != 0 || descdev->protocol != 0)
-	return 0;
+  if (descdev->class != 0 || descdev->subclass != 0 || descdev->protocol != 0)
+    return 0;
 
-      grub_printf ("HID found!\n");
+  grub_printf ("HID found!\n");
 
-      usbdev = dev;
+  usbdev = dev;
 
-      return 1;
-    }
-  grub_usb_iterate (usb_iterate);
+  return 1;
+}
+
+static void
+grub_usb_hid (void)
+{
+  grub_usb_iterate (usb_iterate, 0);
 
   /* Place the device in boot mode.  */
   grub_usb_control_msg (usbdev, USB_HID_HOST_TO_DEVICE, USB_HID_SET_PROTOCOL,

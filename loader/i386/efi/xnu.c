@@ -66,77 +66,85 @@ find_line_len (grub_uint32_t *fb_base, grub_uint32_t *line_len)
   return 0;
 }
 
+struct find_framebuf_closure
+{
+  grub_uint32_t *fb_base;
+  grub_uint32_t *line_len;
+  int found;
+};
+
+static int
+find_card (grub_pci_device_t dev, grub_pci_id_t pciid, void *closure)
+{
+  struct find_framebuf_closure *c = closure;
+  grub_pci_address_t addr;
+
+  addr = grub_pci_make_address (dev, 2);
+  if (grub_pci_read (addr) >> 24 == 0x3)
+    {
+      int i;
+
+      grub_printf ("Display controller: %d:%d.%d\nDevice id: %x\n",
+		   grub_pci_get_bus (dev), grub_pci_get_device (dev),
+		   grub_pci_get_function (dev), pciid);
+      addr += 8;
+      for (i = 0; i < 6; i++, addr += 4)
+	{
+	  grub_uint32_t old_bar1, old_bar2, type;
+	  grub_uint64_t base64;
+
+	  old_bar1 = grub_pci_read (addr);
+	  if ((! old_bar1) || (old_bar1 & GRUB_PCI_ADDR_SPACE_IO))
+	    continue;
+
+	  type = old_bar1 & GRUB_PCI_ADDR_MEM_TYPE_MASK;
+	  if (type == GRUB_PCI_ADDR_MEM_TYPE_64)
+	    {
+	      if (i == 5)
+		break;
+
+	      old_bar2 = grub_pci_read (addr + 4);
+	    }
+	  else
+	    old_bar2 = 0;
+
+	  base64 = old_bar2;
+	  base64 <<= 32;
+	  base64 |= (old_bar1 & GRUB_PCI_ADDR_MEM_MASK);
+
+	  grub_printf ("%s(%d): 0x%llx\n",
+		       ((old_bar1 & GRUB_PCI_ADDR_MEM_PREFETCH) ?
+			"VMEM" : "MMIO"), i,
+		       (unsigned long long) base64);
+
+	  if ((old_bar1 & GRUB_PCI_ADDR_MEM_PREFETCH) && (! c->found))
+	    {
+	      *(c->fb_base) = base64;
+	      if (find_line_len (c->fb_base, c->line_len))
+		c->found++;
+	    }
+
+	  if (type == GRUB_PCI_ADDR_MEM_TYPE_64)
+	    {
+	      i++;
+	      addr += 4;
+	    }
+	}
+    }
+
+  return c->found;
+}
+
 static int
 find_framebuf (grub_uint32_t *fb_base, grub_uint32_t *line_len)
 {
-  int found = 0;
+  struct find_framebuf_closure c;
 
-  auto int NESTED_FUNC_ATTR find_card (grub_pci_device_t dev,
-				       grub_pci_id_t pciid);
-
-  int NESTED_FUNC_ATTR find_card (grub_pci_device_t dev,
-				  grub_pci_id_t pciid)
-    {
-      grub_pci_address_t addr;
-
-      addr = grub_pci_make_address (dev, 2);
-      if (grub_pci_read (addr) >> 24 == 0x3)
-	{
-	  int i;
-
-	  grub_printf ("Display controller: %d:%d.%d\nDevice id: %x\n",
-		       grub_pci_get_bus (dev), grub_pci_get_device (dev),
-		       grub_pci_get_function (dev), pciid);
-	  addr += 8;
-	  for (i = 0; i < 6; i++, addr += 4)
-	    {
-	      grub_uint32_t old_bar1, old_bar2, type;
-	      grub_uint64_t base64;
-
-	      old_bar1 = grub_pci_read (addr);
-	      if ((! old_bar1) || (old_bar1 & GRUB_PCI_ADDR_SPACE_IO))
-		continue;
-
-	      type = old_bar1 & GRUB_PCI_ADDR_MEM_TYPE_MASK;
-	      if (type == GRUB_PCI_ADDR_MEM_TYPE_64)
-		{
-		  if (i == 5)
-		    break;
-
-		  old_bar2 = grub_pci_read (addr + 4);
-		}
-	      else
-		old_bar2 = 0;
-
-	      base64 = old_bar2;
-	      base64 <<= 32;
-	      base64 |= (old_bar1 & GRUB_PCI_ADDR_MEM_MASK);
-
-	      grub_printf ("%s(%d): 0x%llx\n",
-			   ((old_bar1 & GRUB_PCI_ADDR_MEM_PREFETCH) ?
-			    "VMEM" : "MMIO"), i,
-			   (unsigned long long) base64);
-
-	      if ((old_bar1 & GRUB_PCI_ADDR_MEM_PREFETCH) && (! found))
-		{
-		  *fb_base = base64;
-		  if (find_line_len (fb_base, line_len))
-		    found++;
-		}
-
-	      if (type == GRUB_PCI_ADDR_MEM_TYPE_64)
-		{
-		  i++;
-		  addr += 4;
-		}
-	    }
-	}
-
-      return found;
-    }
-
-  grub_pci_iterate (find_card);
-  return found;
+  c.fb_base = fb_base;
+  c.line_len = line_len;
+  c.found = 0;
+  grub_pci_iterate (find_card, &c);
+  return c.found;
 }
 
 grub_err_t

@@ -30,27 +30,29 @@ GRUB_EXPORT(grub_usb_set_configuration);
 
 static grub_usb_controller_dev_t grub_usb_list;
 
+/* Iterate over all controllers found by the driver.  */
+static int
+grub_usb_controller_dev_register_hook (grub_usb_controller_t dev,
+				       void *closure)
+{
+  grub_usb_controller_dev_t usb = closure;
+
+  dev->dev = usb;
+
+  /* Enable the ports of the USB Root Hub.  */
+  grub_usb_root_hub (dev);
+
+  return 0;
+}
+
 void
 grub_usb_controller_dev_register (grub_usb_controller_dev_t usb)
 {
-  auto int iterate_hook (grub_usb_controller_t dev);
-
-  /* Iterate over all controllers found by the driver.  */
-  int iterate_hook (grub_usb_controller_t dev)
-    {
-      dev->dev = usb;
-
-      /* Enable the ports of the USB Root Hub.  */
-      grub_usb_root_hub (dev);
-
-      return 0;
-    }
-
   usb->next = grub_usb_list;
   grub_usb_list = usb;
 
   if (usb->iterate)
-    usb->iterate (iterate_hook);
+    usb->iterate (grub_usb_controller_dev_register_hook, usb);
 }
 
 void

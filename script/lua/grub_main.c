@@ -97,7 +97,7 @@ handle_lua_error (const char *error_type)
 }
 
 static grub_err_t
-grub_lua_parse_line (char *line, grub_reader_getline_t getline)
+grub_lua_parse_line (char *line, grub_reader_getline_t getline, void *closure)
 {
   int r;
   char *old_line = 0;
@@ -138,7 +138,7 @@ grub_lua_parse_line (char *line, grub_reader_getline_t getline)
 	      /* Discard the error message.  */
 	      lua_pop (state, 1);
 	      /* Try to read another line to complete the statement.  */
-	      if ((getline (&n, 1)) || (! n))
+	      if ((getline (&n, 1, closure)) || (! n))
 		{
 		  grub_error (GRUB_ERR_BAD_ARGUMENT, "incomplete command");
 		  break;

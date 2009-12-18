@@ -43,8 +43,9 @@ struct grub_file
   void *data;
 
   /* This is called when a sector is read. Used only for a disk device.  */
-  void NESTED_FUNC_ATTR (*read_hook) (grub_disk_addr_t sector,
-		     unsigned offset, unsigned length);
+  void (*read_hook) (grub_disk_addr_t sector,
+		     unsigned offset, unsigned length, void *closure);
+  void *closure;
 };
 typedef struct grub_file *grub_file_t;
 

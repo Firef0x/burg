@@ -47,7 +47,8 @@ typedef enum
   } grub_usb_speed_t;
 
 /* Call HOOK with each device, until HOOK returns non-zero.  */
-int grub_usb_iterate (int (*hook) (grub_usb_device_t dev));
+int grub_usb_iterate (int (*hook) (grub_usb_device_t dev, void *closure),
+		      void *closure);
 
 grub_usb_err_t grub_usb_device_initialize (grub_usb_device_t dev);
 
@@ -71,8 +72,9 @@ void grub_usb_controller_dev_register (grub_usb_controller_dev_t usb);
 
 void grub_usb_controller_dev_unregister (grub_usb_controller_dev_t usb);
 
-int grub_usb_controller_iterate (int (*hook) (grub_usb_controller_t dev));
-
+int grub_usb_controller_iterate (int (*hook) (grub_usb_controller_t dev,
+					      void *closure),
+				 void *closure);
 
 grub_usb_err_t grub_usb_control_msg (grub_usb_device_t dev, grub_uint8_t reqtype,
 				     grub_uint8_t request, grub_uint16_t value,
@@ -96,7 +98,8 @@ struct grub_usb_controller_dev
   /* The device name.  */
   const char *name;
 
-  int (*iterate) (int (*hook) (grub_usb_controller_t dev));
+  int (*iterate) (int (*hook) (grub_usb_controller_t dev, void *closure),
+		  void *closure);
 
   grub_usb_err_t (*transfer) (grub_usb_controller_t dev,
 			      grub_usb_transfer_t transfer);

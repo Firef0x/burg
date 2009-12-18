@@ -45,6 +45,10 @@
  *  This is the area for all of the special variables.
  */
 
+GRUB_EXPORT_START
+GRUB_EXPORT(grub_reboot)
+GRUB_EXPORT_END
+
 	.p2align	2	/* force 4-byte alignment */
 
 protstack:

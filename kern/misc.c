@@ -643,42 +643,42 @@ grub_lltoa (char *str, int c, unsigned long long n)
   return p;
 }
 
+static void
+write_char (unsigned char ch, char **str, int *count)
+{
+  if (*str)
+    *(*str)++ = ch;
+  else
+    grub_putchar (ch);
+
+  (*count)++;
+}
+
+static void
+write_str (const char *s, char **str, int *count)
+{
+  while (*s)
+    write_char (*s++, str, count);
+}
+
+static void
+write_fill (const char ch, int n, char **str, int *count)
+{
+  int i;
+  for (i = 0; i < n; i++)
+    write_char (ch, str, count);
+}
+
 int
 grub_vsprintf (char *str, const char *fmt, va_list args)
 {
   char c;
   int count = 0;
-  auto void write_char (unsigned char ch);
-  auto void write_str (const char *s);
-  auto void write_fill (const char ch, int n);
-
-  void write_char (unsigned char ch)
-    {
-      if (str)
-	*str++ = ch;
-      else
-	grub_putchar (ch);
-
-      count++;
-    }
-
-  void write_str (const char *s)
-    {
-      while (*s)
-	write_char (*s++);
-    }
-
-  void write_fill (const char ch, int n)
-    {
-      int i;
-      for (i = 0; i < n; i++)
-	write_char (ch);
-    }
 
   while ((c = *fmt++) != 0)
     {
       if (c != '%')
-	write_char (c);
+	write_char (c, &str, &count);
       else
 	{
 	  char tmp[32];
@@ -746,7 +746,7 @@ grub_vsprintf (char *str, const char *fmt, va_list args)
 	  switch (c)
 	    {
 	    case 'p':
-	      write_str ("0x");
+	      write_str ("0x", &str, &count);
 	      c = 'x';
 	      longlongfmt |= (sizeof (void *) == sizeof (long long));
 	      /* Fall through. */
@@ -783,15 +783,17 @@ grub_vsprintf (char *str, const char *fmt, va_list args)
 		  grub_lltoa (tmp, c, n);
 		}
 	      if (! rightfill && grub_strlen (tmp) < format1)
-		write_fill (zerofill, format1 - grub_strlen (tmp));
-	      write_str (tmp);
+		write_fill (zerofill, format1 - grub_strlen (tmp),
+			    &str, &count);
+	      write_str (tmp, &str, &count);
 	      if (rightfill && grub_strlen (tmp) < format1)
-		write_fill (zerofill, format1 - grub_strlen (tmp));
+		write_fill (zerofill, format1 - grub_strlen (tmp),
+			    &str, &count);
 	      break;
 
 	    case 'c':
 	      n = va_arg (args, int);
-	      write_char (n & 0xff);
+	      write_char (n & 0xff, &str, &count);
 	      break;
 
 	    case 'C':
@@ -837,10 +839,11 @@ grub_vsprintf (char *str, const char *fmt, va_list args)
 		    mask = 0;
 		  }
 
-		write_char (mask | (code >> shift));
+		write_char (mask | (code >> shift), &str, &count);
 
 		for (shift -= 6; shift >= 0; shift -= 6)
-		  write_char (0x80 | (0x3f & (code >> shift)));
+		  write_char (0x80 | (0x3f & (code >> shift)),
+			      &str, &count);
 	      }
 	      break;
 
@@ -853,22 +856,22 @@ grub_vsprintf (char *str, const char *fmt, va_list args)
 		    len++;
 
 		  if (!rightfill && len < format1)
-		    write_fill (zerofill, format1 - len);
+		    write_fill (zerofill, format1 - len, &str, &count);
 
 		  grub_size_t i;
 		  for (i = 0; i < len; i++)
-		    write_char (*p++);
+		    write_char (*p++, &str, &count);
 
 		  if (rightfill && len < format1)
-		    write_fill (zerofill, format1 - len);
+		    write_fill (zerofill, format1 - len, &str, &count);
 		}
 	      else
-		write_str ("(null)");
+		write_str ("(null)", &str, &count);
 
 	      break;
 
 	    default:
-	      write_char (c);
+	      write_char (c, &str, &count);
 	      break;
 	    }
 	}

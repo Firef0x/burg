@@ -391,9 +391,10 @@ grub_ata_device_initialize (int port, int device, int addr, int addr2)
   return 0;
 }
 
-static int NESTED_FUNC_ATTR
+static int
 grub_ata_pciinit (grub_pci_device_t dev,
-		  grub_pci_id_t pciid __attribute__((unused)))
+		  grub_pci_id_t pciid __attribute__((unused)),
+		  void *closure __attribute__((unused)))
 {
   static int compat_use[2] = { 0 };
   grub_pci_address_t addr;
@@ -485,7 +486,7 @@ grub_ata_pciinit (grub_pci_device_t dev,
 static grub_err_t
 grub_ata_initialize (void)
 {
-  grub_pci_iterate (grub_ata_pciinit);
+  grub_pci_iterate (grub_ata_pciinit, 0);
   return 0;
 }
 
@@ -646,7 +647,8 @@ grub_ata_readwrite (grub_disk_t disk, grub_disk_addr_t sector,
 
 
 static int
-grub_ata_iterate (int (*hook) (const char *name))
+grub_ata_iterate (int (*hook) (const char *name, void *closure),
+		  void *closure)
 {
   struct grub_ata_device *dev;
 
@@ -658,7 +660,7 @@ grub_ata_iterate (int (*hook) (const char *name))
       if (dev->atapi)
 	continue;
 
-      if (hook (devname))
+      if (hook (devname, closure))
 	return 1;
     }
 
@@ -733,7 +735,8 @@ static struct grub_disk_dev grub_atadisk_dev =
 /* ATAPI code.  */
 
 static int
-grub_atapi_iterate (int (*hook) (const char *name, int luns))
+grub_atapi_iterate (int (*hook) (const char *name, int luns, void *closure),
+		    void *closure)
 {
   struct grub_ata_device *dev;
 
@@ -745,7 +748,7 @@ grub_atapi_iterate (int (*hook) (const char *name, int luns))
       if (! dev->atapi)
 	continue;
 
-      if (hook (devname, 1))
+      if (hook (devname, 1, closure))
 	return 1;
     }
 

@@ -325,15 +325,16 @@ grub_strtab_find (grub_strtab_t head, char *name)
   return -index;
 }
 
+static int
+grub_strtab_insert_test (grub_strtab_t new_item, grub_strtab_t item,
+			 void *closure UNUSED)
+{
+  return (strcmp (new_item->name, item->name) < 0);
+}
+
 static void
 grub_strtab_insert (grub_strtab_t *head, char *name)
 {
-  auto int test (grub_strtab_t new_item, grub_strtab_t item);
-  int test (grub_strtab_t new_item, grub_strtab_t item)
-    {
-      return (strcmp (new_item->name, item->name) < 0);
-    }
-
   grub_strtab_t nitem;
 
   if (grub_strtab_find (*head, name) > 0)
@@ -344,7 +345,7 @@ grub_strtab_insert (grub_strtab_t *head, char *name)
   nitem->len = strlen (name);
 
   grub_list_insert (GRUB_AS_LIST_P (head), GRUB_AS_LIST (nitem),
-		    (grub_list_test_t) test);
+		    (grub_list_test_t) grub_strtab_insert_test, 0);
 }
 
 #define GRUB_OBJ_HEADER_MAX	0xffff

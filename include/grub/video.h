@@ -253,10 +253,11 @@ grub_video_unregister (grub_video_adapter_t adapter)
 }
 
 static inline void
-grub_video_iterate (int (*hook) (grub_video_adapter_t adapter))
+grub_video_iterate (int (*hook) (grub_video_adapter_t adapter, void *closure),
+		    void *closure)
 {
   grub_list_iterate (GRUB_AS_LIST (grub_video_adapter_list),
-		     (grub_list_hook_t) hook);
+		     (grub_list_hook_t) hook, closure);
 }
 
 grub_err_t grub_video_restore (void);
@@ -328,7 +329,8 @@ grub_err_t grub_video_set_active_render_target (struct grub_video_render_target 
 grub_err_t grub_video_get_active_render_target (struct grub_video_render_target **target);
 
 grub_err_t grub_video_set_mode (const char *modestring,
-				int NESTED_FUNC_ATTR (*hook) (grub_video_adapter_t p,
-							      struct grub_video_mode_info *mode_info));
+				int (*hook) (grub_video_adapter_t p,
+					     struct grub_video_mode_info *mode_info,
+					     void *closure), void *closure);
 
 #endif /* ! GRUB_VIDEO_HEADER */

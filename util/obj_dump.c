@@ -111,7 +111,7 @@ get_reloc_type (int type)
 }
 
 static int
-dump_segments_hook (struct grub_util_obj_segment *obj)
+dump_segments_hook (struct grub_util_obj_segment *obj, void *closure UNUSED)
 {
   printf ("%-10s%08x  %08x  %08x  %08x  %d\n",
 	  get_segment_name (obj->segment.type),
@@ -127,11 +127,11 @@ grub_obj_dump_segments (struct grub_util_obj *obj)
   printf ("Segments:\n"
 	  "Segment   Offset    Size      Raw Size  File Off  Align\n");
   grub_list_iterate (GRUB_AS_LIST (obj->segments),
-		     (grub_list_hook_t) dump_segments_hook);
+		     (grub_list_hook_t) dump_segments_hook, 0);
 }
 
 static int
-dump_symbols_hook (struct grub_util_obj_symbol *obj)
+dump_symbols_hook (struct grub_util_obj_symbol *obj, void *closure UNUSED)
 {
   if (obj->segment)
     printf ("%-10s%08x  %s\n",
@@ -147,11 +147,11 @@ grub_obj_dump_symbols (struct grub_util_obj *obj)
   printf ("Symbols:\n"
 	  "Segment   Offset    Name\n");
   grub_list_iterate (GRUB_AS_LIST (obj->symbols),
-		     (grub_list_hook_t) dump_symbols_hook);
+		     (grub_list_hook_t) dump_symbols_hook, 0);
 }
 
 static int
-dump_reloc_hook (struct grub_util_obj_reloc *obj)
+dump_reloc_hook (struct grub_util_obj_reloc *obj, void *closure UNUSED)
 {
   if (obj->segment)
     {
@@ -185,5 +185,5 @@ grub_obj_dump_relocs (struct grub_util_obj *obj)
   printf ("Relocs:\n"
 	  "Segment   Offset    Value     Type      Name\n");
   grub_list_iterate (GRUB_AS_LIST (obj->relocs),
-		     (grub_list_hook_t) dump_reloc_hook);
+		     (grub_list_hook_t) dump_reloc_hook, 0);
 }

@@ -977,6 +977,48 @@ grub_xnu_check_os_bundle_required (char *plistname, char *osbundlereq,
   return ret;
 }
 
+struct grub_xnu_scan_dir_for_kexts_closure
+{
+  char *dirname;
+  char *osbundlerequired;
+  int maxrecursion;
+};
+
+static int
+grub_xnu_scan_dir_for_kexts_hook (const char *filename,
+				  const struct grub_dirhook_info *info,
+				  void *closure)
+{
+  struct grub_xnu_scan_dir_for_kexts_closure *c = closure;
+  char *newdirname;
+  if (! info->dir)
+    return 0;
+  if (filename[0] == '.')
+    return 0;
+
+  if (grub_strlen (filename) < 5 ||
+      grub_memcmp (filename + grub_strlen (filename) - 5, ".kext", 5) != 0)
+    return 0;
+
+  newdirname
+    = grub_malloc (grub_strlen (c->dirname) + grub_strlen (filename) + 2);
+
+  /* It's a .kext. Try to load it. */
+  if (newdirname)
+    {
+      grub_strcpy (newdirname, c->dirname);
+      newdirname[grub_strlen (newdirname) + 1] = 0;
+      newdirname[grub_strlen (newdirname)] = '/';
+      grub_strcpy (newdirname + grub_strlen (newdirname), filename);
+      grub_xnu_load_kext_from_dir (newdirname, c->osbundlerequired,
+				   c->maxrecursion);
+      if (grub_errno == GRUB_ERR_BAD_OS)
+	grub_errno = GRUB_ERR_NONE;
+      grub_free (newdirname);
+    }
+  return 0;
+}
+
 /* Load all loadable kexts placed under DIRNAME and matching OSBUNDLEREQUIRED */
 grub_err_t
 grub_xnu_scan_dir_for_kexts (char *dirname, char *osbundlerequired,
@@ -987,39 +1029,6 @@ grub_xnu_scan_dir_for_kexts (char *dirname, char *osbundlerequired,
   grub_fs_t fs;
   const char *path;
 
-  auto int load_hook (const char *filename,
-		      const struct grub_dirhook_info *info);
-  int load_hook (const char *filename, const struct grub_dirhook_info *info)
-  {
-    char *newdirname;
-    if (! info->dir)
-      return 0;
-    if (filename[0] == '.')
-      return 0;
-
-    if (grub_strlen (filename) < 5 ||
-	grub_memcmp (filename + grub_strlen (filename) - 5, ".kext", 5) != 0)
-      return 0;
-
-    newdirname
-      = grub_malloc (grub_strlen (dirname) + grub_strlen (filename) + 2);
-
-    /* It's a .kext. Try to load it. */
-    if (newdirname)
-      {
-	grub_strcpy (newdirname, dirname);
-	newdirname[grub_strlen (newdirname) + 1] = 0;
-	newdirname[grub_strlen (newdirname)] = '/';
-	grub_strcpy (newdirname + grub_strlen (newdirname), filename);
-	grub_xnu_load_kext_from_dir (newdirname, osbundlerequired,
-				     maxrecursion);
-	if (grub_errno == GRUB_ERR_BAD_OS)
-	  grub_errno = GRUB_ERR_NONE;
-	grub_free (newdirname);
-      }
-    return 0;
-  }
-
   if (! grub_xnu_heap_size)
     return grub_error (GRUB_ERR_BAD_OS, "no xnu kernel loaded");
 
@@ -1027,6 +1036,8 @@ grub_xnu_scan_dir_for_kexts (char *dirname, char *osbundlerequired,
   dev = grub_device_open (device_name);
   if (dev)
     {
+      struct grub_xnu_scan_dir_for_kexts_closure c;
+
       fs = grub_fs_probe (dev);
       path = grub_strchr (dirname, ')');
       if (! path)
@@ -1034,13 +1045,60 @@ grub_xnu_scan_dir_for_kexts (char *dirname, char *osbundlerequired,
       else
 	path++;
 
+      c.dirname = dirname;
+      c.osbundlerequired = osbundlerequired;
+      c.maxrecursion = maxrecursion;
       if (fs)
-	(fs->dir) (dev, path, load_hook);
+	(fs->dir) (dev, path, grub_xnu_scan_dir_for_kexts_hook, 0);
       grub_device_close (dev);
     }
   grub_free (device_name);
 
   return GRUB_ERR_NONE;
+}
+
+struct grub_xnu_load_kext_from_dir_closure
+{
+  char *dirname;
+  char *osbundlerequired;
+  int maxrecursion;
+  int usemacos;
+  char *plistname;
+  char *newdirname;
+};
+
+static int
+grub_xnu_load_kext_from_dir_hook (const char *filename,
+				  const struct grub_dirhook_info *info,
+				  void *closure)
+{
+  struct grub_xnu_load_kext_from_dir_closure *c = closure;
+
+  if (grub_strlen (filename) > 15)
+    return 0;
+  grub_strcpy (c->newdirname + grub_strlen (c->dirname) + 1, filename);
+
+  /* If the kext contains directory "Contents" all real stuff is in
+     this directory. */
+  if (info->dir && grub_strcasecmp (filename, "Contents") == 0)
+    grub_xnu_load_kext_from_dir (c->newdirname, c->osbundlerequired,
+				 c->maxrecursion - 1);
+
+  /* Directory "Plugins" contains nested kexts. */
+  if (info->dir && grub_strcasecmp (filename, "Plugins") == 0)
+    grub_xnu_scan_dir_for_kexts (c->newdirname, c->osbundlerequired,
+				 c->maxrecursion - 1);
+
+  /* Directory "MacOS" contains executable, otherwise executable is
+     on the top. */
+  if (info->dir && grub_strcasecmp (filename, "MacOS") == 0)
+    c->usemacos = 1;
+
+  /* Info.plist is the file which governs our future actions. */
+  if (! info->dir && grub_strcasecmp (filename, "Info.plist") == 0
+      && ! c->plistname)
+    c->plistname = grub_strdup (c->newdirname);
+  return 0;
 }
 
 /* Load extension DIRNAME. (extensions are directories in xnu) */
@@ -1049,47 +1107,13 @@ grub_xnu_load_kext_from_dir (char *dirname, char *osbundlerequired,
 			     int maxrecursion)
 {
   grub_device_t dev;
-  char *plistname = 0;
   char *newdirname;
   char *newpath;
   char *device_name;
   grub_fs_t fs;
   const char *path;
   char *binsuffix;
-  int usemacos = 0;
   grub_file_t binfile;
-
-  auto int load_hook (const char *filename,
-		      const struct grub_dirhook_info *info);
-
-  int load_hook (const char *filename, const struct grub_dirhook_info *info)
-  {
-    if (grub_strlen (filename) > 15)
-      return 0;
-    grub_strcpy (newdirname + grub_strlen (dirname) + 1, filename);
-
-    /* If the kext contains directory "Contents" all real stuff is in
-       this directory. */
-    if (info->dir && grub_strcasecmp (filename, "Contents") == 0)
-      grub_xnu_load_kext_from_dir (newdirname, osbundlerequired,
-				   maxrecursion - 1);
-
-    /* Directory "Plugins" contains nested kexts. */
-    if (info->dir && grub_strcasecmp (filename, "Plugins") == 0)
-      grub_xnu_scan_dir_for_kexts (newdirname, osbundlerequired,
-				   maxrecursion - 1);
-
-    /* Directory "MacOS" contains executable, otherwise executable is
-       on the top. */
-    if (info->dir && grub_strcasecmp (filename, "MacOS") == 0)
-      usemacos = 1;
-
-    /* Info.plist is the file which governs our future actions. */
-    if (! info->dir && grub_strcasecmp (filename, "Info.plist") == 0
-	&& ! plistname)
-      plistname = grub_strdup (newdirname);
-    return 0;
-  }
 
   newdirname = grub_malloc (grub_strlen (dirname) + 20);
   if (! newdirname)
@@ -1101,6 +1125,8 @@ grub_xnu_load_kext_from_dir (char *dirname, char *osbundlerequired,
   dev = grub_device_open (device_name);
   if (dev)
     {
+      struct grub_xnu_load_kext_from_dir_closure c;
+
       fs = grub_fs_probe (dev);
       path = grub_strchr (dirname, ')');
       if (! path)
@@ -1114,12 +1140,18 @@ grub_xnu_load_kext_from_dir (char *dirname, char *osbundlerequired,
       else
 	newpath++;
 
+      c.dirname = dirname;
+      c.osbundlerequired = osbundlerequired;
+      c.maxrecursion = maxrecursion;
+      c.usemacos = 0;
+      c.plistname = 0;
+      c.newdirname = newdirname;
       /* Look at the directory. */
       if (fs)
-	(fs->dir) (dev, path, load_hook);
+	(fs->dir) (dev, path, grub_xnu_load_kext_from_dir_hook, &c);
 
-      if (plistname && grub_xnu_check_os_bundle_required
-	  (plistname, osbundlerequired, &binsuffix))
+      if (c.plistname && grub_xnu_check_os_bundle_required
+	  (c.plistname, osbundlerequired, &binsuffix))
 	{
 	  if (binsuffix)
 	    {
@@ -1128,28 +1160,28 @@ grub_xnu_load_kext_from_dir (char *dirname, char *osbundlerequired,
 					   + grub_strlen (binsuffix)
 					   + sizeof ("/MacOS/"));
 	      grub_strcpy (binname, dirname);
-	      if (usemacos)
+	      if (c.usemacos)
 		grub_strcpy (binname + grub_strlen (binname), "/MacOS/");
 	      else
 		grub_strcpy (binname + grub_strlen (binname), "/");
 	      grub_strcpy (binname + grub_strlen (binname), binsuffix);
-	      grub_dprintf ("xnu", "%s:%s\n", plistname, binname);
+	      grub_dprintf ("xnu", "%s:%s\n", c.plistname, binname);
 	      binfile = grub_gzfile_open (binname, 1);
 	      if (! binfile)
 		grub_errno = GRUB_ERR_NONE;
 
 	      /* Load the extension. */
-	      grub_xnu_load_driver (plistname, binfile);
+	      grub_xnu_load_driver (c.plistname, binfile);
 	      grub_free (binname);
 	      grub_free (binsuffix);
 	    }
 	  else
 	    {
-	      grub_dprintf ("xnu", "%s:0\n", plistname);
-	      grub_xnu_load_driver (plistname, 0);
+	      grub_dprintf ("xnu", "%s:0\n", c.plistname);
+	      grub_xnu_load_driver (c.plistname, 0);
 	    }
 	}
-      grub_free (plistname);
+      grub_free (c.plistname);
       grub_device_close (dev);
     }
   grub_free (device_name);

@@ -98,10 +98,47 @@ grub_parser_cmdline_state (grub_parser_state_t state, char c, char *result)
   return transition->to_state;
 }
 
+static int
+check_varstate (grub_parser_state_t s)
+{
+  return (s == GRUB_PARSER_STATE_VARNAME
+	  || s == GRUB_PARSER_STATE_VARNAME2
+	  || s == GRUB_PARSER_STATE_QVARNAME
+	  || s == GRUB_PARSER_STATE_QVARNAME2);
+}
+
+struct add_var_closure
+{
+  char varname[200];
+  char *vp;
+  char **bp;
+  grub_parser_state_t *state;
+};
+
+static void
+add_var (grub_parser_state_t newstate, struct add_var_closure *c)
+{
+  char *val;
+
+  /* Check if a variable was being read in and the end of the name
+     was reached.  */
+  if (! (check_varstate (*(c->state)) && !check_varstate (newstate)))
+    return;
+
+  *((c->vp)++) = '\0';
+  val = grub_env_get (c->varname);
+  c->vp = c->varname;
+  if (! val)
+    return;
+
+  /* Insert the contents of the variable in the buffer.  */
+  for (; *val; val++)
+    *((*(c->bp))++) = *val;
+}
 
 grub_err_t
 grub_parser_split_cmdline (const char *cmdline, grub_reader_getline_t getline,
-			   int *argc, char ***argv)
+			   void *closure, int *argc, char ***argv)
 {
   grub_parser_state_t state = GRUB_PARSER_STATE_TEXT;
   /* XXX: Fixed size buffer, perhaps this buffer should be dynamically
@@ -109,42 +146,13 @@ grub_parser_split_cmdline (const char *cmdline, grub_reader_getline_t getline,
   char buffer[1024];
   char *bp = buffer;
   char *rd = (char *) cmdline;
-  char varname[200];
-  char *vp = varname;
   char *args;
   int i;
+  struct add_var_closure c;
 
-  auto int check_varstate (grub_parser_state_t s);
-
-  int check_varstate (grub_parser_state_t s)
-    {
-      return (s == GRUB_PARSER_STATE_VARNAME
-	      || s == GRUB_PARSER_STATE_VARNAME2
-	      || s == GRUB_PARSER_STATE_QVARNAME
-	      || s == GRUB_PARSER_STATE_QVARNAME2);
-    }
-
-  auto void add_var (grub_parser_state_t newstate);
-
-  void add_var (grub_parser_state_t newstate)
-    {
-      char *val;
-
-      /* Check if a variable was being read in and the end of the name
-	 was reached.  */
-      if (! (check_varstate (state) && !check_varstate (newstate)))
-	return;
-
-      *(vp++) = '\0';
-      val = grub_env_get (varname);
-      vp = varname;
-      if (! val)
-	return;
-
-      /* Insert the contents of the variable in the buffer.  */
-      for (; *val; val++)
-	*(bp++) = *val;
-    }
+  c.vp = c.varname;
+  c.bp = &bp;
+  c.state = &state;
 
   *argc = 1;
   do
@@ -152,7 +160,7 @@ grub_parser_split_cmdline (const char *cmdline, grub_reader_getline_t getline,
       if (! *rd)
 	{
 	  if (getline)
-	    getline (&rd, 1);
+	    getline (&rd, 1, closure);
 	  else break;
 	}
 
@@ -166,12 +174,12 @@ grub_parser_split_cmdline (const char *cmdline, grub_reader_getline_t getline,
 	  /* If a variable was being processed and this character does
 	     not describe the variable anymore, write the variable to
 	     the buffer.  */
-	  add_var (newstate);
+	  add_var (newstate, &c);
 
 	  if (check_varstate (newstate))
 	    {
 	      if (use)
-		*(vp++) = use;
+		*(c.vp++) = use;
 	    }
 	  else
 	    {
@@ -196,8 +204,7 @@ grub_parser_split_cmdline (const char *cmdline, grub_reader_getline_t getline,
 
   /* A special case for when the last character was part of a
      variable.  */
-  add_var (GRUB_PARSER_STATE_TEXT);
-
+  add_var (GRUB_PARSER_STATE_TEXT, &c);
 
   /* Reserve memory for the return values.  */
   args = grub_malloc (bp - buffer);
@@ -233,39 +240,40 @@ struct grub_handler_class grub_parser_class =
     .name = "parser"
   };
 
-grub_err_t
-grub_parser_execute (char *source)
+static grub_err_t
+getline (char **line, int cont UNUSED, void *closure)
 {
-  auto grub_err_t getline (char **line, int cont);
-  grub_err_t getline (char **line, int cont __attribute__ ((unused)))
+  char **source = closure;
+  char *p;
+
+  if (! *source)
     {
-      char *p;
-
-      if (! source)
-	{
-	  *line = 0;
-	  return 0;
-	}
-
-      p = grub_strchr (source, '\n');
-      if (p)
-	*p = 0;
-
-      *line = grub_strdup (source);
-      if (p)
-	*p = '\n';
-      source = p ? p + 1 : 0;
+      *line = 0;
       return 0;
     }
 
+  p = grub_strchr (*source, '\n');
+  if (p)
+    *p = 0;
+
+  *line = grub_strdup (*source);
+  if (p)
+    *p = '\n';
+  *source = p ? p + 1 : 0;
+  return 0;
+}
+
+grub_err_t
+grub_parser_execute (char *source)
+{
   while (source)
     {
       char *line;
       grub_parser_t parser;
 
-      getline (&line, 0);
+      getline (&line, 0, &source);
       parser = grub_parser_get_current ();
-      parser->parse_line (line, getline);
+      parser->parse_line (line, getline, &source);
       grub_free (line);
     }
 

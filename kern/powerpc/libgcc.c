@@ -26,7 +26,6 @@
 GRUB_EXPORT(__ashldi3);
 GRUB_EXPORT(__ashrdi3);
 GRUB_EXPORT(__lshrdi3);
-GRUB_EXPORT(__trampoline_setup);
 GRUB_EXPORT(__ucmpdi2);
 
 #define DWtype		long long
@@ -135,6 +134,7 @@ __lshrdi3 (DWtype u, shift_count_type b)
   return w.ll;
 }
 
+#if 0
 void
 __trampoline_setup (grub_uint32_t* stack, int size,
 		    void* func, void* local_ptr)
@@ -156,6 +156,7 @@ __trampoline_setup (grub_uint32_t* stack, int size,
 
   grub_arch_sync_caches (stack, 40);
 }
+#endif
 
 cmp_return_type
 __ucmpdi2 (DWtype a, DWtype b)

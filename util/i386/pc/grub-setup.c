@@ -85,6 +85,113 @@ grub_refresh (void)
   fflush (stdout);
 }
 
+struct setup_closure
+{
+  struct { grub_uint64_t start; grub_uint64_t end; } embed_region;
+  grub_disk_addr_t first_sector;
+  struct boot_blocklist *first_block, *block;
+  grub_uint16_t last_length;
+  grub_uint16_t current_segment;
+  const char *dest_partmap;
+};
+
+static int
+find_usable_region_msdos (grub_disk_t disk __attribute__ ((unused)),
+			  const grub_partition_t p, void *closure)
+{
+  struct setup_closure *c = closure;
+  struct grub_msdos_partition *pcdata = p->data;
+
+  /* There's always an embed region, and it starts right after the MBR.  */
+  c->embed_region.start = 1;
+
+  /* For its end offset, include as many dummy partitions as we can.  */
+  if (! grub_msdos_partition_is_empty (pcdata->dos_type)
+      && ! grub_msdos_partition_is_bsd (pcdata->dos_type)
+      && c->embed_region.end > p->start)
+    c->embed_region.end = p->start;
+
+  return 0;
+}
+
+static int
+find_usable_region_gpt (grub_disk_t disk __attribute__ ((unused)),
+			const grub_partition_t p, void *closure)
+{
+  struct setup_closure *c = closure;
+  struct grub_gpt_partentry *gptdata = p->data;
+
+  /* If there's an embed region, it is in a dedicated partition.  */
+  if (! memcmp (&gptdata->type, &grub_gpt_partition_type_bios_boot, 16))
+    {
+      c->embed_region.start = p->start;
+      c->embed_region.end = p->start + p->len;
+
+      return 1;
+    }
+
+  return 0;
+}
+
+static void
+save_first_sector (grub_disk_addr_t sector, unsigned offset,
+		   unsigned length, void *closure)
+{
+  struct setup_closure *c = closure;
+
+  grub_util_info ("the first sector is <%llu,%u,%u>",
+		  sector, offset, length);
+
+  if (offset != 0 || length != GRUB_DISK_SECTOR_SIZE)
+    grub_util_error (_("The first sector of the core file is not sector-aligned"));
+
+  c->first_sector = sector;
+}
+
+static void
+save_blocklists (grub_disk_addr_t sector, unsigned offset,
+		 unsigned length, void *closure)
+{
+  struct setup_closure *c = closure;
+  struct boot_blocklist *prev = c->block + 1;
+
+  grub_util_info ("saving <%llu,%u,%u> with the segment 0x%x",
+		  sector, offset, length, (unsigned) c->current_segment);
+
+  if (offset != 0 || c->last_length != GRUB_DISK_SECTOR_SIZE)
+    grub_util_error (_("Non-sector-aligned data is found in the core file"));
+
+  if (c->block != c->first_block
+      && (grub_le_to_cpu64 (prev->start)
+	  + grub_le_to_cpu16 (prev->len)) == sector)
+    prev->len = grub_cpu_to_le16 (grub_le_to_cpu16 (prev->len) + 1);
+  else
+    {
+      c->block->start = grub_cpu_to_le64 (sector);
+      c->block->len = grub_cpu_to_le16 (1);
+      c->block->segment = grub_cpu_to_le16 (c->current_segment);
+
+      c->block--;
+      if (c->block->len)
+	grub_util_error (_("The sectors of the core file are too fragmented"));
+    }
+
+  c->last_length = length;
+  c->current_segment += GRUB_DISK_SECTOR_SIZE >> 4;
+}
+
+/* Unlike root_dev, with dest_dev we're interested in the partition map even
+   if dest_dev itself is a whole disk.  */
+static int
+identify_partmap (grub_disk_t disk __attribute__ ((unused)),
+		  const grub_partition_t p, void *closure)
+{
+  struct setup_closure *c = closure;
+
+  c->dest_partmap = p->partmap->name;
+  return 1;
+}
+
 static void
 setup (const char *dir,
        const char *boot_file, const char *core_file,
@@ -95,108 +202,21 @@ setup (const char *dir,
   size_t boot_size, core_size;
   grub_uint16_t core_sectors;
   grub_device_t root_dev, dest_dev;
-  const char *dest_partmap;
   grub_uint8_t *boot_drive;
   grub_disk_addr_t *kernel_sector;
   grub_uint16_t *boot_drive_check;
-  struct boot_blocklist *first_block, *block;
   grub_int32_t *install_dos_part, *install_bsd_part;
   grub_int32_t dos_part, bsd_part;
   char *tmp_img;
   int i;
-  grub_disk_addr_t first_sector;
-  grub_uint16_t current_segment
-    = GRUB_BOOT_MACHINE_KERNEL_SEG + (GRUB_DISK_SECTOR_SIZE >> 4);
-  grub_uint16_t last_length = GRUB_DISK_SECTOR_SIZE;
   grub_file_t file;
   FILE *fp;
-  struct { grub_uint64_t start; grub_uint64_t end; } embed_region;
-  embed_region.start = embed_region.end = ~0UL;
+  struct setup_closure c;
 
-  auto void NESTED_FUNC_ATTR save_first_sector (grub_disk_addr_t sector, unsigned offset,
-			       unsigned length);
-  auto void NESTED_FUNC_ATTR save_blocklists (grub_disk_addr_t sector, unsigned offset,
-			     unsigned length);
-
-  auto int NESTED_FUNC_ATTR find_usable_region_msdos (grub_disk_t disk,
-						      const grub_partition_t p);
-  int NESTED_FUNC_ATTR find_usable_region_msdos (grub_disk_t disk __attribute__ ((unused)),
-						 const grub_partition_t p)
-    {
-      struct grub_msdos_partition *pcdata = p->data;
-
-      /* There's always an embed region, and it starts right after the MBR.  */
-      embed_region.start = 1;
-
-      /* For its end offset, include as many dummy partitions as we can.  */
-      if (! grub_msdos_partition_is_empty (pcdata->dos_type)
-	  && ! grub_msdos_partition_is_bsd (pcdata->dos_type)
-	  && embed_region.end > p->start)
-	embed_region.end = p->start;
-
-      return 0;
-    }
-
-  auto int NESTED_FUNC_ATTR find_usable_region_gpt (grub_disk_t disk,
-						    const grub_partition_t p);
-  int NESTED_FUNC_ATTR find_usable_region_gpt (grub_disk_t disk __attribute__ ((unused)),
-					       const grub_partition_t p)
-    {
-      struct grub_gpt_partentry *gptdata = p->data;
-
-      /* If there's an embed region, it is in a dedicated partition.  */
-      if (! memcmp (&gptdata->type, &grub_gpt_partition_type_bios_boot, 16))
-	{
-	  embed_region.start = p->start;
-	  embed_region.end = p->start + p->len;
-
-	  return 1;
-	}
-
-      return 0;
-    }
-
-  void NESTED_FUNC_ATTR save_first_sector (grub_disk_addr_t sector, unsigned offset,
-			  unsigned length)
-    {
-      grub_util_info ("the first sector is <%llu,%u,%u>",
-		      sector, offset, length);
-
-      if (offset != 0 || length != GRUB_DISK_SECTOR_SIZE)
-	grub_util_error (_("The first sector of the core file is not sector-aligned"));
-
-      first_sector = sector;
-    }
-
-  void NESTED_FUNC_ATTR save_blocklists (grub_disk_addr_t sector, unsigned offset,
-			unsigned length)
-    {
-      struct boot_blocklist *prev = block + 1;
-
-      grub_util_info ("saving <%llu,%u,%u> with the segment 0x%x",
-		      sector, offset, length, (unsigned) current_segment);
-
-      if (offset != 0 || last_length != GRUB_DISK_SECTOR_SIZE)
-	grub_util_error (_("Non-sector-aligned data is found in the core file"));
-
-      if (block != first_block
-	  && (grub_le_to_cpu64 (prev->start)
-	      + grub_le_to_cpu16 (prev->len)) == sector)
-	prev->len = grub_cpu_to_le16 (grub_le_to_cpu16 (prev->len) + 1);
-      else
-	{
-	  block->start = grub_cpu_to_le64 (sector);
-	  block->len = grub_cpu_to_le16 (1);
-	  block->segment = grub_cpu_to_le16 (current_segment);
-
-	  block--;
-	  if (block->len)
-	    grub_util_error (_("The sectors of the core file are too fragmented"));
-	}
-
-      last_length = length;
-      current_segment += GRUB_DISK_SECTOR_SIZE >> 4;
-    }
+  c.embed_region.start = c.embed_region.end = ~0UL;
+  c.last_length = GRUB_DISK_SECTOR_SIZE;
+  c.current_segment = GRUB_BOOT_MACHINE_KERNEL_SEG +
+    (GRUB_DISK_SECTOR_SIZE >> 4);
 
   /* Read the boot image by the OS service.  */
   boot_path = grub_util_get_path (dir, boot_file);
@@ -226,9 +246,9 @@ setup (const char *dir,
   core_img = grub_util_read_image (core_path);
 
   /* Have FIRST_BLOCK to point to the first blocklist.  */
-  first_block = (struct boot_blocklist *) (core_img
-					   + GRUB_DISK_SECTOR_SIZE
-					   - sizeof (*block));
+  c.first_block = (struct boot_blocklist *) (core_img
+					     + GRUB_DISK_SECTOR_SIZE
+					     - sizeof (*c.block));
 
   install_dos_part = (grub_int32_t *) (core_img + GRUB_DISK_SECTOR_SIZE
 				       + GRUB_KERNEL_MACHINE_INSTALL_DOS_PART);
@@ -337,38 +357,30 @@ setup (const char *dir,
       goto unable_to_embed;
     }
 
-  /* Unlike root_dev, with dest_dev we're interested in the partition map even
-     if dest_dev itself is a whole disk.  */
-  auto int NESTED_FUNC_ATTR identify_partmap (grub_disk_t disk,
-					      const grub_partition_t p);
-  int NESTED_FUNC_ATTR identify_partmap (grub_disk_t disk __attribute__ ((unused)),
-					 const grub_partition_t p)
-    {
-      dest_partmap = p->partmap->name;
-      return 1;
-    }
-  dest_partmap = 0;
-  grub_partition_iterate (dest_dev->disk, identify_partmap);
+  c.dest_partmap = 0;
+  grub_partition_iterate (dest_dev->disk, identify_partmap, &c);
 
-  if (! dest_partmap)
+  if (! c.dest_partmap)
     {
       grub_util_warn (_("Attempting to install GRUB to a partitionless disk.  This is a BAD idea."));
       goto unable_to_embed;
     }
 
-  grub_partition_iterate (dest_dev->disk, (strcmp (dest_partmap, "part_msdos") ?
-					   find_usable_region_gpt : find_usable_region_msdos));
+  grub_partition_iterate (dest_dev->disk,
+			  (strcmp (c.dest_partmap, "part_msdos") ?
+			   find_usable_region_gpt : find_usable_region_msdos),
+			  &c);
 
-  if (embed_region.end == embed_region.start)
+  if (c.embed_region.end == c.embed_region.start)
     {
-      if (! strcmp (dest_partmap, "part_msdos"))
+      if (! strcmp (c.dest_partmap, "part_msdos"))
 	grub_util_warn (_("This msdos-style partition label has no post-MBR gap; embedding won't be possible!"));
       else
 	grub_util_warn (_("This GPT partition label has no BIOS Boot Partition; embedding won't be possible!"));
       goto unable_to_embed;
     }
 
-  if ((unsigned long) core_sectors > embed_region.end - embed_region.start)
+  if ((unsigned long) core_sectors > c.embed_region.end - c.embed_region.start)
     {
       if (core_sectors > 62)
 	grub_util_warn (_("Your core.img is unusually large.  It won't fit in the embedding area."));
@@ -378,32 +390,34 @@ setup (const char *dir,
     }
 
 
-  grub_util_info ("the core image will be embedded at sector 0x%llx", embed_region.start);
+  grub_util_info ("the core image will be embedded at sector 0x%llx",
+		  c.embed_region.start);
 
   *install_dos_part = grub_cpu_to_le32 (dos_part);
   *install_bsd_part = grub_cpu_to_le32 (bsd_part);
 
   /* The first blocklist contains the whole sectors.  */
-  first_block->start = grub_cpu_to_le64 (embed_region.start + 1);
-  first_block->len = grub_cpu_to_le16 (core_sectors - 1);
-  first_block->segment
+  c.first_block->start = grub_cpu_to_le64 (c.embed_region.start + 1);
+  c.first_block->len = grub_cpu_to_le16 (core_sectors - 1);
+  c.first_block->segment
     = grub_cpu_to_le16 (GRUB_BOOT_MACHINE_KERNEL_SEG
 			+ (GRUB_DISK_SECTOR_SIZE >> 4));
 
   /* Make sure that the second blocklist is a terminator.  */
-  block = first_block - 1;
-  block->start = 0;
-  block->len = 0;
-  block->segment = 0;
+  c.block = c.first_block - 1;
+  c.block->start = 0;
+  c.block->len = 0;
+  c.block->segment = 0;
 
   /* Write the core image onto the disk.  */
-  if (grub_disk_write (dest_dev->disk, embed_region.start, 0, core_size, core_img))
+  if (grub_disk_write (dest_dev->disk, c.embed_region.start, 0,
+		       core_size, core_img))
     grub_util_error ("%s", grub_errmsg);
 
   /* FIXME: can this be skipped?  */
   *boot_drive = 0xFF;
 
-  *kernel_sector = grub_cpu_to_le64 (embed_region.start);
+  *kernel_sector = grub_cpu_to_le64 (c.embed_region.start);
 
   /* Write the boot image onto the disk.  */
   if (grub_disk_write (dest_dev->disk, 0, 0, GRUB_DISK_SECTOR_SIZE,
@@ -500,16 +514,16 @@ unable_to_embed:
     grub_util_error (_("Cannot read `%s' correctly"), core_path_dev);
 
   /* Clean out the blocklists.  */
-  block = first_block;
-  while (block->len)
+  c.block = c.first_block;
+  while (c.block->len)
     {
-      block->start = 0;
-      block->len = 0;
-      block->segment = 0;
+      c.block->start = 0;
+      c.block->len = 0;
+      c.block->segment = 0;
 
-      block--;
+      c.block--;
 
-      if ((char *) block <= core_img)
+      if ((char *) c.block <= core_img)
 	grub_util_error (_("No terminator in the core image"));
     }
 
@@ -523,7 +537,7 @@ unable_to_embed:
       != GRUB_DISK_SECTOR_SIZE)
     grub_util_error (_("Failed to read the first sector of the core image"));
 
-  block = first_block;
+  c.block = c.first_block;
   file->read_hook = save_blocklists;
   if (grub_file_read (file, tmp_img, core_size - GRUB_DISK_SECTOR_SIZE)
       != (grub_ssize_t) core_size - GRUB_DISK_SECTOR_SIZE)
@@ -534,7 +548,7 @@ unable_to_embed:
   free (core_path_dev);
   free (tmp_img);
 
-  *kernel_sector = grub_cpu_to_le64 (first_sector);
+  *kernel_sector = grub_cpu_to_le64 (c.first_sector);
 
   /* FIXME: can this be skipped?  */
   *boot_drive = 0xFF;

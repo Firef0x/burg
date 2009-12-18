@@ -32,7 +32,8 @@ struct grub_scsi_dev
   const char *name;
 
   /* Call HOOK with each device name, until HOOK returns non-zero.  */
-  int (*iterate) (int (*hook) (const char *name, int luns));
+  int (*iterate) (int (*hook) (const char *name, int luns, void *closure),
+		  void *closure);
 
   /* Open the device named NAME, and set up SCSI.  */
   grub_err_t (*open) (const char *name, struct grub_scsi *scsi);

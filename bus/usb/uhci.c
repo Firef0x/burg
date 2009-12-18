@@ -137,9 +137,10 @@ grub_uhci_portstatus (grub_usb_controller_t dev,
 
 /* Iterate over all PCI devices.  Determine if a device is an UHCI
    controller.  If this is the case, initialize it.  */
-static int NESTED_FUNC_ATTR
+static int
 grub_uhci_pci_iter (grub_pci_device_t dev,
-		    grub_pci_id_t pciid __attribute__((unused)))
+		    grub_pci_id_t pciid __attribute__((unused)),
+		    void *closure __attribute__((unused)))
 {
   grub_uint32_t class_code;
   grub_uint32_t class;
@@ -303,7 +304,7 @@ grub_uhci_pci_iter (grub_pci_device_t dev,
 static void
 grub_uhci_inithw (void)
 {
-  grub_pci_iterate (grub_uhci_pci_iter);
+  grub_pci_iterate (grub_uhci_pci_iter, 0);
 }
 
 static grub_uhci_td_t
@@ -551,7 +552,8 @@ grub_uhci_transfer (grub_usb_controller_t dev,
 }
 
 static int
-grub_uhci_iterate (int (*hook) (grub_usb_controller_t dev))
+grub_uhci_iterate (int (*hook) (grub_usb_controller_t dev, void *closure),
+		   void *closure)
 {
   struct grub_uhci *u;
   struct grub_usb_controller dev;
@@ -559,7 +561,7 @@ grub_uhci_iterate (int (*hook) (grub_usb_controller_t dev))
   for (u = uhci; u; u = u->next)
     {
       dev.data = u;
-      if (hook (&dev))
+      if (hook (&dev, closure))
 	return 1;
     }
 

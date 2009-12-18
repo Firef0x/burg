@@ -45,7 +45,8 @@ check_textstate (grub_parser_state_t state)
 }
 
 struct grub_lexer_param *
-grub_script_lexer_init (char *script, grub_reader_getline_t getline)
+grub_script_lexer_init (char *script, grub_reader_getline_t getline,
+			void *closure)
 {
   struct grub_lexer_param *param;
 
@@ -55,6 +56,7 @@ grub_script_lexer_init (char *script, grub_reader_getline_t getline)
 
   param->state = GRUB_PARSER_STATE_TEXT;
   param->getline = getline;
+  param->closure = closure;
   param->script = script;
 
   return param;
@@ -171,7 +173,7 @@ grub_script_yylex (union YYSTYPE *yylval, struct grub_parser_param *parsestate)
 		{
 		  grub_free (state->newscript);
 		  state->newscript = 0;
-		  state->getline (&state->newscript, 1);
+		  state->getline (&state->newscript, 1, state->closure);
 		  state->script = state->newscript;
 		  if (! state->script)
 		    {

@@ -49,23 +49,23 @@ struct grub_e820_mmap_entry
   grub_uint32_t type;
 } __attribute__((packed));
 
+static int
+fill_hook (grub_uint64_t addr, grub_uint64_t size,
+	   grub_uint32_t type, void *closure)
+{
+  struct grub_e820_mmap_entry **hookmmapcur = closure;
+  grub_dprintf ("mmap", "mmap chunk %llx-%llx:%x\n", addr, addr + size, type);
+  (*hookmmapcur)->addr = addr;
+  (*hookmmapcur)->len = size;
+  (*hookmmapcur)->type = type;
+  (*hookmmapcur)++;
+  return 0;
+}
 
 static grub_err_t
 preboot (int noreturn __attribute__ ((unused)))
 {
   struct grub_e820_mmap_entry *hookmmap, *hookmmapcur;
-  auto int NESTED_FUNC_ATTR fill_hook (grub_uint64_t, grub_uint64_t,
-				       grub_uint32_t);
-  int NESTED_FUNC_ATTR fill_hook (grub_uint64_t addr, grub_uint64_t size,
-				  grub_uint32_t type)
-  {
-    grub_dprintf ("mmap", "mmap chunk %llx-%llx:%x\n", addr, addr + size, type);
-    hookmmapcur->addr = addr;
-    hookmmapcur->len = size;
-    hookmmapcur->type = type;
-    hookmmapcur++;
-    return 0;
-  }
 
   if (! hooktarget)
     return grub_error (GRUB_ERR_OUT_OF_MEMORY,
@@ -77,7 +77,7 @@ preboot (int noreturn __attribute__ ((unused)))
     ((grub_uint8_t *) hooktarget + (&grub_machine_mmaphook_end
 				    - &grub_machine_mmaphook_start));
 
-  grub_mmap_iterate (fill_hook);
+  grub_mmap_iterate (fill_hook, &hookmmapcur);
   grub_machine_mmaphook_mmap_num = hookmmapcur - hookmmap;
 
   grub_machine_mmaphook_kblow = grub_mmap_get_lower () >> 10;
@@ -123,6 +123,15 @@ preboot_rest (void)
   return GRUB_ERR_NONE;
 }
 
+static int
+count_hook (grub_uint64_t addr UNUSED, grub_uint64_t size UNUSED,
+	    grub_uint32_t type UNUSED, void *closure)
+{
+  int *regcount = closure;
+  (*regcount)++;
+  return 0;
+}
+
 static grub_err_t
 malloc_hook (void)
 {
@@ -131,22 +140,13 @@ malloc_hook (void)
   static int slots_available = 0;
   int hooksize;
   int regcount = 0;
-  auto int NESTED_FUNC_ATTR count_hook (grub_uint64_t, grub_uint64_t,
-					grub_uint32_t);
-  int NESTED_FUNC_ATTR count_hook (grub_uint64_t addr __attribute__ ((unused)),
-				   grub_uint64_t size __attribute__ ((unused)),
-				   grub_uint32_t type __attribute__ ((unused)))
-  {
-    regcount++;
-    return 0;
-  }
 
   if (reentry)
     return GRUB_ERR_NONE;
 
   grub_dprintf ("mmap", "registering\n");
 
-  grub_mmap_iterate (count_hook);
+  grub_mmap_iterate (count_hook, &regcount);
 
   /* Mapping hook itself may introduce up to 2 additional regions. */
   regcount += 2;

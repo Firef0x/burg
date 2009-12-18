@@ -132,6 +132,34 @@ compact_mem_regions (void)
       }
 }
 
+static int
+mmap_hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
+	   void *closure UNUSED)
+{
+  /* Avoid the lower memory.  */
+  if (addr < 0x100000)
+    {
+      if (size <= 0x100000 - addr)
+	return 0;
+
+      size -= 0x100000 - addr;
+      addr = 0x100000;
+    }
+
+  /* Ignore >4GB.  */
+  if (addr <= 0xFFFFFFFF && type == GRUB_MACHINE_MEMORY_AVAILABLE)
+    {
+      grub_size_t len;
+
+      len = (grub_size_t) ((addr + size > 0xFFFFFFFF)
+			   ? 0xFFFFFFFF - addr
+			   : size);
+      add_mem_region (addr, len);
+    }
+
+  return 0;
+}
+
 void
 grub_machine_init (void)
 {
@@ -162,34 +190,7 @@ grub_machine_init (void)
 		    grub_lower_mem - GRUB_MEMORY_MACHINE_RESERVED_END);
 #endif
 
-  auto int NESTED_FUNC_ATTR hook (grub_uint64_t, grub_uint64_t, grub_uint32_t);
-  int NESTED_FUNC_ATTR hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type)
-    {
-      /* Avoid the lower memory.  */
-      if (addr < 0x100000)
-	{
-	  if (size <= 0x100000 - addr)
-	    return 0;
-
-	  size -= 0x100000 - addr;
-	  addr = 0x100000;
-	}
-
-      /* Ignore >4GB.  */
-      if (addr <= 0xFFFFFFFF && type == GRUB_MACHINE_MEMORY_AVAILABLE)
-	{
-	  grub_size_t len;
-
-	  len = (grub_size_t) ((addr + size > 0xFFFFFFFF)
-		 ? 0xFFFFFFFF - addr
-		 : size);
-	  add_mem_region (addr, len);
-	}
-
-      return 0;
-    }
-
-  grub_machine_mmap_iterate (hook);
+  grub_machine_mmap_iterate (mmap_hook, 0);
 
   compact_mem_regions ();
 

@@ -25,7 +25,7 @@
 GRUB_EXPORT(grub_reader_loop);
 
 grub_err_t
-grub_reader_loop (grub_reader_getline_t getline)
+grub_reader_loop (grub_reader_getline_t getline, void *closure)
 {
   while (1)
     {
@@ -35,10 +35,10 @@ grub_reader_loop (grub_reader_getline_t getline)
       grub_print_error ();
       grub_errno = GRUB_ERR_NONE;
 
-      if ((getline (&line, 0)) || (! line))
+      if ((getline (&line, 0, closure)) || (! line))
 	return grub_errno;
 
-      grub_parser_get_current ()->parse_line (line, getline);
+      grub_parser_get_current ()->parse_line (line, getline, closure);
       grub_free (line);
     }
 }

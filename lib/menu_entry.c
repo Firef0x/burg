@@ -226,62 +226,70 @@ grub_menu_entry_add (int argc, const char **args, const char *sourcecode)
   return grub_errno;
 }
 
+struct read_config_file_closure
+{
+  grub_file_t file;
+  grub_parser_t old_parser;
+};
+
+static grub_err_t
+getline (char **line, int cont UNUSED, void *closure)
+{
+  struct read_config_file_closure *c = closure;
+
+  while (1)
+    {
+      char *buf;
+
+      *line = buf = grub_getline (c->file);
+      if (! buf)
+	return grub_errno;
+
+      if (buf[0] == '#')
+	{
+	  if (buf[1] == '!')
+	    {
+	      grub_parser_t parser;
+	      grub_named_list_t list;
+
+	      buf += 2;
+	      while (grub_isspace (*buf))
+		buf++;
+
+	      if (! c->old_parser)
+		c->old_parser = grub_parser_get_current ();
+
+	      list = GRUB_AS_NAMED_LIST (grub_parser_class.handler_list);
+	      parser = grub_named_list_find (list, buf);
+	      if (parser)
+		grub_parser_set_current (parser);
+	      else
+		{
+		  char cmd_name[8 + grub_strlen (buf)];
+
+		  /* Perhaps it's not loaded yet, try the autoload
+		     command.  */
+		  grub_strcpy (cmd_name, "parser.");
+		  grub_strcat (cmd_name, buf);
+		  grub_command_execute (cmd_name, 0, 0);
+		}
+	    }
+	  grub_free (*line);
+	}
+      else
+	break;
+    }
+
+  return GRUB_ERR_NONE;
+}
+
 static grub_menu_t
 read_config_file (const char *config)
 {
-  grub_file_t file;
-  grub_parser_t old_parser = 0;
-
-  auto grub_err_t getline (char **line, int cont);
-  grub_err_t getline (char **line, int cont __attribute__ ((unused)))
-    {
-      while (1)
-	{
-	  char *buf;
-
-	  *line = buf = grub_getline (file);
-	  if (! buf)
-	    return grub_errno;
-
-	  if (buf[0] == '#')
-	    {
-	      if (buf[1] == '!')
-		{
-		  grub_parser_t parser;
-		  grub_named_list_t list;
-
-		  buf += 2;
-		  while (grub_isspace (*buf))
-		    buf++;
-
-		  if (! old_parser)
-		    old_parser = grub_parser_get_current ();
-
-		  list = GRUB_AS_NAMED_LIST (grub_parser_class.handler_list);
-		  parser = grub_named_list_find (list, buf);
-		  if (parser)
-		    grub_parser_set_current (parser);
-		  else
-		    {
-		      char cmd_name[8 + grub_strlen (buf)];
-
-		      /* Perhaps it's not loaded yet, try the autoload
-			 command.  */
-		      grub_strcpy (cmd_name, "parser.");
-		      grub_strcat (cmd_name, buf);
-		      grub_command_execute (cmd_name, 0, 0);
-		    }
-		}
-	      grub_free (*line);
-	    }
-	  else
-	    break;
-	}
-
-      return GRUB_ERR_NONE;
-    }
-
   grub_menu_t newmenu;
+  struct read_config_file_closure c;
+
+  c.old_parser = 0;
 
   newmenu = grub_env_get_data_slot ("menu");
   if (! newmenu)
@@ -294,15 +302,15 @@ read_config_file (const char *config)
     }
 
   /* Try to open the config file.  */
-  file = grub_file_open (config);
-  if (! file)
+  c.file = grub_file_open (config);
+  if (! c.file)
     return 0;
 
-  grub_reader_loop (getline);
-  grub_file_close (file);
+  grub_reader_loop (getline, &c);
+  grub_file_close (c.file);
 
-  if (old_parser)
-    grub_parser_set_current (old_parser);
+  if (c.old_parser)
+    grub_parser_set_current (c.old_parser);
 
   return newmenu;
 }

@@ -25,14 +25,15 @@
 #include <grub/command.h>
 
 static grub_err_t
-grub_rescue_parse_line (char *line, grub_reader_getline_t getline)
+grub_rescue_parse_line (char *line, grub_reader_getline_t getline,
+			void *closure)
 {
   char *name;
   int n;
   grub_command_t cmd;
   char **args;
 
-  if (grub_parser_split_cmdline (line, getline, &n, &args) || n < 0)
+  if (grub_parser_split_cmdline (line, getline, closure, &n, &args) || n < 0)
     return grub_errno;
 
   /* In case of an assignment set the environment accordingly

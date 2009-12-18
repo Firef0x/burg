@@ -39,7 +39,9 @@ static struct grub_partition_map grub_gpt_partition_map;
 static grub_err_t
 gpt_partition_map_iterate (grub_disk_t disk,
 			   int (*hook) (grub_disk_t disk,
-					const grub_partition_t partition))
+					const grub_partition_t partition,
+					void *closure),
+			   void *closure)
 {
   struct grub_partition part;
   struct grub_gpt_header gpt;
@@ -98,7 +100,7 @@ gpt_partition_map_iterate (grub_disk_t disk,
 			(unsigned long long) part.start,
 			(unsigned long long) part.len);
 
-	  if (hook (disk, &part))
+	  if (hook (disk, &part, closure))
 	    return 1;
 	}
 
@@ -113,48 +115,54 @@ gpt_partition_map_iterate (grub_disk_t disk,
   return 0;
 }
 
+struct gpt_partition_map_probe_closure
+{
+  grub_partition_t p;
+  int partnum;
+};
+
+static int
+find_func (grub_disk_t d __attribute__ ((unused)),
+	   const grub_partition_t partition, void *closure)
+{
+  struct gpt_partition_map_probe_closure *c = closure;
+
+  if (c->partnum == partition->index)
+    {
+      c->p = (grub_partition_t) grub_malloc (sizeof (*c->p));
+      if (! c->p)
+	return 1;
+
+      grub_memcpy (c->p, partition, sizeof (*c->p));
+      return 1;
+    }
+
+  return 0;
+}
 
 static grub_partition_t
 gpt_partition_map_probe (grub_disk_t disk, const char *str)
 {
-  grub_partition_t p = 0;
-  int partnum = 0;
   char *s = (char *) str;
+  struct gpt_partition_map_probe_closure c;
 
-  auto int find_func (grub_disk_t d, const grub_partition_t partition);
-
-  int find_func (grub_disk_t d __attribute__ ((unused)),
-		 const grub_partition_t partition)
-    {
-      if (partnum == partition->index)
-	{
-	  p = (grub_partition_t) grub_malloc (sizeof (*p));
-	  if (! p)
-	    return 1;
-
-	  grub_memcpy (p, partition, sizeof (*p));
-	  return 1;
-	}
-
-      return 0;
-    }
-
+  c.p = 0;
   /* Get the partition number.  */
-  partnum = grub_strtoul (s, 0, 10) - 1;
+  c.partnum = grub_strtoul (s, 0, 10) - 1;
   if (grub_errno)
     {
       grub_error (GRUB_ERR_BAD_FILENAME, "invalid partition");
       return 0;
     }
 
-  gpt_partition_map_iterate (disk, find_func);
+  gpt_partition_map_iterate (disk, find_func, &c);
   if (grub_errno)
     goto fail;
 
-  return p;
+  return c.p;
 
  fail:
-  grub_free (p);
+  grub_free (c.p);
   return 0;
 }
 

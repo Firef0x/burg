@@ -24,7 +24,8 @@
 GRUB_EXPORT(grub_machine_mmap_iterate);
 
 grub_err_t
-grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t))
+grub_machine_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
+					grub_uint32_t, void *), void *closure)
 {
   grub_uint32_t cont;
   struct grub_machine_mmap_entry *entry
@@ -39,7 +40,7 @@ grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uin
 	if (hook (entry->addr, entry->len,
 		  /* Multiboot mmaps have been defined to match with the E820 definition.
 		     Therefore, we can just pass type through.  */
-		  entry->type))
+		  entry->type, closure))
 	  break;
 
 	if (! cont)
@@ -54,11 +55,14 @@ grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uin
 
       if (eisa_mmap)
 	{
-	  if (hook (0x100000, (eisa_mmap & 0xFFFF) << 10, GRUB_MACHINE_MEMORY_AVAILABLE) == 0)
-	    hook (0x1000000, eisa_mmap & ~0xFFFF, GRUB_MACHINE_MEMORY_AVAILABLE);
+	  if (hook (0x100000, (eisa_mmap & 0xFFFF) << 10,
+		    GRUB_MACHINE_MEMORY_AVAILABLE, closure) == 0)
+	    hook (0x1000000, eisa_mmap & ~0xFFFF,
+		  GRUB_MACHINE_MEMORY_AVAILABLE, closure);
 	}
       else
-	hook (0x100000, grub_get_memsize (1) << 10, GRUB_MACHINE_MEMORY_AVAILABLE);
+	hook (0x100000, grub_get_memsize (1) << 10,
+	      GRUB_MACHINE_MEMORY_AVAILABLE, closure);
     }
 
   return 0;

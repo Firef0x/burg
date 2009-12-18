@@ -24,7 +24,9 @@
 GRUB_EXPORT(grub_machine_mmap_iterate);
 
 grub_err_t
-grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t))
+grub_machine_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
+					grub_uint32_t, void *closure),
+			   void *closure)
 {
   grub_ieee1275_phandle_t root;
   grub_ieee1275_phandle_t memory;
@@ -80,7 +82,7 @@ grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uin
       if (size_cells == 2)
 	size = (size << 32) | available[i++];
 
-      if (hook (address, size, GRUB_MACHINE_MEMORY_AVAILABLE))
+      if (hook (address, size, GRUB_MACHINE_MEMORY_AVAILABLE, closure))
 	break;
     }
 

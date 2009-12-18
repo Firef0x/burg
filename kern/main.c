@@ -55,76 +55,76 @@ grub_module_iterate (int (*hook) (struct grub_module_header *header))
     }
 }
 
-/* Load all modules in core.  */
-static void
-grub_load_modules (void)
+static int
+grub_load_modules_hook (struct grub_module_header *header)
 {
-  auto int hook (struct grub_module_header *);
-  int hook (struct grub_module_header *header)
+  grub_dl_t mod;
+  struct grub_module_object *obj;
+  char *code_start = &grub_code_start[0];
+  char *name, *sym;
+  grub_uint32_t *sym_value;
+
+  /* Not a module, skip.  */
+  if (header->type != OBJ_TYPE_OBJECT)
+    return 0;
+
+  obj = (struct grub_module_object *) (header + 1);
+
+  mod = (grub_dl_t) grub_zalloc (sizeof (*mod));
+  if (! mod)
+    grub_fatal ("can't init module");
+
+  name = obj->name;
+  mod->name = grub_strdup (name);
+  mod->ref_count++;
+
+  grub_dl_resolve_dependencies (mod, name);
+
+  sym = name + obj->symbol_name;
+  sym_value = (grub_uint32_t *) (name + obj->symbol_value);
+  while (*sym)
     {
-      grub_dl_t mod;
-      struct grub_module_object *obj;
-      char *code_start = &grub_code_start[0];
-      char *name, *sym;
-      grub_uint32_t *sym_value;
-
-      /* Not a module, skip.  */
-      if (header->type != OBJ_TYPE_OBJECT)
-	return 0;
-
-      obj = (struct grub_module_object *) (header + 1);
-
-      mod = (grub_dl_t) grub_zalloc (sizeof (*mod));
-      if (! mod)
-	grub_fatal ("can't init module");
-
-      name = obj->name;
-      mod->name = grub_strdup (name);
-      mod->ref_count++;
-
-      grub_dl_resolve_dependencies (mod, name);
-
-      sym = name + obj->symbol_name;
-      sym_value = (grub_uint32_t *) (name + obj->symbol_value);
-      while (*sym)
-	{
-	  grub_dl_register_symbol (sym, code_start + *(sym_value++), mod);
-	  sym += grub_strlen (sym) + 1;
-	}
-
-      if (obj->init_func)
-	{
-	  mod->init = (void (*) (grub_dl_t)) (code_start + obj->init_func);
-	  (mod->init) (mod);
-	}
-
-      if (obj->fini_func)
-	mod->fini = (void (*) (void)) (code_start + obj->fini_func);
-
-      grub_dl_add (mod);
-
-      return 0;
+      grub_dl_register_symbol (sym, code_start + *(sym_value++), mod);
+      sym += grub_strlen (sym) + 1;
     }
 
-  grub_module_iterate (hook);
+  if (obj->init_func)
+    {
+      mod->init = (void (*) (grub_dl_t)) (code_start + obj->init_func);
+      (mod->init) (mod);
+    }
+
+  if (obj->fini_func)
+    mod->fini = (void (*) (void)) (code_start + obj->fini_func);
+
+  grub_dl_add (mod);
+
+  return 0;
 }
 
-static void
+/* Load all modules in core.  */
+static inline void
+grub_load_modules (void)
+{
+  grub_module_iterate (grub_load_modules_hook);
+}
+
+static int
+grub_load_config_hook (struct grub_module_header *header)
+{
+  /* Not a config, skip.  */
+  if (header->type != OBJ_TYPE_CONFIG)
+    return 0;
+
+  grub_parser_execute ((char *) header +
+		       sizeof (struct grub_module_header));
+  return 1;
+}
+
+static inline void
 grub_load_config (void)
 {
-  auto int hook (struct grub_module_header *);
-  int hook (struct grub_module_header *header)
-    {
-      /* Not a config, skip.  */
-      if (header->type != OBJ_TYPE_CONFIG)
-	return 0;
-
-      grub_parser_execute ((char *) header +
-			   sizeof (struct grub_module_header));
-      return 1;
-    }
-
-  grub_module_iterate (hook);
+  grub_module_iterate (grub_load_config_hook);
 }
 
 /* Write hook for the environment variables of root. Remove surrounding

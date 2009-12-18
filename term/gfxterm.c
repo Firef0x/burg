@@ -244,8 +244,9 @@ grub_virtual_screen_setup (unsigned int x, unsigned int y,
   return grub_errno;
 }
 
-static int NESTED_FUNC_ATTR video_hook (grub_video_adapter_t p __attribute__ ((unused)),
-					struct grub_video_mode_info *info)
+static int
+video_hook (grub_video_adapter_t p __attribute__ ((unused)),
+	    struct grub_video_mode_info *info, void *closure UNUSED)
 {
   return ! (info->mode_type & GRUB_VIDEO_MODE_TYPE_PURE_TEXT);
 }
@@ -269,13 +270,13 @@ grub_gfxterm_init (void)
   /* Parse gfxmode environment variable if set.  */
   modevar = grub_env_get ("gfxmode");
   if (! modevar || *modevar == 0)
-    err = grub_video_set_mode (DEFAULT_VIDEO_MODE, video_hook);
+    err = grub_video_set_mode (DEFAULT_VIDEO_MODE, video_hook, 0);
   else
     {
       tmp = grub_malloc (grub_strlen (modevar)
 			 + sizeof (DEFAULT_VIDEO_MODE) + 1);
       grub_sprintf (tmp, "%s;" DEFAULT_VIDEO_MODE, modevar);
-      err = grub_video_set_mode (tmp, video_hook);
+      err = grub_video_set_mode (tmp, video_hook, 0);
       grub_free (tmp);
     }
 

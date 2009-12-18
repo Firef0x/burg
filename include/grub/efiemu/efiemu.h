@@ -218,9 +218,8 @@ int grub_efiemu_get_memory_map (grub_efi_uintn_t *memory_map_size,
 				grub_efi_uintn_t *descriptor_size,
 				grub_efi_uint32_t *descriptor_version);
 grub_err_t
-grub_efiemu_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t,
-							grub_uint64_t,
-							grub_uint32_t));
+grub_efiemu_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
+				       grub_uint32_t, void *), void *closure);
 int grub_efiemu_sizeof_uintn_t (void);
 int grub_efiemu_exit_boot_services (grub_efi_uintn_t map_key);
 int grub_efiemu_finish_boot_services (void);

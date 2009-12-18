@@ -38,7 +38,9 @@ struct grub_partition_map
   /* Call HOOK with each partition, until HOOK returns non-zero.  */
   grub_err_t (*iterate) (struct grub_disk *disk,
 			 int (*hook) (struct grub_disk *disk,
-				      const grub_partition_t partition));
+				      const grub_partition_t partition,
+				      void *closure),
+			 void *closure);
 
   /* Return the partition named STR on the disk DISK.  */
   grub_partition_t (*probe) (struct grub_disk *disk,
@@ -89,17 +91,21 @@ grub_partition_map_unregister (grub_partition_map_t partmap)
 }
 
 static inline void
-grub_partition_map_iterate (int (*hook) (const grub_partition_map_t partmap))
+grub_partition_map_iterate (int (*hook) (const grub_partition_map_t partmap,
+					 void *closure),
+			    void *closure)
 {
   grub_list_iterate (GRUB_AS_LIST (grub_partition_map_list),
-		     (grub_list_hook_t) hook);
+		     (grub_list_hook_t) hook, closure);
 }
 
 grub_partition_t grub_partition_probe (struct grub_disk *disk,
 				       const char *str);
 int grub_partition_iterate (struct grub_disk *disk,
 			    int (*hook) (struct grub_disk *disk,
-					 const grub_partition_t partition));
+					 const grub_partition_t partition,
+					 void *closure),
+			    void *closure);
 char *grub_partition_get_name (const grub_partition_t partition);
 
 #ifdef GRUB_UTIL

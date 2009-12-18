@@ -23,6 +23,8 @@
 #include <grub/err.h>
 #include <grub/misc.h>
 
+GRUB_EXPORT(grub_machine_mmap_iterate);
+
 grub_size_t grub_lower_mem, grub_upper_mem;
 
 /* A pointer to the MBI in its initial location.  */
@@ -71,16 +73,19 @@ grub_machine_mmap_init ()
 }
 
 grub_err_t
-grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t))
+grub_machine_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
+					grub_uint32_t, void *), void *closure)
 {
   struct multiboot_mmap_entry *entry = (void *) kern_multiboot_info.mmap_addr;
 
-  while ((unsigned long) entry < kern_multiboot_info.mmap_addr + kern_multiboot_info.mmap_length)
+  while ((unsigned long) entry < kern_multiboot_info.mmap_addr +
+	 kern_multiboot_info.mmap_length)
     {
-      if (hook (entry->addr, entry->len, entry->type))
+      if (hook (entry->addr, entry->len, entry->type, closure))
 	break;
 
-      entry = (void *) ((grub_addr_t) entry + entry->size + sizeof (entry->size));
+      entry = (void *) ((grub_addr_t) entry + entry->size +
+			sizeof (entry->size));
     }
 
   return 0;

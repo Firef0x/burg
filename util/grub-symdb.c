@@ -89,17 +89,18 @@ grub_sort_list_find (grub_named_list_t head, const char *name)
   return 0;
 }
 
+static int
+grub_sort_list_insert_test (grub_named_list_t new_item, grub_named_list_t item,
+			    void *closure UNUSED)
+{
+  return (strcmp (new_item->name, item->name) < 0);
+}
+
 static void
 grub_sort_list_insert (grub_named_list_t *head, grub_named_list_t item)
 {
-  auto int test (grub_named_list_t new_item, grub_named_list_t item);
-  int test (grub_named_list_t new_item, grub_named_list_t item)
-    {
-      return (strcmp (new_item->name, item->name) < 0);
-    }
-
   grub_list_insert (GRUB_AS_LIST_P (head), GRUB_AS_LIST (item),
-		    (grub_list_test_t) test);
+		    (grub_list_test_t) grub_sort_list_insert_test, 0);
 }
 
 static void

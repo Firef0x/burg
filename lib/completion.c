@@ -99,7 +99,8 @@ add_completion (const char *completion, const char *extra,
 }
 
 static int
-iterate_partition (grub_disk_t disk, const grub_partition_t p)
+iterate_partition (grub_disk_t disk, const grub_partition_t p,
+		   void *closure UNUSED)
 {
   const char *disk_name = disk->name;
   char *partition_name = grub_partition_get_name (p);
@@ -126,7 +127,8 @@ iterate_partition (grub_disk_t disk, const grub_partition_t p)
 }
 
 static int
-iterate_dir (const char *filename, const struct grub_dirhook_info *info)
+iterate_dir (const char *filename, const struct grub_dirhook_info *info,
+	     void *closure UNUSED)
 {
   if (! info->dir)
     {
@@ -154,7 +156,7 @@ iterate_dir (const char *filename, const struct grub_dirhook_info *info)
 }
 
 static int
-iterate_dev (const char *devname)
+iterate_dev (const char *devname, void *closure UNUSED)
 {
   grub_device_t dev;
 
@@ -180,7 +182,7 @@ iterate_dev (const char *devname)
 }
 
 static int
-iterate_command (grub_command_t cmd)
+iterate_command (grub_command_t cmd, void *closure UNUSED)
 {
   if (cmd->prio & GRUB_PRIO_LIST_FLAG_ACTIVE)
     {
@@ -205,7 +207,7 @@ complete_device (void)
   if (! p)
     {
       /* Complete the disk part.  */
-      if (grub_disk_dev_iterate (iterate_dev))
+      if (grub_disk_dev_iterate (iterate_dev, 0))
 	return 1;
     }
   else
@@ -220,7 +222,7 @@ complete_device (void)
 	{
 	  if (dev->disk && dev->disk->has_partitions)
 	    {
-	      if (grub_partition_iterate (dev->disk, iterate_partition))
+	      if (grub_partition_iterate (dev->disk, iterate_partition, 0))
 		{
 		  grub_device_close (dev);
 		  return 1;
@@ -285,7 +287,7 @@ complete_file (void)
       dirfile[1] = '\0';
 
       /* Iterate the directory.  */
-      (fs->dir) (dev, dir, iterate_dir);
+      (fs->dir) (dev, dir, iterate_dir, 0);
 
       grub_free (dir);
 
@@ -408,7 +410,7 @@ grub_complete (char *buf, int *restore,
 
   *restore = 1;
 
-  if (grub_parser_split_cmdline (buf, 0, &argc, &argv))
+  if (grub_parser_split_cmdline (buf, 0, 0, &argc, &argv))
     return 0;
 
   current_word = argv[argc];
@@ -420,7 +422,7 @@ grub_complete (char *buf, int *restore,
   if (argc == 0)
     {
       /* Complete a command.  */
-      if (grub_command_iterate (iterate_command))
+      if (grub_command_iterate (iterate_command, 0))
 	goto fail;
     }
   else if (*current_word == '-')

@@ -38,34 +38,43 @@
 
 #include "progname.h"
 
+struct make_device_map_closure
+{
+  FILE *fp;
+  int num_hd;
+  int num_fd;
+};
+
+static int
+process_device (const char *name, int is_floppy, void *closure)
+{
+  struct make_device_map_closure *c = closure;
+
+  grub_util_emit_devicemap_entry (c->fp, (char *) name,
+				  is_floppy, &c->num_fd, &c->num_hd);
+  return 0;
+}
+
 static void
 make_device_map (const char *device_map, int floppy_disks)
 {
-  int num_hd = 0;
-  int num_fd = 0;
-  FILE *fp;
+  struct make_device_map_closure c;
 
-  auto int NESTED_FUNC_ATTR process_device (const char *name, int is_floppy);
-
-  int NESTED_FUNC_ATTR process_device (const char *name, int is_floppy)
-  {
-    grub_util_emit_devicemap_entry (fp, (char *) name,
-				    is_floppy, &num_fd, &num_hd);
-    return 0;
-  }
+  c.num_hd = 0;
+  c.num_fd = 0;
 
   if (strcmp (device_map, "-") == 0)
-    fp = stdout;
+    c.fp = stdout;
   else
-    fp = fopen (device_map, "w");
+    c.fp = fopen (device_map, "w");
 
-  if (! fp)
+  if (! c.fp)
     grub_util_error ("cannot open %s", device_map);
 
-  grub_util_iterate_devices (process_device, floppy_disks);
+  grub_util_iterate_devices (process_device, &c, floppy_disks);
 
-  if (fp != stdout)
-    fclose (fp);
+  if (c.fp != stdout)
+    fclose (c.fp);
 }
 
 static struct option options[] =

@@ -170,11 +170,15 @@ int grub_ieee1275_set_color (grub_ieee1275_ihandle_t ihandle,
 int grub_ieee1275_milliseconds (grub_uint32_t *msecs);
 
 
-int grub_devalias_iterate (int (*hook) (struct grub_ieee1275_devalias *alias));
+int grub_devalias_iterate (int (*hook) (struct grub_ieee1275_devalias *alias,
+					void *closure),
+			   void *closure);
 int grub_children_iterate (char *devpath,
-			   int (*hook) (struct grub_ieee1275_devalias *alias));
-grub_err_t grub_machine_mmap_iterate
-  (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uint64_t, grub_uint32_t));
+			   int (*hook) (struct grub_ieee1275_devalias *alias,
+					void *closure),
+			   void *closure);
+grub_err_t grub_machine_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
+						   grub_uint32_t, void *), void *);
 int grub_claimmap (grub_addr_t addr, grub_size_t size);
 
 char *grub_ieee1275_encode_devname (const char *path);

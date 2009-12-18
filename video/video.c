@@ -392,8 +392,10 @@ grub_video_get_active_render_target (struct grub_video_render_target **target)
 
 grub_err_t
 grub_video_set_mode (const char *modestring,
-		     int NESTED_FUNC_ATTR (*hook) (grub_video_adapter_t p,
-						   struct grub_video_mode_info *mode_info))
+		     int (*hook) (grub_video_adapter_t p,
+				  struct grub_video_mode_info *mode_info,
+				  void *closure),
+		     void *closure)
 {
   char *tmp;
   char *next_mode;
@@ -439,7 +441,7 @@ grub_video_set_mode (const char *modestring,
 	mode_info.mode_type = GRUB_VIDEO_MODE_TYPE_PURE_TEXT;
 
       if (suitable && hook)
-	suitable = hook (grub_video_adapter_active, &mode_info);
+	suitable = hook (grub_video_adapter_active, &mode_info, closure);
       if (suitable)
 	{
 	  grub_free (modevar);
@@ -512,7 +514,7 @@ grub_video_set_mode (const char *modestring,
 	  grub_memset (&mode_info, 0, sizeof (mode_info));
 	  mode_info.mode_type = GRUB_VIDEO_MODE_TYPE_PURE_TEXT;
 
-	  if (! hook || hook (0, &mode_info))
+	  if (! hook || hook (0, &mode_info, closure))
 	    {
 	      /* Valid mode found from adapter, and it has been activated.
 		 Specify it as active adapter.  */
@@ -677,7 +679,7 @@ grub_video_set_mode (const char *modestring,
 	      continue;
 	    }
 
-	  if (hook && ! hook (p, &mode_info))
+	  if (hook && ! hook (p, &mode_info, closure))
 	    {
 	      p->fini ();
 	      grub_errno = GRUB_ERR_NONE;

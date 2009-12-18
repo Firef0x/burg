@@ -28,34 +28,45 @@ GRUB_EXPORT(grub_mmap_malign_and_register);
 
 #ifndef GRUB_MMAP_REGISTER_BY_FIRMWARE
 
+struct grub_mmap_malign_and_register_closure
+{
+  grub_uint64_t align;
+  grub_uint64_t size;
+  grub_uint64_t highestlow;
+};
+
+static int
+find_hook (grub_uint64_t start, grub_uint64_t rangesize,
+	   grub_uint32_t memtype, void *closure)
+{
+  struct grub_mmap_malign_and_register_closure *c = closure;
+  grub_uint64_t end = start + rangesize;
+  if (memtype != GRUB_MACHINE_MEMORY_AVAILABLE)
+    return 0;
+  if (end > 0x100000)
+    end = 0x100000;
+  if (end > start + c->size
+      && c->highestlow < ((end - c->size) - ((end - c->size) & (c->align - 1))))
+    c->highestlow = (end - c->size)  - ((end - c->size) & (c->align - 1));
+  return 0;
+}
+
 void *
 grub_mmap_malign_and_register (grub_uint64_t align, grub_uint64_t size,
 			       int *handle, int type, int flags)
 {
-  grub_uint64_t highestlow = 0;
-
-  auto int NESTED_FUNC_ATTR find_hook (grub_uint64_t, grub_uint64_t,
-				       grub_uint32_t);
-  int NESTED_FUNC_ATTR find_hook (grub_uint64_t start, grub_uint64_t rangesize,
-				  grub_uint32_t memtype)
-  {
-    grub_uint64_t end = start + rangesize;
-    if (memtype != GRUB_MACHINE_MEMORY_AVAILABLE)
-      return 0;
-    if (end > 0x100000)
-      end = 0x100000;
-    if (end > start + size
-	&& highestlow < ((end - size) - ((end - size) & (align - 1))))
-      highestlow = (end - size)  - ((end - size) & (align - 1));
-    return 0;
-  }
-
   void *ret;
+
   if (flags & GRUB_MMAP_MALLOC_LOW)
     {
+      struct grub_mmap_malign_and_register_closure c;
+
+      c.align = align;
+      c.size = size;
+      c.highestlow = 0;
       /* FIXME: use low-memory mm allocation once it's available. */
-      grub_mmap_iterate (find_hook);
-      ret = UINT_TO_PTR (highestlow);
+      grub_mmap_iterate (find_hook, &c);
+      ret = UINT_TO_PTR (c.highestlow);
     }
   else
     ret = grub_memalign (align, size);

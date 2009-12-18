@@ -80,88 +80,100 @@ grub_device_close (grub_device_t device)
   return grub_errno;
 }
 
-int
-grub_device_iterate (int (*hook) (const char *name))
+struct grub_device_iterate_closure
 {
-  auto int iterate_disk (const char *disk_name);
-  auto int iterate_partition (grub_disk_t disk,
-			      const grub_partition_t partition);
-
+  int (*hook) (const char *name, void *closure);
+  void *closure;
   struct part_ent
   {
     struct part_ent *next;
     char name[0];
   } *ents;
+};
 
-  int iterate_disk (const char *disk_name)
+
+static int
+iterate_partition (grub_disk_t disk, const grub_partition_t partition,
+		   void *closure)
+{
+  struct grub_device_iterate_closure *c = closure;
+  char *partition_name;
+  struct part_ent *p;
+
+  partition_name = grub_partition_get_name (partition);
+  if (! partition_name)
+    return 1;
+
+  p = grub_malloc (sizeof (p->next) + grub_strlen (disk->name) + 1 +
+		   grub_strlen (partition_name) + 1);
+  if (!p)
     {
-      grub_device_t dev;
-
-      if (hook (disk_name))
-	return 1;
-
-      dev = grub_device_open (disk_name);
-      if (! dev)
-	{
-	  grub_errno = 0;
-	  return 0;
-	}
-
-      if (dev->disk && dev->disk->has_partitions)
-	{
-	  struct part_ent *p;
-	  int ret = 0;
-
-	  ents = NULL;
-	  (void) grub_partition_iterate (dev->disk, iterate_partition);
-	  grub_device_close (dev);
-
-	  grub_errno = GRUB_ERR_NONE;
-
-	  p = ents;
-	  while (p != NULL)
-	    {
-	      struct part_ent *next = p->next;
-
-	      if (!ret)
-		ret = hook (p->name);
-	      grub_free (p);
-	      p = next;
-	    }
-
-	  return ret;
-	}
-
-      grub_device_close (dev);
-      return 0;
-    }
-
-  int iterate_partition (grub_disk_t disk, const grub_partition_t partition)
-    {
-      char *partition_name;
-      struct part_ent *p;
-
-      partition_name = grub_partition_get_name (partition);
-      if (! partition_name)
-	return 1;
-
-      p = grub_malloc (sizeof (p->next) + grub_strlen (disk->name) + 1 +
-		       grub_strlen (partition_name) + 1);
-      if (!p)
-	{
-	  grub_free (partition_name);
-	  return 1;
-	}
-
-      grub_sprintf (p->name, "%s,%s", disk->name, partition_name);
       grub_free (partition_name);
+      return 1;
+    }
 
-      p->next = ents;
-      ents = p;
+  grub_sprintf (p->name, "%s,%s", disk->name, partition_name);
+  grub_free (partition_name);
 
+  p->next = c->ents;
+  c->ents = p;
+
+  return 0;
+}
+
+static int
+iterate_disk (const char *disk_name, void *closure)
+{
+  struct grub_device_iterate_closure *c = closure;
+  grub_device_t dev;
+
+  if (c->hook (disk_name, c->closure))
+    return 1;
+
+  dev = grub_device_open (disk_name);
+  if (! dev)
+    {
+      grub_errno = 0;
       return 0;
     }
 
+  if (dev->disk && dev->disk->has_partitions)
+    {
+      struct part_ent *p;
+      int ret = 0;
+
+      c->ents = NULL;
+      (void) grub_partition_iterate (dev->disk, iterate_partition, c);
+      grub_device_close (dev);
+
+      grub_errno = GRUB_ERR_NONE;
+
+      p = c->ents;
+      while (p != NULL)
+	{
+	  struct part_ent *next = p->next;
+
+	  if (!ret)
+	    ret = c->hook (p->name, c->closure);
+	  grub_free (p);
+	  p = next;
+	}
+
+      return ret;
+    }
+
+  grub_device_close (dev);
+  return 0;
+}
+
+int
+grub_device_iterate (int (*hook) (const char *name, void *closure),
+		     void *closure)
+{
+  struct grub_device_iterate_closure c;
+
+  c.hook = hook;
+  c.closure = closure;
   /* Only disk devices are supported at the moment.  */
-  return grub_disk_dev_iterate (iterate_disk);
+  return grub_disk_dev_iterate (iterate_disk, &c);
 }

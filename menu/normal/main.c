@@ -762,7 +762,7 @@ static char cmdline[GRUB_MAX_CMDLINE];
 int reader_nested;
 
 static grub_err_t
-grub_normal_read_line (char **line, int cont)
+grub_normal_read_line (char **line, int cont, void *closure UNUSED)
 {
   grub_parser_t parser = grub_parser_get_current ();
   char prompt[sizeof("> ") + grub_strlen (parser->name)];
@@ -810,7 +810,7 @@ grub_cmdline_run (int nested)
 	       nested ? " ESC at any time exits." : "");
 
   reader_nested = nested;
-  grub_reader_loop (grub_normal_read_line);
+  grub_reader_loop (grub_normal_read_line, 0);
 }
 
 static char *

@@ -27,6 +27,13 @@
 #include <grub/device.h>
 #include <grub/command.h>
 
+static int
+print_env (struct grub_env_var *env, void *closure UNUSED)
+{
+  grub_printf ("%s=%s\n", env->name, env->value);
+  return 0;
+}
+
 /* set ENVVAR=VALUE */
 static grub_err_t
 grub_core_cmd_set (struct grub_command *cmd __attribute__ ((unused)),
@@ -35,17 +42,9 @@ grub_core_cmd_set (struct grub_command *cmd __attribute__ ((unused)),
   char *var;
   char *val;
 
-  auto int print_env (struct grub_env_var *env);
-
-  int print_env (struct grub_env_var *env)
-    {
-      grub_printf ("%s=%s\n", env->name, env->value);
-      return 0;
-    }
-
   if (argc < 1)
     {
-      grub_env_iterate (print_env);
+      grub_env_iterate (print_env, 0);
       return 0;
     }
 
@@ -109,7 +108,7 @@ grub_core_cmd_insmod (struct grub_command *cmd __attribute__ ((unused)),
 }
 
 static int
-grub_mini_print_devices (const char *name)
+grub_mini_print_devices (const char *name, void *closure UNUSED)
 {
   grub_printf ("(%s) ", name);
 
@@ -118,7 +117,8 @@ grub_mini_print_devices (const char *name)
 
 static int
 grub_mini_print_files (const char *filename,
-		       const struct grub_dirhook_info *info)
+		       const struct grub_dirhook_info *info,
+		       void *closure UNUSED)
 {
   grub_printf ("%s%s ", filename, info->dir ? "/" : "");
 
@@ -132,7 +132,7 @@ grub_core_cmd_ls (struct grub_command *cmd __attribute__ ((unused)),
 {
   if (argc < 1)
     {
-      grub_device_iterate (grub_mini_print_devices);
+      grub_device_iterate (grub_mini_print_devices, 0);
       grub_putchar ('\n');
       grub_refresh ();
     }
@@ -171,7 +171,7 @@ grub_core_cmd_ls (struct grub_command *cmd __attribute__ ((unused)),
 	}
       else if (fs)
 	{
-	  (fs->dir) (dev, path, grub_mini_print_files);
+	  (fs->dir) (dev, path, grub_mini_print_files, 0);
 	  grub_putchar ('\n');
 	  grub_refresh ();
 	}
