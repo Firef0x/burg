@@ -19,6 +19,7 @@
 #include <grub/machine/memory.h>
 #include <grub/ieee1275/ieee1275.h>
 #include <grub/types.h>
+#include <grub/misc.h>
 
 GRUB_EXPORT(grub_machine_mmap_iterate);
 
@@ -31,6 +32,7 @@ grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uin
   grub_ssize_t available_size;
   grub_uint32_t address_cells = 1;
   grub_uint32_t size_cells = 1;
+  char copyright[128];
   int i;
 
   /* Determine the format of each entry in `available'.  */
@@ -40,7 +42,17 @@ grub_machine_mmap_iterate (int NESTED_FUNC_ATTR (*hook) (grub_uint64_t, grub_uin
   grub_ieee1275_get_integer_property (root, "#size-cells", &size_cells,
 				      sizeof size_cells, 0);
 
+  grub_ieee1275_get_property (root, "copyright", copyright,
+			      sizeof copyright, 0);
+
   if (size_cells > address_cells)
+    address_cells = size_cells;
+
+  /* Apple ppc g4, g5 /memory/available[] uses 32bit offset and size,
+     including for >4GB fitted RAM,
+     and does not use root cell sizes. Maybe some other ieee1275 Apple
+     uses 64bit offset and size? */
+  if (grub_strstr (copyright, "Apple"))
     address_cells = size_cells;
 
   /* Load `/memory/available'.  */
