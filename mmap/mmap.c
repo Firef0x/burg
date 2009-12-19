@@ -47,9 +47,9 @@ static int
 count_hook (grub_uint64_t addr UNUSED, grub_uint64_t size UNUSED,
 	    grub_uint32_t type UNUSED, void *closure)
 {
-  struct grub_mmap_iterate_closure *c = closure;
+  int *mmap_num = closure;
 
-  c->i++;
+  (*mmap_num)++;
   return 0;
 }
 
@@ -70,24 +70,23 @@ fill_hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
 {
   struct grub_mmap_iterate_closure *c = closure;
   struct grub_mmap_scan *scanline_events = c->scanline_events;
-  int i = c->i;
 
-  scanline_events[i].pos = addr;
-  scanline_events[i].type = 0;
+  scanline_events[c->i].pos = addr;
+  scanline_events[c->i].type = 0;
   if (type <= GRUB_MACHINE_MEMORY_MAX_TYPE && c->priority[type])
-    scanline_events[i].memtype = type;
+    scanline_events[c->i].memtype = type;
   else
     {
       grub_dprintf ("mmap", "Unknown memory type %d. Assuming unusable\n",
 		    type);
-      scanline_events[i].memtype = GRUB_MACHINE_MEMORY_RESERVED;
+      scanline_events[c->i].memtype = GRUB_MACHINE_MEMORY_RESERVED;
     }
-  i++;
+  c->i++;
 
-  scanline_events[i].pos = addr + size;
-  scanline_events[i].type = 1;
-  scanline_events[i].memtype = scanline_events[i - 1].memtype;
-  i++;
+  scanline_events[c->i].pos = addr + size;
+  scanline_events[c->i].type = 1;
+  scanline_events[c->i].memtype = scanline_events[c->i - 1].memtype;
+  c->i++;
 
   return 0;
 }
@@ -153,9 +152,7 @@ grub_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
     mmap_num++;
 #endif
 
-  c.i = mmap_num;
-  grub_machine_mmap_iterate (count_hook, &c);
-  mmap_num = c.i;
+  grub_machine_mmap_iterate (count_hook, &mmap_num);
 
   /* Initialize variables. */
   grub_memset (present, 0, sizeof (present));
