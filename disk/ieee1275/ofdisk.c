@@ -1,7 +1,7 @@
 /* ofdisk.c - Open Firmware disk access.  */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2004,2006,2007,2008  Free Software Foundation, Inc.
+ *  Copyright (C) 2004,2006,2007,2008,2009  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,6 +26,8 @@
 struct ofdisk_hash_ent
 {
   char *devpath;
+  int refs;
+  grub_ieee1275_ihandle_t dev_ihandle;
   struct ofdisk_hash_ent *next;
 };
 
@@ -65,6 +67,8 @@ ofdisk_hash_add (char *devpath)
     {
       p->devpath = grub_strdup (devpath);
       p->next = *head;
+      p->refs = 0;
+      p->dev_ihandle = 0;
       *head = p;
     }
   return p;
@@ -180,6 +184,23 @@ grub_ofdisk_open (const char *name, grub_disk_t disk)
   if (!op)
     return grub_errno;
 
+  if (op->dev_ihandle)
+    {
+      op->refs++;
+
+      /* XXX: There is no property to read the number of blocks.  There
+	 should be a property `#blocks', but it is not there.  Perhaps it
+	 is possible to use seek for this.  */
+      disk->total_sectors = 0xFFFFFFFFUL;
+
+      disk->id = (unsigned long) op;
+
+      /* XXX: Read this, somehow.  */
+      disk->has_partitions = 1;
+      disk->data = op;
+      return 0;
+    }
+
   grub_dprintf ("disk", "Opening `%s'.\n", op->devpath);
 
   grub_ieee1275_open (op->devpath, &dev_ihandle);
@@ -189,8 +210,8 @@ grub_ofdisk_open (const char *name, grub_disk_t disk)
       goto fail;
     }
 
-  grub_dprintf ("disk", "Opened `%s' as handle %p.\n", op->devpath,
-		(void *) (unsigned long) dev_ihandle);
+  grub_dprintf ("disk", "Opened `%s' as handle 0x%lx.\n", op->devpath,
+		(unsigned long) dev_ihandle);
 
   if (grub_ieee1275_finddevice (op->devpath, &dev))
     {
@@ -211,6 +232,9 @@ grub_ofdisk_open (const char *name, grub_disk_t disk)
       goto fail;
     }
 
+  op->dev_ihandle = dev_ihandle;
+  op->refs++;
+
   /* XXX: There is no property to read the number of blocks.  There
      should be a property `#blocks', but it is not there.  Perhaps it
      is possible to use seek for this.  */
@@ -220,7 +244,7 @@ grub_ofdisk_open (const char *name, grub_disk_t disk)
 
   /* XXX: Read this, somehow.  */
   disk->has_partitions = 1;
-  disk->data = (void *) (unsigned long) dev_ihandle;
+  disk->data = op;
   return 0;
 
  fail:
@@ -232,9 +256,15 @@ grub_ofdisk_open (const char *name, grub_disk_t disk)
 static void
 grub_ofdisk_close (grub_disk_t disk)
 {
-  grub_dprintf ("disk", "Closing handle %p.\n",
-		(void *) disk->data);
-  grub_ieee1275_close ((grub_ieee1275_ihandle_t) (unsigned long) disk->data);
+  struct ofdisk_hash_ent *data = disk->data;
+
+  data->refs--;
+  if (data->refs)
+    return;
+
+  grub_dprintf ("disk", "Closing handle %p.\n", data);
+  grub_ieee1275_close (data->dev_ihandle);
+  data->dev_ihandle = 0;
 }
 
 static grub_err_t
@@ -243,30 +273,30 @@ grub_ofdisk_read (grub_disk_t disk, grub_disk_addr_t sector,
 {
   grub_ssize_t status, actual;
   unsigned long long pos;
+  struct ofdisk_hash_ent *data = disk->data;
 
   grub_dprintf ("disk",
 		"Reading handle %p: sector 0x%llx, size 0x%lx, buf %p.\n",
-		(void *) disk->data, (long long) sector, (long) size, buf);
+		data, (long long) sector, (long) size, buf);
 
   pos = sector * 512UL;
 
 #if GRUB_TARGET_SIZEOF_LONG == 4
-  grub_ieee1275_seek ((grub_ieee1275_ihandle_t) (unsigned long) disk->data,
+  grub_ieee1275_seek (data->dev_ihandle,
 		      (grub_ieee1275_cell_t) (pos >> 32),
 		      (grub_ieee1275_cell_t) (pos & 0xFFFFFFFFUL),
 		      &status);
 #else
-  grub_ieee1275_seek ((grub_ieee1275_ihandle_t) (unsigned long) disk->data,
-		      0, pos, &status);
+  grub_ieee1275_seek (data->dev_ihandle, 0, pos, &status);
 #endif
 
   if (status < 0)
     return grub_error (GRUB_ERR_READ_ERROR,
 		       "Seek error, can't seek block %llu",
 		       (long long) sector);
-  grub_ieee1275_read ((grub_ieee1275_ihandle_t) (unsigned long) disk->data,
-		      buf, size * 512UL, &actual);
-  if (actual != actual)
+  size <<= 9;
+  grub_ieee1275_read (data->dev_ihandle, buf, size, &actual);
+  if (actual != (int) size)
     return grub_error (GRUB_ERR_READ_ERROR, "Read error on block: %llu",
 		       (long long) sector);
 
