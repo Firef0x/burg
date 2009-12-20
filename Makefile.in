@@ -180,7 +180,7 @@ CLEANFILES += $(pkglib_DATA) $(pkgdata_DATA) $(LISTFILES) po/*.mo
 pkglib_DATA += $(LISTFILES)
 
 $(LISTFILES): $(MODFILES) grub-symdb
-	$(builddir)/grub-symdb -d . update $?
+	$(call quiet-command,$(builddir)/grub-symdb -d . update $?,"  SYMDB")
 
 ifneq (true, $(MAKEINFO))
 info_INFOS += docs/grub.info
@@ -229,7 +229,7 @@ endif
 # Used for building modules externally
 pkglib_BUILDDIR += build_env.mk
 build_env.mk: Makefile
-	(\
+	$(call quiet-command,(\
 	echo "TARGET_CC=$(TARGET_CC)" ; \
 	echo "TARGET_CFLAGS=$(TARGET_CFLAGS)" ; \
 	echo "TARGET_ASFLAGS=$(TARGET_ASFLAGS)" ; \
@@ -241,7 +241,7 @@ build_env.mk: Makefile
 	echo "COMMON_ASFLAGS=$(COMMON_ASFLAGS)" ; \
 	echo "COMMON_CFLAGS=$(COMMON_CFLAGS)" ; \
 	echo "COMMON_LDFLAGS=$(COMMON_LDFLAGS)"\
-	) > $@
+	) > $@,"  GEN   $@")
 pkglib_BUILDDIR += config.h grub_script.tab.h
 
 all-local: $(PROGRAMS) $(PKGLIB) $(PKGDATA) $(SCRIPTS) $(INFOS) $(MKFILES) $(foreach lang, $(LINGUAS), po/$(lang).mo)

@@ -94,41 +94,41 @@ DISTCLEANFILES += grub_script.tab.c grub_script.tab.h
 
 # For grub-probe.
 grub_probe_init.lst: geninit.sh $(filter-out grub_probe_init.c,$(grub_probe_SOURCES))
-	rm -f $@; grep GRUB_MOD_INIT $(filter %.c,$^) /dev/null > $@
+	$(call quiet-command,rm -f $@; grep GRUB_MOD_INIT $(filter %.c,$^) /dev/null > $@,"  GEN   $@")
 DISTCLEANFILES += grub_probe_init.lst
 
 grub_probe_init.h: grub_probe_init.lst $(filter-out grub_probe_init.c,$(grub_probe_SOURCES)) geninitheader.sh
-	rm -f $@; sh $(srcdir)/geninitheader.sh $< > $@
+	$(call quiet-command,rm -f $@; sh $(srcdir)/geninitheader.sh $< > $@,"  GEN   $@")
 DISTCLEANFILES += grub_probe_init.h
 
 grub_probe_init.c: grub_probe_init.lst $(filter-out grub_probe_init.c,$(grub_probe_SOURCES)) geninit.sh grub_probe_init.h
-	rm -f $@; sh $(srcdir)/geninit.sh $< $(filter %.c,$^) > $@
+	$(call quiet-command,rm -f $@; sh $(srcdir)/geninit.sh $< $(filter %.c,$^) > $@,"  GEN   $@")
 DISTCLEANFILES += grub_probe_init.c
 
 # For grub-setup.
 grub_setup_init.lst: geninit.sh $(filter-out grub_setup_init.c,$(grub_setup_SOURCES))
-	rm -f $@; grep GRUB_MOD_INIT $(filter %.c,$^) /dev/null > $@
+	$(call quiet-command,rm -f $@; grep GRUB_MOD_INIT $(filter %.c,$^) /dev/null > $@,"  GEN   $@")
 DISTCLEANFILES += grub_setup_init.lst
 
 grub_setup_init.h: grub_setup_init.lst $(filter-out grub_setup_init.c,$(grub_setup_SOURCES)) geninitheader.sh
-	rm -f $@; sh $(srcdir)/geninitheader.sh $< > $@
+	$(call quiet,rm -f $@; sh $(srcdir)/geninitheader.sh $< > $@,"  GEN   $@")
 DISTCLEANFILES += grub_setup_init.h
 
 grub_setup_init.c: grub_setup_init.lst $(filter-out grub_setup_init.c,$(grub_setup_SOURCES)) geninit.sh grub_setup_init.h
-	rm -f $@; sh $(srcdir)/geninit.sh $< $(filter %.c,$^) > $@
+	$(call quiet-command,rm -f $@; sh $(srcdir)/geninit.sh $< $(filter %.c,$^) > $@,"  GEN   $@")
 DISTCLEANFILES += grub_setup_init.c
 
 # For grub-fstest.
 grub_fstest_init.lst: geninit.sh $(filter-out grub_fstest_init.c,$(grub_fstest_SOURCES))
-	rm -f $@; grep GRUB_MOD_INIT $(filter %.c,$^) /dev/null > $@
+	$(call quiet-command,rm -f $@; grep GRUB_MOD_INIT $(filter %.c,$^) /dev/null > $@,"  GEN   $@")
 DISTCLEANFILES += grub_fstest_init.lst
 
 grub_fstest_init.h: grub_fstest_init.lst $(filter-out grub_fstest_init.c,$(grub_fstest_SOURCES)) geninitheader.sh
-	rm -f $@; sh $(srcdir)/geninitheader.sh $< > $@
+	$(call quiet-command,rm -f $@; sh $(srcdir)/geninitheader.sh $< > $@,"  GEN   $@")
 DISTCLEANFILES += grub_fstest_init.h
 
 grub_fstest_init.c: grub_fstest_init.lst $(filter-out grub_fstest_init.c,$(grub_fstest_SOURCES)) geninit.sh grub_fstest_init.h
-	rm -f $@; sh $(srcdir)/geninit.sh $< $(filter %.c,$^) > $@
+	$(call quiet-command,rm -f $@; sh $(srcdir)/geninit.sh $< $(filter %.c,$^) > $@,"  GEN   $@")
 DISTCLEANFILES += grub_fstest_init.c
 
 # for grub-editenv

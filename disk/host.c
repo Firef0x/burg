@@ -27,9 +27,10 @@
 int grub_disk_host_i_want_a_reference;
 
 static int
-grub_host_iterate (int (*hook) (const char *name))
+grub_host_iterate (int (*hook) (const char *name, void *closure),
+		   void *closure)
 {
-  if (hook ("host"))
+  if (hook ("host", closure))
     return 1;
   return 0;
 }
