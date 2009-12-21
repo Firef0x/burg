@@ -38,6 +38,7 @@
 #include <grub/util/console.h>
 #include <grub/term.h>
 #include <grub/types.h>
+#include <stdlib.h>
 
 static int grub_console_attr = A_NORMAL;
 
@@ -305,6 +306,25 @@ grub_ncurses_refresh (void)
   refresh ();
 }
 
+static int ncurses_closed;
+
+static grub_err_t
+grub_ncurses_fini (void)
+{
+  if (! ncurses_closed)
+    {
+      endwin ();
+      ncurses_closed = 1;
+    }
+  return 0;
+}
+
+static void
+ncurses_exit (void)
+{
+  grub_ncurses_fini ();
+}
+
 static grub_err_t
 grub_ncurses_init (void)
 {
@@ -334,13 +354,8 @@ grub_ncurses_init (void)
         }
     }
 
-  return 0;
-}
-
-static grub_err_t
-grub_ncurses_fini (void)
-{
-  endwin ();
+  ncurses_closed = 0;
+  atexit (ncurses_exit);
   return 0;
 }
 

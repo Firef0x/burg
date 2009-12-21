@@ -9,8 +9,7 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	commands/configfile.c commands/echo.c commands/help.c		\
 	commands/handler.c commands/ls.c commands/test.c 		\
 	commands/search.c commands/blocklist.c commands/hexdump.c	\
-	lib/hexdump.c commands/halt.c commands/reboot.c			\
-	lib/envblk.c commands/loadenv.c					\
+	commands/halt.c commands/reboot.c commands/loadenv.c		\
 	commands/gptsync.c commands/probe.c commands/xnu_uuid.c		\
 	commands/password.c commands/keystatus.c			\
 	disk/host.c disk/loopback.c disk/scsi.c				\
@@ -23,11 +22,13 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	kern/fs.c commands/boot.c kern/main.c kern/misc.c kern/parser.c	\
 	kern/partition.c kern/reader.c kern/term.c			\
 	kern/rescue_reader.c kern/rescue_parser.c			\
-	lib/arg.c normal/cmdline.c normal/datetime.c normal/misc.c	\
-	normal/handler.c normal/auth.c normal/autofs.c			\
-	normal/completion.c normal/main.c normal/color.c		\
-	normal/menu.c normal/menu_entry.c normal/menu_viewer.c		\
-	normal/menu_text.c						\
+	normal/autofs.c normal/handler.c normal/main.c			\
+	menu/normal/cmdline.c menu/normal/color.c menu/normal/main.c	\
+	menu/normal/menu.c menu/normal/menu_entry.c			\
+	lib/arg.c lib/auth.c lib/autolist.c lib/completion.c lib/crc.c	\
+	lib/datetime.c lib/envblk.c lib/getline.c lib/hexdump.c		\
+	lib/history.c lib/md5_password.c lib/menu_entry.c 		\
+	lib/menu_viewer.c lib/misc.c lib/tree.c lib/uitree.c		\
 	script/main.c script/execute.c script/function.c		\
 	script/lexer.c script/script.c grub_script.tab.c		\
 	partmap/amiga.c	partmap/apple.c partmap/msdos.c partmap/sun.c	\
@@ -47,7 +48,7 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	commands/parttool.c parttool/msdospart.c			\
 	grub_emu_init.c gnulib/progname.c
 
-ifeq ($(target_cpu), i386)
+ifeq ($(host_cpu), i386)
 grub_emu_SOURCES += commands/i386/cpuid.c
 endif
 
@@ -65,15 +66,15 @@ grub_emu_LDFLAGS += $(LIBPCIACCESS)
 endif
 
 grub_emu_init.lst: geninit.sh $(filter-out grub_emu_init.c,$(grub_emu_SOURCES))
-	rm -f $@; grep GRUB_MOD_INIT $(filter %.c,$^) /dev/null > $@
+	$(call quiet-command,rm -f $@; grep GRUB_MOD_INIT $(filter %.c,$^) /dev/null > $@,"  GEN   $@")
 DISTCLEANFILES += grub_emu_init.lst
 
 grub_emu_init.h: grub_emu_init.lst $(filter-out grub_emu_init.c,$(grub_emu_SOURCES)) geninitheader.sh
-	rm -f $@; sh $(srcdir)/geninitheader.sh $< > $@
+	$(call quiet-command,rm -f $@; sh $(srcdir)/geninitheader.sh $< > $@,"  GEN   $@")
 DISTCLEANFILES += grub_emu_init.h
 
 grub_emu_init.c: grub_emu_init.lst $(filter-out grub_emu_init.c,$(grub_emu_SOURCES)) geninit.sh grub_emu_init.h
-	rm -f $@; sh $(srcdir)/geninit.sh $< $(filter %.c,$^) > $@
+	$(call quiet-command,rm -f $@; sh $(srcdir)/geninit.sh $< $(filter %.c,$^) > $@,"  GEN   $@")
 DISTCLEANFILES += grub_emu_init.c
 
 
@@ -84,7 +85,8 @@ DISTCLEANFILES += grub_emu_init.c
 # For grub-mkfont.
 ifeq ($(enable_grub_mkfont), yes)
 bin_UTILITIES += grub-mkfont
-grub_mkfont_SOURCES = gnulib/progname.c util/grub-mkfont.c util/misc.c
+grub_mkfont_SOURCES = gnulib/progname.c util/grub-mkfont.c util/misc.c \
+	kern/misc.c kern/err.c
 grub_mkfont_CFLAGS = $(freetype_cflags)
 grub_mkfont_LDFLAGS = $(freetype_libs)
 endif

@@ -125,10 +125,12 @@ RELOCATOR_VARIABLE(size)
 
 	/* %rax contains now our new 'base'.  */
 	mov	RAX, RSI
-	lea	(LOCAL(cont0) - LOCAL(base)) (RSI, 1), RAX
+	L_cont0_base = LOCAL(cont0) - LOCAL(base)
+	lea	(L_cont0_base) (RSI, 1), RAX
 	jmp	*RAX
 LOCAL(cont0):
-	lea	(LOCAL(cont1) - LOCAL(base)) (RSI, 1), RAX
+	L_cont1_base = LOCAL(cont1) - LOCAL(base)
+	lea	(L_cont1_base) (RSI, 1), RAX
 	movl	%eax, (LOCAL(jump_vector) - LOCAL(base)) (RSI, 1)
 
 	lea	(LOCAL(gdt) - LOCAL(base)) (RSI, 1), RAX

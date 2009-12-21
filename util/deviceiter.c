@@ -169,6 +169,10 @@ get_floppy_disk_name (char *name, int unit)
   sprintf (name, "/dev/fd%d", unit);
 #elif defined(__MINGW32__)
   (void) unit;
+  *name = 0;  
+#elif defined(__MACH__)
+  /* OSX */
+  (void) unit;
   *name = 0;
 #else
 # warning "BIOS floppy drives cannot be guessed in your operating system."
@@ -217,6 +221,10 @@ get_ide_disk_name (char *name, int unit)
   *name = 0;
 #elif defined(__MINGW32__)
   sprintf (name, "//./PHYSICALDRIVE%d", unit);
+#elif defined(__MACH__)
+  /* OSX */
+  (void) unit;
+  *name = 0;
 #else
 # warning "BIOS IDE drives cannot be guessed in your operating system."
   /* Set NAME to a bogus string.  */
@@ -263,6 +271,10 @@ get_scsi_disk_name (char *name, int unit)
   sprintf (name, "/dev/sd%c", unit + 'a');
 #elif defined(__MINGW32__)
   (void) unit;
+  *name = 0;
+#elif defined(__MACH__)
+  /* OSX */
+  sprintf (name, "/dev/rdisk%d", unit);
   *name = 0;
 #else
 # warning "BIOS SCSI drives cannot be guessed in your operating system."

@@ -54,7 +54,7 @@ char grub_code_start[0];
 grub_addr_t
 grub_arch_modules_addr (void)
 {
-  return NULL;
+  return 0;
 }
 
 grub_err_t

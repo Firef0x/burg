@@ -27,6 +27,9 @@
 #include <dirent.h>
 #include <stdio.h>
 
+#ifdef __MACH__
+#include <sys/disk.h>
+#endif
 
 /* dirent.d_type is a BSD extension, not part of POSIX */
 #include <sys/stat.h>
@@ -56,7 +59,8 @@ is_dir (const char *path, const char *name)
 static grub_err_t
 grub_hostfs_dir (grub_device_t device, const char *path,
 		 int (*hook) (const char *filename,
-			      const struct grub_dirhook_info *info))
+			      const struct grub_dirhook_info *info,
+			      void *closure), void *closure)
 {
   DIR *dir;
 
@@ -80,7 +84,7 @@ grub_hostfs_dir (grub_device_t device, const char *path,
 	break;
 
       info.dir = !! is_dir (path, de->d_name);
-      hook (de->d_name, &info);
+      hook (de->d_name, &info, closure);
 
     }
 
@@ -103,6 +107,27 @@ grub_hostfs_open (struct grub_file *file, const char *name)
 
 #ifdef __MINGW32__
   file->size = grub_util_get_disk_size (name);
+#elif defined(__MACH__)
+  if (! strncmp (name, "/dev/", 5))
+    {
+      unsigned long long int count;
+      unsigned int size;
+
+      if ((ioctl (fileno (f), DKIOCGETBLOCKSIZE, &size) < 0) ||
+	  (ioctl (fileno (f), DKIOCGETBLOCKCOUNT, &count) < 0))
+	{
+	  file->data = 0;
+	  fclose (f);	  
+	  return grub_error (GRUB_ERR_BAD_FILENAME, "ioctl fails");
+	}
+      file->size = count * size;
+    }
+  else
+    {
+      fseeko (f, 0, SEEK_END);
+      file->size = ftello (f);
+      fseeko (f, 0, SEEK_SET);      
+    }
 #else
   fseeko (f, 0, SEEK_END);
   file->size = ftello (f);

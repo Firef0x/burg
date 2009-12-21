@@ -174,13 +174,17 @@ endif
 
 ### General targets.
 
+ifeq ($(platform), emu)
+LISTFILES =
+else
 LISTFILES = modsym.lst moddep.lst command.lst fs.lst partmap.lst \
-	    parttool.lst handler.lst video.lst
-CLEANFILES += $(pkglib_DATA) $(pkgdata_DATA) $(LISTFILES) po/*.mo
-pkglib_DATA += $(LISTFILES)
+            parttool.lst handler.lst video.lst
 
 $(LISTFILES): $(MODFILES) grub-symdb
 	$(call quiet-command,$(builddir)/grub-symdb -d . update $?,"  SYMDB")
+endif
+CLEANFILES += $(pkglib_DATA) $(pkgdata_DATA) $(LISTFILES) po/*.mo
+pkglib_DATA += $(LISTFILES)
 
 ifneq (true, $(MAKEINFO))
 info_INFOS += docs/grub.info

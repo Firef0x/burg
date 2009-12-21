@@ -83,7 +83,7 @@ grub_cmd_help (grub_extcmd_t ext __attribute__ ((unused)), int argc,
   c.cnt = 0;
 
   if (argc == 0)
-    grub_command_iterate (print_command_info, 0);
+    grub_command_iterate (print_command_info, &c);
   else
     {
       int i;
@@ -91,7 +91,7 @@ grub_cmd_help (grub_extcmd_t ext __attribute__ ((unused)), int argc,
       for (i = 0; i < argc; i++)
 	{
 	  c.currarg = args[i];
-	  grub_command_iterate (print_command_help, 0);
+	  grub_command_iterate (print_command_help, &c);
 	}
     }
 
