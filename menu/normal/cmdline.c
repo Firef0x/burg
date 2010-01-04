@@ -27,6 +27,7 @@
 #include <grub/file.h>
 #include <grub/env.h>
 #include <grub/lib.h>
+#include <grub/i18n.h>
 
 static char *kill_buf;
 
@@ -173,19 +174,20 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
   int key;
   int histpos = 0;
   struct grub_cmdline_get_closure c;
+  const char *prompt_translated = _(prompt);
 
   c.max_len = max_len;
   c.echo_char = echo_char;
   c.buf = buf;
 
-  c.plen = grub_strlen (prompt);
+  c.plen = grub_strlen (prompt_translated);
   c.lpos = c.llen = 0;
   buf[0] = '\0';
 
   if ((grub_getxy () >> 8) != 0)
     grub_putchar ('\n');
 
-  grub_printf ("%s", prompt);
+  grub_printf ("%s ", prompt_translated);
 
   c.xpos = c.plen;
   c.ystart = c.ypos = (grub_getxy () & 0xFF);
@@ -244,7 +246,7 @@ grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
 		if (restore)
 		  {
 		    /* Restore the prompt.  */
-		    grub_printf ("\n%s%s", prompt, buf);
+		    grub_printf ("\n%s %s", prompt_translated, buf);
 		    c.xpos = c.plen;
 		    c.ystart = c.ypos = (grub_getxy () & 0xFF);
 		  }

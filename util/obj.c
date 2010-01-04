@@ -327,7 +327,7 @@ grub_strtab_find (grub_strtab_t head, char *name)
 
 static int
 grub_strtab_insert_test (grub_strtab_t new_item, grub_strtab_t item,
-			 void *closure UNUSED)
+			 void *closure __attribute__ ((unused)))
 {
   return (strcmp (new_item->name, item->name) < 0);
 }

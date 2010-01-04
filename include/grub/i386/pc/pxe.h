@@ -201,7 +201,7 @@ struct grub_pxenv_get_cached_info
 
 #define GRUB_PXE_MAC_ADDR_LEN	16
 
-typedef grub_uint8_t grub_pxe_mac_addr[GRUB_PXE_MAC_ADDR_LEN];
+typedef grub_uint8_t grub_pxe_mac_addr_t[GRUB_PXE_MAC_ADDR_LEN];
 
 struct grub_pxenv_boot_player
 {
@@ -216,7 +216,7 @@ struct grub_pxenv_boot_player
   grub_uint32_t your_ip;
   grub_uint32_t	server_ip;
   grub_uint32_t	gateway_ip;
-  grub_pxe_mac_addr mac_addr;
+  grub_pxe_mac_addr_t mac_addr;
   grub_uint8_t server_name[64];
   grub_uint8_t boot_file[128];
   union
@@ -306,8 +306,6 @@ struct grub_pxenv * grub_pxe_scan (void);
 int grub_pxe_call (int func, void * data);
 
 extern struct grub_pxenv *grub_pxe_pxenv;
-extern struct grub_pxenv_boot_player grub_pxe_bootinfo;
-extern int grub_pxe_blksize;
 
 void grub_pxe_unload (void);
 

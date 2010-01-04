@@ -28,7 +28,7 @@
 #include <grub/command.h>
 
 static int
-print_env (struct grub_env_var *env, void *closure UNUSED)
+print_env (struct grub_env_var *env, void *closure __attribute__ ((unused)))
 {
   grub_printf ("%s=%s\n", env->name, env->value);
   return 0;
@@ -108,7 +108,8 @@ grub_core_cmd_insmod (struct grub_command *cmd __attribute__ ((unused)),
 }
 
 static int
-grub_mini_print_devices (const char *name, void *closure UNUSED)
+grub_mini_print_devices (const char *name,
+			 void *closure __attribute__ ((unused)))
 {
   grub_printf ("(%s) ", name);
 
@@ -118,7 +119,7 @@ grub_mini_print_devices (const char *name, void *closure UNUSED)
 static int
 grub_mini_print_files (const char *filename,
 		       const struct grub_dirhook_info *info,
-		       void *closure UNUSED)
+		       void *closure __attribute__ ((unused)))
 {
   grub_printf ("%s%s ", filename, info->dir ? "/" : "");
 
@@ -190,13 +191,13 @@ void
 grub_register_core_commands (void)
 {
   grub_register_command ("set", grub_core_cmd_set,
-			 "set [ENVVAR=VALUE]", "set an environment variable");
+			 "[ENVVAR=VALUE]", "Set an environment variable.");
   grub_register_command ("unset", grub_core_cmd_unset,
-			 "unset ENVVAR", "remove an environment variable");
+			 "ENVVAR", "Remove an environment variable.");
   grub_register_command ("export", grub_core_cmd_export,
-			 "export ENVVAR", "Export a variable.");
+			 "ENVVAR", "Export a variable.");
   grub_register_command ("ls", grub_core_cmd_ls,
-			 "ls [ARG]", "list devices or files");
+			 "[ARG]", "List devices or files.");
   grub_register_command ("insmod", grub_core_cmd_insmod,
-			 "insmod MODULE", "insert a module");
+			 "MODULE", "Insert a module.");
 }

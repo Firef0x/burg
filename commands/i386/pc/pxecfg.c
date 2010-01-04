@@ -67,8 +67,8 @@ pxe_find (grub_uitree_t node)
 {
   const char *mac, *ip;
 
-  mac = grub_env_get ("PXE_MAC");
-  ip = grub_env_get ("PXE_IP");
+  mac = grub_env_get ("net_pxe_mac");
+  ip = grub_env_get ("net_pxe_ip");
 
   node = node->child;
   while (node)

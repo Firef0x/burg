@@ -349,7 +349,8 @@ open_device (const grub_disk_t disk, grub_disk_addr_t sector, int flags)
 	return -1;
       }
 
-    /* Make the buffer cache consistent with the physical disk.  */
+    /* Flush the buffer cache to the physical disk.
+       XXX: This also empties the buffer cache.  */
     ioctl (fd, BLKFLSBUF, 0);
 
     if (is_partition)
@@ -907,7 +908,8 @@ struct find_partition_closure
 
 #if defined(__linux__) || defined(__CYGWIN__)
 static int
-find_partition (grub_disk_t disk UNUSED, const grub_partition_t partition,
+find_partition (grub_disk_t disk __attribute__ ((unused)),
+		const grub_partition_t partition,
 		void *closure)
 {
   struct find_partition_closure *c = closure;

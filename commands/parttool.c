@@ -30,6 +30,7 @@
 #include <grub/partition.h>
 #include <grub/parttool.h>
 #include <grub/command.h>
+#include <grub/i18n.h>
 
 GRUB_EXPORT(grub_parttool_register);
 GRUB_EXPORT(grub_parttool_unregister);
@@ -38,9 +39,9 @@ static struct grub_parttool *parts = 0;
 static int curhandle = 0;
 static grub_dl_t mymod;
 static char helpmsg[] =
-  "perform COMMANDS on partition.\n"
+  "Perform COMMANDS on partition.\n"
   "Use \"parttool PARTITION help\" for the list "
-  "of available commands";
+  "of available commands.";
 
 int
 grub_parttool_register(const char *part_name,
@@ -328,7 +329,7 @@ GRUB_MOD_INIT(parttool)
 {
   mymod = mod;
   cmd = grub_register_command ("parttool", grub_cmd_parttool,
-			       "parttool PARTITION COMMANDS",
+			       N_("PARTITION COMMANDS"),
 			       helpmsg);
 }
 

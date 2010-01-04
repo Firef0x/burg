@@ -68,9 +68,9 @@ grub_partition_probe (struct grub_disk *disk, const char *str)
 }
 
 static int
-part_map_iterate_hook (grub_disk_t d UNUSED,
-		       const grub_partition_t partition UNUSED,
-		       void *closure UNUSED)
+part_map_iterate_hook (grub_disk_t d __attribute__ ((unused)),
+		       const grub_partition_t partition __attribute__ ((unused)),
+		       void *closure __attribute__ ((unused)))
 {
   return 1;
 }

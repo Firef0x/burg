@@ -44,8 +44,9 @@ struct grub_mmap_iterate_closure
 };
 
 static int
-count_hook (grub_uint64_t addr UNUSED, grub_uint64_t size UNUSED,
-	    grub_uint32_t type UNUSED, void *closure)
+count_hook (grub_uint64_t addr __attribute__ ((unused)),
+	    grub_uint64_t size __attribute__ ((unused)),
+	    grub_uint32_t type __attribute__ ((unused)), void *closure)
 {
   int *mmap_num = closure;
 
@@ -340,7 +341,8 @@ struct grub_cmd_badram_closure
 
 static int
 grub_cmd_badram_hook (grub_uint64_t addr, grub_uint64_t size,
-		      grub_uint32_t type UNUSED, void *closure)
+		      grub_uint32_t type __attribute__ ((unused)),
+		      void *closure)
 {
   struct grub_cmd_badram_closure *c = closure;
   grub_uint64_t iterator, low, high, cur;
@@ -438,8 +440,8 @@ static grub_command_t cmd;
 GRUB_MOD_INIT(mmap)
 {
   cmd = grub_register_command ("badram", grub_cmd_badram,
-			       "badram ADDR1,MASK1[,ADDR2,MASK2[,...]]",
-			       "declare memory regions as badram");
+			       "ADDR1,MASK1[,ADDR2,MASK2[,...]]",
+			       "Declare memory regions as badram.");
 }
 
 GRUB_MOD_FINI(mmap)

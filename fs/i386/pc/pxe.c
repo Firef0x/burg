@@ -1,7 +1,7 @@
 /* pxe.c - Driver to provide access to the pxe filesystem  */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2008  Free Software Foundation, Inc.
+ *  Copyright (C) 2008,2009  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -20,17 +20,15 @@
 #include <grub/dl.h>
 #include <grub/fs.h>
 #include <grub/mm.h>
-#include <grub/env.h>
 #include <grub/disk.h>
 #include <grub/file.h>
 #include <grub/misc.h>
 #include <grub/bufio.h>
+#include <grub/env.h>
 
 #include <grub/machine/pxe.h>
 #include <grub/machine/memory.h>
 
-GRUB_EXPORT(grub_pxe_blksize);
-GRUB_EXPORT(grub_pxe_bootinfo);
 GRUB_EXPORT(grub_pxe_pxenv);
 GRUB_EXPORT(grub_pxe_unload);
 
@@ -39,9 +37,17 @@ GRUB_EXPORT(grub_pxe_unload);
 #define SEGOFS(x)	((SEGMENT(x) << 16) + OFFSET(x))
 #define LINEAR(x)	(void *) (((x >> 16) <<4) + (x & 0xFFFF))
 
+struct grub_pxe_disk_data
+{
+  grub_uint32_t server_ip;
+  grub_uint32_t gateway_ip;
+};
+
 struct grub_pxenv *grub_pxe_pxenv;
-int grub_pxe_blksize = GRUB_PXE_MIN_BLKSIZE;
-struct grub_pxenv_boot_player grub_pxe_bootinfo;
+static grub_uint32_t grub_pxe_your_ip;
+static grub_uint32_t grub_pxe_default_server_ip;
+static grub_uint32_t grub_pxe_default_gateway_ip;
+static unsigned grub_pxe_blksize = GRUB_PXE_MIN_BLKSIZE;
 
 static grub_file_t curr_file = 0;
 
@@ -53,8 +59,9 @@ struct grub_pxe_data
 };
 
 static int
-grub_pxe_iterate (int (*hook) (const char *name, void *closure),
-		  void *closure)
+grub_pxe_iterate (int (*hook) (const char *name,
+			       void *closure __attribute__ ((unused))),
+		  void *closure __attribute__ ((unused)))
 {
   if (hook ("pxe", closure))
     return 1;
@@ -62,23 +69,82 @@ grub_pxe_iterate (int (*hook) (const char *name, void *closure),
 }
 
 static grub_err_t
+parse_ip (const char *val, grub_uint32_t *ip, const char **rest)
+{
+  grub_uint32_t newip = 0;
+  unsigned long t;
+  int i;
+  const char *ptr = val;
+
+  for (i = 0; i < 4; i++)
+    {
+      t = grub_strtoul (ptr, (char **) &ptr, 0);
+      if (grub_errno)
+	return grub_errno;
+      if (t & ~0xff)
+	return grub_error (GRUB_ERR_OUT_OF_RANGE, "Invalid IP.");
+      newip >>= 8;
+      newip |= (t << 24);
+      if (i != 3 && *ptr != '.')
+	return grub_error (GRUB_ERR_OUT_OF_RANGE, "Invalid IP.");
+      ptr++;
+    }
+  *ip = newip;
+  if (rest)
+    *rest = ptr - 1;
+  return 0;
+}
+
+static grub_err_t
 grub_pxe_open (const char *name, grub_disk_t disk)
 {
-  if (grub_strcmp (name, "pxe"))
-      return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "not a pxe disk");
+  struct grub_pxe_disk_data *data;
+
+  if (grub_strcmp (name, "pxe") != 0
+      && grub_strncmp (name, "pxe:", sizeof ("pxe:") - 1) != 0)
+    return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "not a pxe disk");
+
+  data = grub_malloc (sizeof (*data));
+  if (!data)
+    return grub_errno;
+
+  if (grub_strncmp (name, "pxe:", sizeof ("pxe:") - 1) == 0)
+    {
+      const char *ptr;
+      grub_err_t err;
+
+      ptr = name + sizeof ("pxe:") - 1;
+      err = parse_ip (ptr, &(data->server_ip), &ptr);
+      if (err)
+	return err;
+      if (*ptr == ':')
+	{
+	  err = parse_ip (ptr + 1, &(data->server_ip), 0);
+	  if (err)
+	    return err;
+	}
+      else
+	data->gateway_ip = grub_pxe_default_gateway_ip;
+    }
+  else
+    {
+      data->server_ip = grub_pxe_default_server_ip;
+      data->gateway_ip = grub_pxe_default_gateway_ip;
+    }
 
   disk->total_sectors = 0;
-  disk->id = (unsigned long) "pxe";
+  disk->id = (unsigned long) data;
 
   disk->has_partitions = 0;
-  disk->data = 0;
+  disk->data = data;
 
   return GRUB_ERR_NONE;
 }
 
 static void
-grub_pxe_close (grub_disk_t disk __attribute((unused)))
+grub_pxe_close (grub_disk_t disk)
 {
+  grub_free (disk->data);
 }
 
 static grub_err_t
@@ -112,11 +178,12 @@ static struct grub_disk_dev grub_pxe_dev =
   };
 
 static grub_err_t
-grub_pxefs_dir (grub_device_t device UNUSED, const char *path UNUSED,
+grub_pxefs_dir (grub_device_t device __attribute__ ((unused)),
+		const char *path  __attribute__ ((unused)),
 		int (*hook) (const char *filename,
 			     const struct grub_dirhook_info *info,
-			     void *closure) UNUSED,
-		void *closure UNUSED)
+			     void *closure __attribute__ ((unused))) __attribute__ ((unused)),
+		void *closure __attribute__ ((unused)))
 {
   return GRUB_ERR_NONE;
 }
@@ -130,6 +197,7 @@ grub_pxefs_open (struct grub_file *file, const char *name)
       struct grub_pxenv_tftp_open c2;
     } c;
   struct grub_pxe_data *data;
+  struct grub_pxe_disk_data *disk_data = file->device->disk->data;
   grub_file_t file_int, bufio;
 
   if (curr_file != 0)
@@ -138,8 +206,8 @@ grub_pxefs_open (struct grub_file *file, const char *name)
       curr_file = 0;
     }
 
-  c.c1.server_ip = grub_pxe_bootinfo.server_ip;
-  c.c1.gateway_ip = grub_pxe_bootinfo.gateway_ip;
+  c.c1.server_ip = disk_data->server_ip;
+  c.c1.gateway_ip = disk_data->gateway_ip;
   grub_strcpy ((char *)&c.c1.filename[0], name);
   grub_pxe_call (GRUB_PXENV_TFTP_GET_FSIZE, &c.c1);
   if (c.c1.status)
@@ -189,6 +257,7 @@ grub_pxefs_read (grub_file_t file, char *buf, grub_size_t len)
 {
   struct grub_pxenv_tftp_read c;
   struct grub_pxe_data *data;
+  struct grub_pxe_disk_data *disk_data = file->device->disk->data;
   grub_uint32_t pn, r;
 
   data = file->data;
@@ -206,10 +275,10 @@ grub_pxefs_read (grub_file_t file, char *buf, grub_size_t len)
       struct grub_pxenv_tftp_open o;
 
       if (curr_file != 0)
-	grub_pxe_call (GRUB_PXENV_TFTP_CLOSE, &o);
+        grub_pxe_call (GRUB_PXENV_TFTP_CLOSE, &o);
 
-      o.server_ip = grub_pxe_bootinfo.server_ip;
-      o.gateway_ip = grub_pxe_bootinfo.gateway_ip;
+      o.server_ip = disk_data->server_ip;
+      o.gateway_ip = disk_data->gateway_ip;
       grub_strcpy ((char *)&o.filename[0], data->filename);
       o.tftp_port = grub_cpu_to_be16 (GRUB_PXE_TFTP_PORT);
       o.packet_size = grub_pxe_blksize;
@@ -277,34 +346,97 @@ static struct grub_fs grub_pxefs_fs =
     .next = 0
   };
 
-static void
-export_variable (struct grub_pxenv_boot_player *bp)
+static char *
+grub_env_write_readonly (struct grub_env_var *var __attribute__ ((unused)),
+			 const char *val __attribute__ ((unused)))
 {
-  char buf[6 * 3], *p;
-  grub_uint8_t *s;
-  int i;
+  return NULL;
+}
 
-  p = buf;
-  s = (grub_uint8_t *) &bp->mac_addr;
-  for (i = 0; i < 6; i++)
-    {
-      grub_sprintf (p, "%02x", *(s++));
-      p += 3;
-      *(p - 1) = '-';
-    }
-  *(p - 1) = 0;
-  grub_env_set ("PXE_MAC", buf);
+static void
+set_mac_env (grub_uint8_t *mac_addr, grub_size_t mac_len)
+{
+  char buf[(sizeof ("XX:") - 1) * mac_len + 1];
+  char *ptr = buf;
+  unsigned i;
 
-  p = buf;
-  s = (grub_uint8_t *) &bp->your_ip;
-  for (i = 0; i < 4; i++)
+  for (i = 0; i < mac_len; i++)
     {
-      grub_sprintf (p, "%d", *(s++));
-      p += grub_strlen (p) + 1;
-      *(p - 1) = '.';
+      grub_sprintf (ptr, "%02x:", mac_addr[i] & 0xff);
+      ptr += (sizeof ("XX:") - 1);
     }
-  *(p - 1) = 0;
-  grub_env_set ("PXE_IP", buf);
+  if (mac_len)
+    *(ptr - 1) = 0;
+  else
+    buf[0] = 0;
+
+  grub_env_set ("net_pxe_mac", buf);
+  /* XXX: Is it possible to change MAC in PXE?  */
+  grub_register_variable_hook ("net_pxe_mac", 0, grub_env_write_readonly);
+}
+
+static void
+set_env_limn_ro (const char *varname, char *value, grub_size_t len)
+{
+  char c;
+  c = value[len];
+  value[len] = 0;
+  grub_env_set (varname, value);
+  value[len] = c;
+  grub_register_variable_hook (varname, 0, grub_env_write_readonly);
+}
+
+static void
+parse_dhcp_vendor (void *vend, int limit)
+{
+  grub_uint8_t *ptr, *ptr0;
+
+  ptr = ptr0 = vend;
+
+  if (grub_be_to_cpu32 (*(grub_uint32_t *) ptr) != 0x63825363)
+    return;
+  ptr = ptr + sizeof (grub_uint32_t);
+  while (ptr - ptr0 < limit)
+    {
+      grub_uint8_t tagtype;
+      grub_uint8_t taglength;
+
+      tagtype = *ptr++;
+
+      /* Pad tag.  */
+      if (tagtype == 0)
+	continue;
+
+      /* End tag.  */
+      if (tagtype == 0xff)
+	return;
+
+      taglength = *ptr++;
+
+      switch (tagtype)
+	{
+	case 12:
+	  set_env_limn_ro ("net_pxe_hostname", (char *) ptr, taglength);
+	  break;
+
+	case 15:
+	  set_env_limn_ro ("net_pxe_domain", (char *) ptr, taglength);
+	  break;
+
+	case 17:
+	  set_env_limn_ro ("net_pxe_rootpath", (char *) ptr, taglength);
+	  break;
+
+	case 18:
+	  set_env_limn_ro ("net_pxe_extensionspath", (char *) ptr, taglength);
+	  break;
+
+	  /* If you need any other options please contact GRUB
+	     developpement team.  */
+	}
+
+      ptr += taglength;
+    }
 }
 
 static void
@@ -326,9 +458,17 @@ grub_pxe_detect (void)
     return;
 
   bp = LINEAR (ci.buffer);
-  export_variable (bp);
-  grub_memcpy (&grub_pxe_bootinfo, bp, sizeof (grub_pxe_bootinfo));
 
+  grub_pxe_your_ip = bp->your_ip;
+  grub_pxe_default_server_ip = bp->server_ip;
+  grub_pxe_default_gateway_ip = bp->gateway_ip;
+  set_mac_env (bp->mac_addr, bp->hw_len < sizeof (bp->mac_addr) ? bp->hw_len
+	       : sizeof (bp->mac_addr));
+  set_env_limn_ro ("net_pxe_boot_file", (char *) bp->boot_file,
+		   sizeof (bp->boot_file));
+  set_env_limn_ro ("net_pxe_dhcp_server_name", (char *) bp->server_name,
+		   sizeof (bp->server_name));
+  parse_dhcp_vendor (&bp->vendor, sizeof (bp->vendor));
   grub_pxe_pxenv = pxenv;
 }
 
@@ -344,11 +484,110 @@ grub_pxe_unload (void)
     }
 }
 
+static void
+set_ip_env (char *varname, grub_uint32_t ip)
+{
+  char buf[sizeof ("XXX.XXX.XXX.XXX")];
+
+  grub_sprintf (buf, "%d.%d.%d.%d", (ip & 0xff),
+		(ip >> 8) & 0xff, (ip >> 16) & 0xff, (ip >> 24) & 0xff);
+  grub_env_set (varname, buf);
+}
+
+static char *
+write_ip_env (grub_uint32_t *ip, const char *val)
+{
+  char *buf;
+  grub_err_t err;
+  grub_uint32_t newip;
+
+  err = parse_ip (val, &newip, 0);
+  if (err)
+    return 0;
+
+  /* Normalize the IP.  */
+  buf = grub_malloc (sizeof ("XXX.XXX.XXX.XXX"));
+  if (!buf)
+    return 0;
+
+  *ip = newip;
+
+  grub_sprintf (buf, "%d.%d.%d.%d", (newip & 0xff), (newip >> 8) & 0xff,
+		(newip >> 16) & 0xff, (newip >> 24) & 0xff);
+
+  return buf;
+}
+
+static char *
+grub_env_write_pxe_default_server (struct grub_env_var *var
+				   __attribute__ ((unused)),
+				   const char *val)
+{
+  return write_ip_env (&grub_pxe_default_server_ip, val);
+}
+
+static char *
+grub_env_write_pxe_default_gateway (struct grub_env_var *var
+				    __attribute__ ((unused)),
+				    const char *val)
+{
+  return write_ip_env (&grub_pxe_default_gateway_ip, val);
+}
+
+static char *
+grub_env_write_pxe_blocksize (struct grub_env_var *var __attribute__ ((unused)),
+			      const char *val)
+{
+  unsigned size;
+  char *buf;
+
+  size = grub_strtoul (val, 0, 0);
+  if (grub_errno)
+    return 0;
+
+  if (size < GRUB_PXE_MIN_BLKSIZE)
+    size = GRUB_PXE_MIN_BLKSIZE;
+  else if (size > GRUB_PXE_MAX_BLKSIZE)
+    size = GRUB_PXE_MAX_BLKSIZE;
+
+  buf = grub_malloc (sizeof ("XXXXXX XXXXXX"));
+  if (!buf)
+    return 0;
+
+  grub_sprintf (buf, "%d", size);
+  grub_pxe_blksize = size;
+
+  return buf;
+}
+
+
 GRUB_MOD_INIT(pxe)
 {
   grub_pxe_detect ();
   if (grub_pxe_pxenv)
     {
+      char *buf;
+
+      buf = grub_malloc (sizeof ("XXXXXX XXXXXX"));
+      if (buf)
+	{
+	  grub_sprintf (buf, "%d", grub_pxe_blksize);
+	  grub_env_set ("net_pxe_blksize", buf);
+	}
+
+      set_ip_env ("pxe_default_server", grub_pxe_default_server_ip);
+      set_ip_env ("pxe_default_gateway", grub_pxe_default_gateway_ip);
+      set_ip_env ("net_pxe_ip", grub_pxe_your_ip);
+      grub_register_variable_hook ("net_pxe_default_server", 0,
+				   grub_env_write_pxe_default_server);
+      grub_register_variable_hook ("net_pxe_default_gateway", 0,
+				   grub_env_write_pxe_default_gateway);
+
+      /* XXX: Is it possible to change IP in PXE?  */
+      grub_register_variable_hook ("net_pxe_ip", 0,
+				   grub_env_write_readonly);
+      grub_register_variable_hook ("net_pxe_blksize", 0,
+				   grub_env_write_pxe_blocksize);
       grub_disk_dev_register (&grub_pxe_dev);
       grub_fs_register (&grub_pxefs_fs);
     }

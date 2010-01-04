@@ -25,33 +25,23 @@
 #include <grub/device.h>
 #include <grub/file.h>
 #include <grub/env.h>
-#include <grub/extcmd.h>
+#include <grub/command.h>
+#include <grub/search.h>
+#include <grub/i18n.h>
 
-static const struct grub_arg_option options[] =
-  {
-    {"file",		'f', 0, "search devices by a file", 0, 0},
-    {"label",		'l', 0, "search devices by a filesystem label", 0, 0},
-    {"fs-uuid",		'u', 0, "search devices by a filesystem UUID", 0, 0},
-    {"set",		's', GRUB_ARG_OPTION_OPTIONAL, "set a variable to the first device found", "VAR", ARG_TYPE_STRING},
-    {"no-floppy",	'n', 0, "do not probe any floppy drive", 0, 0},
-    {0, 0, 0, 0, 0, 0}
-  };
-
-enum options
-  {
-    SEARCH_FILE,
-    SEARCH_LABEL,
-    SEARCH_FS_UUID,
-    SEARCH_SET,
-    SEARCH_NO_FLOPPY,
- };
+#ifdef DO_SEARCH_FILE
+GRUB_EXPORT(grub_search_fs_file);
+#elif defined (DO_SEARCH_FS_UUID)
+GRUB_EXPORT(grub_search_fs_uuid);
+#else
+GRUB_EXPORT(grub_search_label);
+#endif
 
 struct search_fs_closure
 {
   const char *key;
   const char *var;
   int no_floppy;
-  enum options type;
   int count;
   char *buf;
 };
@@ -67,61 +57,64 @@ iterate_device (const char *name, void *closure)
       name[0] == 'f' && name[1] == 'd' && name[2] >= '0' && name[2] <= '9')
     return 0;
 
-  if (c->type == SEARCH_FILE)
-    {
-      grub_size_t len;
-      char *p;
-      grub_file_t file;
+#ifdef DO_SEARCH_FILE
+  {
+    grub_size_t len;
+    char *p;
+    grub_file_t file;
 
-      len = grub_strlen (name) + 2 + grub_strlen (c->key) + 1;
-      p = grub_realloc (c->buf, len);
-      if (! p)
-	return 1;
+    len = grub_strlen (name) + 2 + grub_strlen (c->key) + 1;
+    p = grub_realloc (c->buf, len);
+    if (! p)
+      return 1;
 
-      c->buf = p;
-      grub_sprintf (c->buf, "(%s)%s", name, c->key);
+    c->buf = p;
+    grub_sprintf (c->buf, "(%s)%s", name, c->key);
 
-      file = grub_file_open (c->buf);
-      if (file)
-	{
-	  found = 1;
-	  grub_file_close (file);
-	}
-    }
-  else
-    {
-      /* type is SEARCH_FS_UUID or SEARCH_LABEL */
-      grub_device_t dev;
-      grub_fs_t fs;
-      int (*compare_fn) (const char *, const char *);
-      char *quid;
+    file = grub_file_open (c->buf);
+    if (file)
+      {
+	found = 1;
+	grub_file_close (file);
+      }
+  }
+#else
+  {
+    /* SEARCH_FS_UUID or SEARCH_LABEL */
+    grub_device_t dev;
+    grub_fs_t fs;
+    char *quid;
 
-      dev = grub_device_open (name);
-      if (dev)
-	{
-	  fs = grub_fs_probe (dev);
-	  compare_fn =
-	    (c->type == SEARCH_FS_UUID) ? grub_strcasecmp : grub_strcmp;
+    dev = grub_device_open (name);
+    if (dev)
+      {
+	fs = grub_fs_probe (dev);
 
-	  if (fs && ((c->type == SEARCH_FS_UUID) ? fs->uuid : fs->label))
-	    {
-	      if (c->type == SEARCH_FS_UUID)
-		fs->uuid (dev, &quid);
-	      else
-		fs->label (dev, &quid);
+#ifdef DO_SEARCH_FS_UUID
+#define compare_fn grub_strcasecmp
+#define read_fn uuid
+#else
+#define compare_fn grub_strcmp
+#define read_fn label
+#endif
 
-	      if (grub_errno == GRUB_ERR_NONE && quid)
-		{
-		  if (compare_fn (quid, c->key) == 0)
-		    found = 1;
+	if (fs && fs->read_fn)
+	  {
+	    fs->read_fn (dev, &quid);
 
-		  grub_free (quid);
-		}
-	    }
+	    if (grub_errno == GRUB_ERR_NONE && quid)
+	      {
+		if (compare_fn (quid, c->key) == 0)
+		  found = 1;
 
-	  grub_device_close (dev);
-	}
-    }
+		grub_free (quid);
+	      }
+	  }
+
+	grub_device_close (dev);
+      }
+  }
+#endif
 
   if (found)
     {
@@ -136,20 +129,19 @@ iterate_device (const char *name, void *closure)
   return (found && c->var);
 }
 
-static void
-search_fs (const char *key, const char *var, int no_floppy, enum options type)
+void
+FUNC_NAME (const char *key, const char *var, int no_floppy)
 {
   struct search_fs_closure c;
 
   c.key = key;
   c.var = var;
   c.no_floppy = no_floppy;
-  c.type = type;
   c.count = 0;
   c.buf = NULL;
 
   /* First try without autoloading if we're setting variable. */
-  if (var)
+  if (c.var)
     {
       grub_fs_autoload_hook_t saved_autoload;
 
@@ -174,45 +166,42 @@ search_fs (const char *key, const char *var, int no_floppy, enum options type)
 }
 
 static grub_err_t
-grub_cmd_search (grub_extcmd_t cmd, int argc, char **args)
+grub_cmd_do_search (grub_command_t cmd __attribute__ ((unused)), int argc,
+		    char **args)
 {
-  struct grub_arg_list *state = cmd->state;
-  const char *var = 0;
-
   if (argc == 0)
-    return grub_error (GRUB_ERR_INVALID_COMMAND, "no argument specified");
+    return grub_error (GRUB_ERR_BAD_ARGUMENT, "no argument specified");
 
-  if (state[SEARCH_SET].set)
-    var = state[SEARCH_SET].arg ? state[SEARCH_SET].arg : "root";
-
-  if (state[SEARCH_LABEL].set)
-    search_fs (args[0], var, state[SEARCH_NO_FLOPPY].set, SEARCH_LABEL);
-  else if (state[SEARCH_FS_UUID].set)
-    search_fs (args[0], var, state[SEARCH_NO_FLOPPY].set, SEARCH_FS_UUID);
-  else if (state[SEARCH_FILE].set)
-    search_fs (args[0], var, state[SEARCH_NO_FLOPPY].set, SEARCH_FILE);
-  else
-    return grub_error (GRUB_ERR_INVALID_COMMAND, "unspecified search type");
+  FUNC_NAME (args[0], argc == 1 ? 0 : args[1], 0);
 
   return grub_errno;
 }
 
-static grub_extcmd_t cmd;
+static grub_command_t cmd;
 
-GRUB_MOD_INIT(search)
+#ifdef DO_SEARCH_FILE
+GRUB_MOD_INIT(search_file)
+#elif defined (DO_SEARCH_FS_UUID)
+GRUB_MOD_INIT(search_fs_uuid)
+#else
+GRUB_MOD_INIT(search_fs_label)
+#endif
 {
   cmd =
-    grub_register_extcmd ("search", grub_cmd_search,
-			  GRUB_COMMAND_FLAG_BOTH,
-			  "search [-f|-l|-u|-s|-n] NAME",
-			  "Search devices by file, filesystem label or filesystem UUID."
-			  " If --set is specified, the first device found is"
-			  " set to a variable. If no variable name is"
-			  " specified, \"root\" is used.",
-			  options);
+    grub_register_command (COMMAND_NAME, grub_cmd_do_search,
+			   N_("NAME [VARIABLE]"),
+			   "Search devices by " SEARCH_TARGET "."
+			   " If VARIABLE is specified, "
+			   "the first device found is set to a variable.");
 }
 
-GRUB_MOD_FINI(search)
+#ifdef DO_SEARCH_FILE
+GRUB_MOD_FINI(search_file)
+#elif defined (DO_SEARCH_FS_UUID)
+GRUB_MOD_FINI(search_fs_uuid)
+#else
+GRUB_MOD_FINI(search_fs_label)
+#endif
 {
-  grub_unregister_extcmd (cmd);
+  grub_unregister_command (cmd);
 }

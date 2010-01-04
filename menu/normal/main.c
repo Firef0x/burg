@@ -32,6 +32,9 @@
 #include <grub/menu_viewer.h>
 #include <grub/i18n.h>
 
+GRUB_EXPORT(grub_print_ucs4);
+GRUB_EXPORT(grub_utf8_to_ucs4_alloc);
+
 /* Time to delay after displaying an error message about a default/fallback
    entry failing to boot.  */
 #define DEFAULT_ENTRY_ERROR_DELAY_MS  2500
@@ -39,15 +42,7 @@
 static grub_uint8_t grub_color_menu_normal;
 static grub_uint8_t grub_color_menu_highlight;
 
-static void
-print_spaces (int number_spaces)
-{
-  int i;
-  for (i = 0; i < number_spaces; i++)
-    grub_putchar (' ');
-}
-
-static void
+void
 grub_print_ucs4 (const grub_uint32_t * str,
                 const grub_uint32_t * last_position)
 {
@@ -58,8 +53,35 @@ grub_print_ucs4 (const grub_uint32_t * str,
     }
 }
 
-static grub_ssize_t
-getstringwidth (grub_uint32_t * str, const grub_uint32_t * last_position)
+int
+grub_utf8_to_ucs4_alloc (const char *msg, grub_uint32_t **unicode_msg,
+			grub_uint32_t **last_position)
+{
+  grub_ssize_t msg_len = grub_strlen (msg);
+
+  *unicode_msg = grub_malloc (grub_strlen (msg) * sizeof (grub_uint32_t));
+
+  if (!*unicode_msg)
+    {
+      grub_printf ("utf8_to_ucs4 ERROR1: %s", msg);
+      return -1;
+    }
+
+  msg_len = grub_utf8_to_ucs4 (*unicode_msg, msg_len,
+  			      (grub_uint8_t *) msg, -1, 0);
+
+  *last_position = *unicode_msg + msg_len;
+
+  if (msg_len < 0)
+    {
+      grub_printf ("utf8_to_ucs4 ERROR2: %s", msg);
+      grub_free (*unicode_msg);
+    }
+  return msg_len;
+}
+
+grub_ssize_t
+grub_getstringwidth (grub_uint32_t * str, const grub_uint32_t * last_position)
 {
   grub_ssize_t width = 0;
 
@@ -71,46 +93,41 @@ getstringwidth (grub_uint32_t * str, const grub_uint32_t * last_position)
   return width;
 }
 
-static void
-print_message_indented (const char *msg)
+void
+grub_print_message_indented (const char *msg, int margin_left, int margin_right)
 {
-  const int line_len = GRUB_TERM_WIDTH - grub_getcharwidth ('m') * 15;
+  int line_len;
+  line_len = GRUB_TERM_WIDTH - grub_getcharwidth ('m') *
+    (margin_left + margin_right);
 
   grub_uint32_t *unicode_msg;
+  grub_uint32_t *last_position;
 
-  grub_ssize_t msg_len = grub_strlen (msg);
+  int msg_len;
 
-  unicode_msg = grub_malloc (msg_len * sizeof (*unicode_msg));
-
-  msg_len = grub_utf8_to_ucs4 (unicode_msg, msg_len,
-                              (grub_uint8_t *) msg, -1, 0);
-
-  if (!unicode_msg)
-    {
-      grub_printf ("print_message_indented ERROR1: %s", msg);
-      return;
-    }
+  msg_len = grub_utf8_to_ucs4_alloc (msg, &unicode_msg, &last_position);
 
   if (msg_len < 0)
     {
-      grub_printf ("print_message_indented ERROR2: %s", msg);
-      grub_free (unicode_msg);
       return;
     }
-
-  const grub_uint32_t *last_position = unicode_msg + msg_len;
 
   grub_uint32_t *current_position = unicode_msg;
 
   grub_uint32_t *next_new_line = unicode_msg;
 
+  int first_loop = 1;
+
   while (current_position < last_position)
     {
+      if (! first_loop)
+        grub_putchar ('\n');
+
       next_new_line = (grub_uint32_t *) last_position;
 
-      while (getstringwidth (current_position, next_new_line) > line_len
-            || (*next_new_line != ' ' && next_new_line > current_position &&
-                next_new_line != last_position))
+      while (grub_getstringwidth (current_position, next_new_line) > line_len
+            || (next_new_line != last_position && *next_new_line != ' '
+		&& next_new_line > current_position))
        {
          next_new_line--;
        }
@@ -121,12 +138,12 @@ print_message_indented (const char *msg)
            (grub_uint32_t *) last_position : next_new_line + line_len;
        }
 
-      print_spaces (6);
+      grub_print_spaces (margin_left);
       grub_print_ucs4 (current_position, next_new_line);
-      grub_putchar ('\n');
 
       next_new_line++;
       current_position = next_new_line;
+      first_loop = 0;
     }
   grub_free (unicode_msg);
 }
@@ -175,26 +192,26 @@ print_message (int nested, int edit)
   if (edit)
     {
       grub_putchar ('\n');
-      print_message_indented (_("Minimum Emacs-like screen editing is \
+      grub_print_message_indented (_("Minimum Emacs-like screen editing is \
 supported. TAB lists completions. Press Ctrl-x to boot, Ctrl-c for a \
-command-line or ESC to return menu."));
+command-line or ESC to return menu."), STANDARD_MARGIN, STANDARD_MARGIN);
     }
   else
     {
       const char *msg = _("Use the %C and %C keys to select which \
-entry is highlighted.");
+entry is highlighted.\n");
       char *msg_translated =
        grub_malloc (sizeof (char) * grub_strlen (msg) + 1);
 
       grub_sprintf (msg_translated, msg, (grub_uint32_t) GRUB_TERM_DISP_UP,
                    (grub_uint32_t) GRUB_TERM_DISP_DOWN);
       grub_putchar ('\n');
-      print_message_indented (msg_translated);
+      grub_print_message_indented (msg_translated, STANDARD_MARGIN, STANDARD_MARGIN);
 
       grub_free (msg_translated);
 
-      print_message_indented (_("Press enter to boot the selected OS, \
-\'e\' to edit the commands before booting or \'c\' for a command-line."));
+      grub_print_message_indented (_("Press enter to execute the selected \
+entry, \'e\' to edit the commands before booting or \'c\' for a command-line.\n"), STANDARD_MARGIN, STANDARD_MARGIN);
 
       if (nested)
         {
@@ -361,22 +378,26 @@ get_entry_number (const char *name)
 }
 
 static void
-print_timeout (int timeout, int offset, int second_stage)
+print_timeout (int timeout, int offset)
 {
   const char *msg =
-    _("The highlighted entry will be booted automatically in %ds.");
-  const int msg_localized_len = grub_strlen (msg);
-  const int number_spaces = GRUB_TERM_WIDTH - msg_localized_len - 3;
+    _("The highlighted entry will be executed automatically in %ds.");
 
-  char *msg_end = grub_strchr (msg, '%');
+  grub_gotoxy (0, GRUB_TERM_HEIGHT - 3);
 
-  grub_gotoxy (second_stage ? (msg_end - msg + 3) : 3, GRUB_TERM_HEIGHT - 3);
-  grub_printf (second_stage ? msg_end : msg, timeout);
-  print_spaces (second_stage ? number_spaces : 0);
+  char *msg_translated =
+    grub_malloc (sizeof (char) * grub_strlen (msg) + 5);
+
+  grub_sprintf (msg_translated, msg, timeout);
+  grub_print_message_indented (msg_translated, 3, 0);
+
+  int posx;
+  posx = grub_getxy() >> 8;
+  grub_print_spaces (GRUB_TERM_WIDTH - posx - 1);
 
   grub_gotoxy (GRUB_TERM_CURSOR_X, GRUB_TERM_FIRST_ENTRY_Y + offset);
   grub_refresh ();
-};
+}
 
 /* Show the menu and handle menu entry selection.  Returns the menu entry
    index that should be executed or -1 if no entry should be executed (e.g.,
@@ -427,7 +448,7 @@ run_menu (grub_menu_t menu, int nested, int *auto_boot)
   timeout = grub_menu_get_timeout ();
 
   if (timeout > 0)
-    print_timeout (timeout, offset, 0);
+    print_timeout (timeout, offset);
 
   while (1)
     {
@@ -444,7 +465,7 @@ run_menu (grub_menu_t menu, int nested, int *auto_boot)
 	      timeout--;
 	      grub_menu_set_timeout (timeout);
 	      saved_time = current_time;
-	      print_timeout (timeout, offset, 1);
+	      print_timeout (timeout, offset);
 	    }
 	}
 
@@ -462,7 +483,7 @@ run_menu (grub_menu_t menu, int nested, int *auto_boot)
 	  if (timeout >= 0)
 	    {
 	      grub_gotoxy (0, GRUB_TERM_HEIGHT - 3);
-              print_spaces (GRUB_TERM_WIDTH - 1);
+              grub_print_spaces (GRUB_TERM_WIDTH - 1);
 
 	      grub_env_unset ("timeout");
 	      grub_env_unset ("fallback");
@@ -717,22 +738,35 @@ struct grub_menu_viewer grub_normal_text_menu_viewer =
 void
 grub_normal_init_page (void)
 {
-  grub_uint8_t width, margin;
+  int msg_len;
+  int posx;
+  const char *msg = _("GNU GRUB  version %s");
 
-#define TITLE ("GNU GRUB  version " PACKAGE_VERSION)
-
-  width = grub_getwh () >> 8;
-  margin = (width - (sizeof(TITLE) + 7)) / 2;
+  char *msg_formatted = grub_malloc (grub_strlen(msg) +
+  				     grub_strlen(PACKAGE_VERSION));
 
   grub_cls ();
-  grub_putchar ('\n');
 
-  while (margin--)
-    grub_putchar (' ');
+  grub_sprintf (msg_formatted, msg, PACKAGE_VERSION);
 
-  grub_printf ("%s\n\n", TITLE);
+  grub_uint32_t *unicode_msg;
+  grub_uint32_t *last_position;
 
-#undef TITLE
+  msg_len = grub_utf8_to_ucs4_alloc (msg_formatted,
+  				     &unicode_msg, &last_position);
+
+  if (msg_len < 0)
+    {
+      return;
+    }
+
+  posx = grub_getstringwidth (unicode_msg, last_position);
+  posx = (GRUB_TERM_WIDTH - posx) / 2;
+  grub_gotoxy (posx, 1);
+
+  grub_print_ucs4 (unicode_msg, last_position);
+  grub_printf("\n\n");
+  grub_free (unicode_msg);
 }
 
 grub_err_t
@@ -744,12 +778,12 @@ grub_normal_check_authentication (const char *userlist)
     return GRUB_ERR_NONE;
 
   grub_memset (login, 0, sizeof (login));
-  if (!grub_cmdline_get ("Enter username: ", login, sizeof (login) - 1,
+  if (!grub_cmdline_get (_("Enter username:"), login, sizeof (login) - 1,
 			 0, 0, 0))
     return GRUB_ACCESS_DENIED;
 
   grub_memset (&entered, 0, sizeof (entered));
-  if (!grub_cmdline_get ("Enter password: ",  entered, sizeof (entered) - 1,
+  if (!grub_cmdline_get (_("Enter password:"),  entered, sizeof (entered) - 1,
 			 '*', 0, 0))
     return GRUB_ACCESS_DENIED;
 
@@ -762,12 +796,13 @@ static char cmdline[GRUB_MAX_CMDLINE];
 int reader_nested;
 
 static grub_err_t
-grub_normal_read_line (char **line, int cont, void *closure UNUSED)
+grub_normal_read_line (char **line, int cont,
+		       void *closure __attribute__ ((unused)))
 {
   grub_parser_t parser = grub_parser_get_current ();
-  char prompt[sizeof("> ") + grub_strlen (parser->name)];
+  char prompt[sizeof(">") + grub_strlen (parser->name)];
 
-  grub_sprintf (prompt, "%s> ", parser->name);
+  grub_sprintf (prompt, "%s>", parser->name);
 
   while (1)
     {
@@ -803,11 +838,20 @@ grub_cmdline_run (int nested)
   grub_normal_init_page ();
   grub_setcursor (1);
 
-  grub_printf_ (N_("\
- [ Minimal BASH-like line editing is supported. For the first word, TAB\n\
-   lists possible command completions. Anywhere else TAB lists possible\n\
-   device/file completions.%s ]\n\n"),
-	       nested ? " ESC at any time exits." : "");
+  const char *msg = _("Minimal BASH-like line editing is supported. For "
+		      "the first word, TAB lists possible command completions. Anywhere "
+		      "else TAB lists possible device or file completions. %s");
+
+  const char *msg_esc = _("ESC at any time exits.");
+
+  char *msg_formatted = grub_malloc (sizeof (char) * (grub_strlen (msg) +
+                grub_strlen(msg_esc) + 1));
+
+  grub_sprintf (msg_formatted, msg, reader_nested ? msg_esc : "");
+  grub_print_message_indented (msg_formatted, 3, STANDARD_MARGIN);
+  grub_puts ("\n");
+
+  grub_free (msg_formatted);
 
   reader_nested = nested;
   grub_reader_loop (grub_normal_read_line, 0);

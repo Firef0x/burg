@@ -87,7 +87,7 @@ GRUB_MOD_INIT(normal)
   grub_history_init (GRUB_DEFAULT_HISTORY_SIZE);
 
   /* Register a command "normal" for the rescue mode.  */
-  grub_reg_cmd ("normal", grub_cmd_normal, 0, "Enter normal mode", 0);
+  grub_reg_cmd ("normal", grub_cmd_normal, 0, "Enter normal mode.", 0);
 }
 
 GRUB_MOD_FINI(normal)

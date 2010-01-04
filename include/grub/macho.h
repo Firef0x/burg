@@ -102,6 +102,7 @@ struct grub_macho_segment32
   grub_uint32_t flags;
 } __attribute__ ((packed));
 
+/* 64-bit segment command. */
 struct grub_macho_segment64
 {
 #define GRUB_MACHO_CMD_SEGMENT64  0x19

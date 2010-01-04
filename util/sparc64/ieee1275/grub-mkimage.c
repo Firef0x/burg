@@ -1,7 +1,7 @@
 /* grub-mkimage.c - make a bootable image */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2008,2009  Free Software Foundation, Inc.
+ *  Copyright (C) 2008,2009,2010  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,6 +39,7 @@
 
 #include "progname.h"
 
+int
 grub_strcmp (const char *s1, const char *s2)
 {
   return strcmp (s1, s2);
@@ -211,9 +212,8 @@ main (int argc, char *argv[])
   int netboot = 0;
 
   set_program_name (argv[0]);
-  setlocale (LC_ALL, "");
-  bindtextdomain (PACKAGE, LOCALEDIR);
-  textdomain (PACKAGE);
+
+  grub_util_init_nls ();
 
   while (1)
     {

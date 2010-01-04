@@ -20,10 +20,11 @@
 #include <grub/dl.h>
 #include <grub/misc.h>
 #include <grub/command.h>
+#include <grub/i18n.h>
 
 static int
 hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
-      void *closure UNUSED)
+      void *closure __attribute__ ((unused)))
 {
   grub_printf ("base_addr = 0x%llx, length = 0x%llx, type = 0x%x\n",
 	       (long long) addr, (long long) size, type);
@@ -45,7 +46,7 @@ static grub_command_t cmd;
 GRUB_MOD_INIT(lsmmap)
 {
   cmd = grub_register_command ("lsmmap", grub_cmd_lsmmap,
-			       0, "List memory map provided by firmware.");
+			       0, N_("List memory map provided by firmware."));
 }
 
 GRUB_MOD_FINI(lsmmap)

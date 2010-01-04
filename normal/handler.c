@@ -118,7 +118,7 @@ insert_handler (char *name, char *module)
     data = 0;
 
   item->cmd = grub_reg_cmd (item->name, grub_handler_cmd, 0,
-			    "Set active handler", 0);
+			    "Set active handler.", 0);
   if (! item->cmd)
     {
       grub_free (data);
@@ -147,7 +147,8 @@ iterate_handler (grub_handler_t handler, void *closure)
 }
 
 static int
-iterate_class (grub_handler_class_t class, void *closure UNUSED)
+iterate_class (grub_handler_class_t class,
+	       void *closure __attribute ((unused)))
 {
   grub_list_iterate (GRUB_AS_LIST (class->handler_list),
 		     (grub_list_hook_t) iterate_handler, (char *) class->name);

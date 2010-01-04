@@ -233,7 +233,7 @@ struct read_config_file_closure
 };
 
 static grub_err_t
-getline (char **line, int cont UNUSED, void *closure)
+getline (char **line, int cont __attribute__ ((unused)), void *closure)
 {
   struct read_config_file_closure *c = closure;
 

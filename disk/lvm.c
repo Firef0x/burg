@@ -1,7 +1,7 @@
 /* lvm.c - module to read Logical Volumes.  */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2006,2007,2008  Free Software Foundation, Inc.
+ *  Copyright (C) 2006,2007,2008,2009  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ grub_lvm_open (const char *name, grub_disk_t disk)
     }
 
   if (! lv)
-    return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "Unknown LVM device %s", name);
+    return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "unknown LVM device %s", name);
 
   disk->has_partitions = 0;
   disk->id = lv->number;
@@ -189,7 +189,7 @@ grub_lvm_read (grub_disk_t disk, grub_disk_addr_t sector,
 			  size << GRUB_DISK_SECTOR_BITS, buf);
   else
     err = grub_error (GRUB_ERR_UNKNOWN_DEVICE,
-		      "Physical volume %s not found", pv->name);
+		      "physical volume %s not found", pv->name);
 
   return err;
 }
@@ -204,7 +204,8 @@ grub_lvm_write (grub_disk_t disk __attribute ((unused)),
 }
 
 static int
-grub_lvm_scan_device (const char *name, void *closure UNUSED)
+grub_lvm_scan_device (const char *name,
+		      void *closure __attribute__ ((unused)))
 {
   grub_err_t err;
   grub_disk_t disk;
@@ -264,7 +265,7 @@ grub_lvm_scan_device (const char *name, void *closure UNUSED)
   if (dlocn->offset)
     {
       grub_error (GRUB_ERR_NOT_IMPLEMENTED_YET,
-		  "We don't support multiple LVM data areas");
+		  "we don't support multiple LVM data areas");
 
       goto fail;
     }
@@ -291,7 +292,7 @@ grub_lvm_scan_device (const char *name, void *closure UNUSED)
       || (grub_le_to_cpu32 (mdah->version) != GRUB_LVM_FMTT_VERSION))
     {
       grub_error (GRUB_ERR_NOT_IMPLEMENTED_YET,
-		  "Unknown LVM metadata header");
+		  "unknown LVM metadata header");
       goto fail2;
     }
 

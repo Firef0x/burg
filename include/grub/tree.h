@@ -38,6 +38,6 @@ void * grub_tree_next_node (grub_tree_t root, grub_tree_t pre);
   ((GRUB_FIELD_MATCH (ptr, grub_tree_t, parent) && \
     GRUB_FIELD_MATCH (ptr, grub_tree_t, child) && \
     GRUB_FIELD_MATCH (ptr, grub_tree_t, next)) ? \
-   (grub_tree_t) ptr : grub_assert_fail ())
+   (grub_tree_t) ptr : grub_bad_type_cast ())
 
 #endif

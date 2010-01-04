@@ -74,7 +74,8 @@ grub_usbms_reset (grub_usb_device_t dev, int interface)
 }
 
 static int
-usb_iterate (grub_usb_device_t usbdev, void *closure UNUSED)
+usb_iterate (grub_usb_device_t usbdev,
+	     void *closure __attribute__ ((unused)))
 {
   grub_usb_err_t err;
   struct grub_usb_desc_device *descdev = &usbdev->descdev;

@@ -23,6 +23,7 @@
 #include <grub/term.h>
 #include <grub/handler.h>
 #include <grub/command.h>
+#include <grub/i18n.h>
 
 static int
 list_item (grub_named_list_t item, void *closure)
@@ -96,16 +97,16 @@ GRUB_MOD_INIT(handler)
 {
   cmd_handler =
     grub_register_command ("handler", grub_cmd_handler,
-			   "handler [class [handler]]",
-			   "List or select a handler");
+			   N_("[class [handler]]"),
+			   N_("List or select a handler."));
   cmd_terminal_input =
     grub_register_command ("terminal_input", grub_cmd_handler,
-			   "terminal_input [handler]",
-			   "List or select a handler");
+			   N_("[handler]"),
+			   N_("List or select an input terminal."));
   cmd_terminal_output =
     grub_register_command ("terminal_output", grub_cmd_handler,
-			   "terminal_output [handler]",
-			   "List or select a handler");
+			   N_("[handler]"),
+			   N_("List or select an output terminal."));
 }
 
 GRUB_MOD_FINI(handler)

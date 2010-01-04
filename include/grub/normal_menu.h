@@ -29,12 +29,23 @@
 /* The maximum size of a command-line.  */
 #define GRUB_MAX_CMDLINE	1600
 
+/* The standard left and right margin for some messages.  */
+#define STANDARD_MARGIN 6
+
 /* Defined in `main.c'.  */
 void grub_normal_execute (const char *config, int nested, int batch);
 void grub_normal_init_page (void);
 void grub_menu_init_page (int nested, int edit);
 void grub_cmdline_run (int nested);
 grub_err_t grub_normal_check_authentication (const char *userlist);
+int grub_utf8_to_ucs4_alloc (const char *msg, grub_uint32_t **unicode_msg,
+			     grub_uint32_t **last_position);
+void grub_print_ucs4 (const grub_uint32_t * str,
+		      const grub_uint32_t * last_position);
+grub_ssize_t grub_getstringwidth (grub_uint32_t * str,
+				  const grub_uint32_t * last_position);
+void grub_print_message_indented (const char *msg, int margin_left,
+				  int margin_right);
 
 /* Defined in `color.c'.  */
 char *grub_env_write_color_normal (struct grub_env_var *var, const char *val);

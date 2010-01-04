@@ -29,7 +29,8 @@
 #define DEFAULT_VIDEO_MODE "1024x768x32,800x600x32,640x480x32"
 
 static int video_hook (grub_video_adapter_t p __attribute__ ((unused)),
-		       struct grub_video_mode_info *info, void *closure UNUSED)
+		       struct grub_video_mode_info *info,
+		       void *closure __attribute__ ((unused)))
 {
   if (info->mode_type & GRUB_VIDEO_MODE_TYPE_PURE_TEXT)
     return 0;

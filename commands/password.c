@@ -24,6 +24,7 @@
 #include <grub/dl.h>
 #include <grub/lib.h>
 #include <grub/command.h>
+#include <grub/i18n.h>
 
 #define PASSWORD_PLAIN	1
 #define PASSWORD_MD5	2
@@ -73,7 +74,7 @@ grub_cmd_password (grub_command_t cmd __attribute__ ((unused)),
     type = PASSWORD_PLAIN;
     
   if (argc != 2)
-    return grub_error (GRUB_ERR_BAD_ARGUMENT, "Two arguments expected.");
+    return grub_error (GRUB_ERR_BAD_ARGUMENT, "two arguments expected");
 
   pass = grub_malloc (grub_strlen (args[1]) + 2);
   if (!pass)
@@ -98,9 +99,9 @@ GRUB_MOD_INIT(password)
 {
   my_mod = mod;
   cmd = grub_register_command ("password", grub_cmd_password,
-			       "password [--md5] USER PASSWORD",
-			       "Set user password (plaintext). "
-			       "Unrecommended and insecure.");
+			       N_("[--md5] USER PASSWORD"),
+			       N_("Set user password (plaintext). "
+			       "Unrecommended and insecure."));
 }
 
 GRUB_MOD_FINI(password)

@@ -124,8 +124,9 @@ preboot_rest (void)
 }
 
 static int
-count_hook (grub_uint64_t addr UNUSED, grub_uint64_t size UNUSED,
-	    grub_uint32_t type UNUSED, void *closure)
+count_hook (grub_uint64_t addr __attribute__ ((unused)),
+	    grub_uint64_t size __attribute__ ((unused)),
+	    grub_uint32_t type __attribute__ ((unused)), void *closure)
 {
   int *regcount = closure;
   (*regcount)++;
@@ -179,7 +180,7 @@ malloc_hook (void)
   if (! hooktarget)
     {
       slots_available = 0;
-      return grub_error (GRUB_ERR_OUT_OF_MEMORY, "No space for mmap hook");
+      return grub_error (GRUB_ERR_OUT_OF_MEMORY, "no space for mmap hook");
     }
   return GRUB_ERR_NONE;
 }

@@ -35,7 +35,8 @@ grub_rescue_init (void)
 
 /* Prompt to input a command and read the line.  */
 static grub_err_t
-grub_rescue_read_line (char **line, int cont, void *closure UNUSED)
+grub_rescue_read_line (char **line, int cont,
+		       void *closure __attribute__ ((unused)))
 {
   int c;
   int pos = 0;

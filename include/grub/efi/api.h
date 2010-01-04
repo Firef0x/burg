@@ -1,7 +1,7 @@
 /* efi.h - declare EFI types and functions */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2006,2007,2008  Free Software Foundation, Inc.
+ *  Copyright (C) 2006,2007,2008,2009  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #define GRUB_EFI_API_HEADER	1
 
 #include <grub/types.h>
+#include <grub/symbol.h>
 
 /* For consistency and safety, we name the EFI-defined types differently.
    All names are transformed into lower case, _t appended, and

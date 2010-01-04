@@ -5,7 +5,7 @@
 
    Copyright 1993 Yggdrasil Computing, Incorporated
 
-   Copyright (C) 2009  Free Software Foundation, Inc.
+   Copyright (C) 2009,2010  Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,21 @@
 #include <prototyp.h>
 #include <sys/stat.h>
 
-#include <locale.h>
-#include <libintl.h>
+#if ENABLE_NLS
+
+#  include <locale.h>
+#  include <libintl.h>
+
+#else /* ! ENABLE_NLS */
+
+/* Disabled NLS.
+   The casts to 'const char *' serve the purpose of producing warnings
+   for invalid uses of the value returned from these functions.
+   On pre-ANSI systems without 'const', the config.h file is supposed to
+   contain "#define const".  */
+#  define gettext(Msgid) ((const char *) (Msgid))
+#endif /* ENABLE_NLS */
+
 #define _(str) gettext(str)
 #define N_(str) str
 
@@ -298,6 +311,8 @@ extern struct iso_directory_record root_record;
 extern struct iso_directory_record jroot_record;
 
 extern int use_eltorito;
+extern int use_embedded_boot;
+extern int use_protective_msdos_label;
 extern int use_eltorito_emul_floppy;
 extern int use_boot_info_table;
 extern int use_RockRidge;
@@ -440,20 +455,21 @@ extern char * extension_record;
 extern int extension_record_extent;
 extern int n_data_extents;
 
-/* These are a few goodies that can be specified on the command line, and  are
+/* These are a few goodies that can be specified on the command line, and are
    filled into the root record */
 
-extern char * preparer;
-extern char * publisher;
-extern char * copyright;
-extern char * biblio;
-extern char * abstract;
-extern char * appid;
-extern char * volset_id;
-extern char * system_id;
-extern char * volume_id;
-extern char * boot_catalog;
-extern char * boot_image;
+extern char *preparer;
+extern char *publisher;
+extern char *copyright;
+extern char *biblio;
+extern char *abstract;
+extern char *appid;
+extern char *volset_id;
+extern char *system_id;
+extern char *volume_id;
+extern char *boot_catalog;
+extern char *boot_image;
+extern char *boot_image_embed;
 extern int volume_set_size;
 extern int volume_sequence_number;
 

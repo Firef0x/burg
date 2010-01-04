@@ -19,9 +19,13 @@
 #define GRUB_AUTH_HEADER	1
 
 #include <grub/err.h>
+#include <grub/i18n.h>
 
 /* Macros for indistinguishibility.  */
-#define GRUB_ACCESS_DENIED grub_error (GRUB_ERR_ACCESS_DENIED, "Access denied.")
+#define GRUB_ACCESS_DENIED grub_error (GRUB_ERR_ACCESS_DENIED, "access denied")
+#define GRUB_GET_PASSWORD(string, len) grub_cmdline_get (N_("Enter password:"), \
+							 string, len,	\
+							 '*', 0, 0)
 
 /* Like strcmp but untimeable. Accepts NULL as second argument.  */
 int grub_auth_strcmp (const char *user_input, const char *template);

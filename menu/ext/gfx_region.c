@@ -36,7 +36,8 @@ static struct grub_menu_region grub_gfx_region;
 
 static int
 video_hook (grub_video_adapter_t p __attribute__ ((unused)),
-	    struct grub_video_mode_info *info, void *closure UNUSED)
+	    struct grub_video_mode_info *info,
+	    void *closure __attribute__ ((unused)))
 {
   return ! (info->mode_type & GRUB_VIDEO_MODE_TYPE_PURE_TEXT);
 }

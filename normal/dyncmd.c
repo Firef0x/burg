@@ -24,6 +24,7 @@
 #include <grub/command.h>
 #include <grub/normal.h>
 #include <grub/lib.h>
+#include <grub/i18n.h>
 
 static grub_err_t
 grub_dyncmd_dispatcher (struct grub_command *cmd,
@@ -133,7 +134,8 @@ read_command_list (void)
 
 		  cmd = grub_reg_cmd (name,
 				      grub_dyncmd_dispatcher,
-				      0, "not loaded", prio);
+				      0, N_("not loaded"), prio);
+
 		  if (! cmd)
 		    {
 		      grub_free (name);

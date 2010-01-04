@@ -343,6 +343,14 @@ int grub_getcursor (void);
 void grub_refresh (void);
 void grub_set_more (int onoff);
 
+static inline void
+grub_print_spaces (int number_spaces)
+{
+  while (--number_spaces >= 0)
+      grub_putchar (' ');
+}
+
+
 /* For convenience.  */
 #define GRUB_TERM_ASCII_CHAR(c)	((c) & 0xff)
 

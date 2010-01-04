@@ -23,6 +23,7 @@
 #include <grub/kernel.h>
 #include <grub/mm.h>
 #include <grub/command.h>
+#include <grub/i18n.h>
 
 GRUB_EXPORT(grub_loader_is_loaded);
 GRUB_EXPORT(grub_loader_set);
@@ -192,7 +193,7 @@ GRUB_MOD_INIT(boot)
 {
   cmd_boot =
     grub_register_command ("boot", grub_cmd_boot,
-			   0, "boot an operating system");
+			   0, N_("Boot an operating system."));
 }
 
 GRUB_MOD_FINI(boot)

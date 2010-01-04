@@ -1,6 +1,6 @@
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2002,2003,2004,2005,2006,2007,2008  Free Software Foundation, Inc.
+ *  Copyright (C) 2002,2003,2004,2005,2006,2007,2008,2009  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -134,7 +134,7 @@ compact_mem_regions (void)
 
 static int
 mmap_hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
-	   void *closure UNUSED)
+	   void *closure __attribute__ ((unused)))
 {
   /* Avoid the lower memory.  */
   if (addr < 0x100000)

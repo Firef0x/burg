@@ -1,7 +1,7 @@
 /* completion.c - complete a command, a disk, a partition or a file */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 1999,2000,2001,2002,2003,2004,2005,2007,2008  Free Software Foundation, Inc.
+ *  Copyright (C) 1999,2000,2001,2002,2003,2004,2005,2007,2008,2009  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -100,7 +100,7 @@ add_completion (const char *completion, const char *extra,
 
 static int
 iterate_partition (grub_disk_t disk, const grub_partition_t p,
-		   void *closure UNUSED)
+		   void *closure __attribute__ ((unused)))
 {
   const char *disk_name = disk->name;
   char *partition_name = grub_partition_get_name (p);
@@ -128,7 +128,7 @@ iterate_partition (grub_disk_t disk, const grub_partition_t p,
 
 static int
 iterate_dir (const char *filename, const struct grub_dirhook_info *info,
-	     void *closure UNUSED)
+	     void *closure __attribute__ ((unused)))
 {
   if (! info->dir)
     {
@@ -156,7 +156,7 @@ iterate_dir (const char *filename, const struct grub_dirhook_info *info,
 }
 
 static int
-iterate_dev (const char *devname, void *closure UNUSED)
+iterate_dev (const char *devname, void *closure __attribute__ ((unused)))
 {
   grub_device_t dev;
 
@@ -182,7 +182,7 @@ iterate_dev (const char *devname, void *closure UNUSED)
 }
 
 static int
-iterate_command (grub_command_t cmd, void *closure UNUSED)
+iterate_command (grub_command_t cmd, void *closure __attribute__ ((unused)))
 {
   if (cmd->prio & GRUB_PRIO_LIST_FLAG_ACTIVE)
     {
@@ -413,13 +413,16 @@ grub_complete (char *buf, int *restore,
   if (grub_parser_split_cmdline (buf, 0, 0, &argc, &argv))
     return 0;
 
-  current_word = argv[argc];
+  if (argc == 0)
+    current_word = "";
+  else
+    current_word = argv[argc - 1];
 
   /* Determine the state the command line is in, depending on the
      state, it can be determined how to complete.  */
   cmdline_state = get_state (buf);
 
-  if (argc == 0)
+  if (argc == 1 || argc == 0)
     {
       /* Complete a command.  */
       if (grub_command_iterate (iterate_command, 0))
@@ -489,13 +492,15 @@ grub_complete (char *buf, int *restore,
           goto fail;
 	}
 
-      grub_free (argv[0]);
+      if (argc != 0)
+	grub_free (argv[0]);
       grub_free (match);
       return ret;
     }
 
  fail:
-  grub_free (argv[0]);
+  if (argc != 0)
+    grub_free (argv[0]);
   grub_free (match);
   grub_errno = GRUB_ERR_NONE;
 

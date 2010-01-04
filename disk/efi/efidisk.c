@@ -769,8 +769,8 @@ struct find_partition_closure
 
 /* Find the identical partition.  */
 static int
-find_partition (grub_disk_t disk UNUSED, const grub_partition_t part,
-		void *closure)
+find_partition (grub_disk_t disk __attribute__ ((unused)),
+		const grub_partition_t part, void *closure)
 {
   struct find_partition_closure *c = closure;
 

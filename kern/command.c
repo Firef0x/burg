@@ -41,7 +41,7 @@ grub_reg_cmd (const char *name,
 
   cmd->name = name;
   cmd->func = func;
-  cmd->summary = (summary) ? summary : name;
+  cmd->summary = (summary) ? summary : "";
   cmd->description = description;
 
   cmd->flags = GRUB_COMMAND_FLAG_BOTH;

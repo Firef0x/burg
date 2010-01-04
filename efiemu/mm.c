@@ -69,7 +69,7 @@ grub_efiemu_add_to_mmap (grub_uint64_t start, grub_uint64_t size,
 		      * sizeof (grub_efi_memory_descriptor_t));
       if (!efiemu_mmap)
 	return grub_error (GRUB_ERR_OUT_OF_MEMORY,
-			   "Not enough space for memory map");
+			   "not enough space for memory map");
     }
 
   /* Fill slot*/
@@ -268,8 +268,10 @@ grub_efiemu_mm_return_request (int handle)
 
 #ifndef GRUB_UTIL
 static int
-bounds_hook (grub_uint64_t addr UNUSED, grub_uint64_t size UNUSED,
-	     grub_uint32_t type UNUSED, void *closure UNUSED)
+bounds_hook (grub_uint64_t addr __attribute__ ((unused)),
+	     grub_uint64_t size __attribute__ ((unused)),
+	     grub_uint32_t type __attribute__ ((unused)),
+	     void *closure __attribute__ ((unused)))
 {
   mmap_reserved_size++;
   return 0;
@@ -364,7 +366,7 @@ grub_efiemu_mm_init (void)
 #ifndef GRUB_UTIL
 static int
 fill_hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
-	   void *closure UNUSED)
+	   void *closure __attribute__ ((unused)))
 {
   switch (type)
     {
@@ -624,7 +626,7 @@ grub_efiemu_mm_do_alloc (void)
   if (!efiemu_mmap)
     {
       grub_efiemu_unload ();
-      return grub_error (GRUB_ERR_OUT_OF_MEMORY, "Couldn't initialize mmap");
+      return grub_error (GRUB_ERR_OUT_OF_MEMORY, "couldn't initialize mmap");
     }
 
   if ((err = efiemu_alloc_requests ()))

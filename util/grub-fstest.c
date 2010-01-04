@@ -1,7 +1,7 @@
 /* grub-fstest.c - debug tool for filesystem driver */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2008,2009 Free Software Foundation, Inc.
+ *  Copyright (C) 2008,2009,2010 Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -174,7 +174,8 @@ read_file (char *pathname,
 }
 
 static int
-cp_hook (grub_off_t ofs UNUSED, char *buf, int len, void *closure)
+cp_hook (grub_off_t ofs __attribute__ ((unused)), char *buf, int len,
+	 void *closure)
 {
   FILE *file = closure;
 
@@ -247,7 +248,8 @@ cmd_cmp (char *src, char *dest)
   fclose (ff);
 }
 
-int hex_hook (grub_off_t ofs, char *buf, int len, void *closure UNUSED)
+int hex_hook (grub_off_t ofs, char *buf, int len,
+	      void *closure __attribute__ ((unused)))
 {
   hexdump (ofs, buf, len);
   return 0;
@@ -260,7 +262,8 @@ cmd_hex (char *pathname)
 }
 
 static int
-crc_hook (grub_off_t ofs UNUSED, char *buf, int len, void *closure)
+crc_hook (grub_off_t ofs __attribute__ ((unused)), char *buf, int len,
+	  void *closure)
 {
   grub_uint32_t *crc = closure;
 
@@ -386,9 +389,8 @@ main (int argc, char *argv[])
   int i, cmd, num_opts, image_index, num_disks = 1;
 
   set_program_name (argv[0]);
-  setlocale (LC_ALL, "");
-  bindtextdomain (PACKAGE, LOCALEDIR);
-  textdomain (PACKAGE);
+
+  grub_util_init_nls ();
 
   /* Find the first non option entry.  */
   for (num_opts = 1; num_opts < argc; num_opts++)

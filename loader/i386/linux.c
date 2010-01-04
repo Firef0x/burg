@@ -261,8 +261,10 @@ page_align (grub_size_t size)
 }
 
 static int
-find_mmap_size_hook (grub_uint64_t addr UNUSED, grub_uint64_t size UNUSED,
-		     grub_uint32_t type UNUSED, void *closure)
+find_mmap_size_hook (grub_uint64_t addr __attribute__ ((unused)),
+		     grub_uint64_t size __attribute__ ((unused)),
+		     grub_uint32_t type __attribute__ ((unused)),
+		     void *closure)
 {
   grub_size_t *count = closure;
   (*count)++;
@@ -692,7 +694,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   len = 0x400 - sizeof (lh);
   if (grub_file_read (file, (char *) real_mode_mem + sizeof (lh), len) != len)
     {
-      grub_error (GRUB_ERR_FILE_READ_ERROR, "Couldn't read file");
+      grub_error (GRUB_ERR_FILE_READ_ERROR, "couldn't read file");
       goto fail;
     }
 
@@ -881,7 +883,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
 
   len = prot_size;
   if (grub_file_read (file, (void *) GRUB_LINUX_BZIMAGE_ADDR, len) != len)
-    grub_error (GRUB_ERR_FILE_READ_ERROR, "Couldn't read file");
+    grub_error (GRUB_ERR_FILE_READ_ERROR, "couldn't read file");
 
   if (grub_errno == GRUB_ERR_NONE)
     {
@@ -916,13 +918,13 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
 
   if (argc == 0)
     {
-      grub_error (GRUB_ERR_BAD_ARGUMENT, "No module specified");
+      grub_error (GRUB_ERR_BAD_ARGUMENT, "no module specified");
       goto fail;
     }
 
   if (! loaded)
     {
-      grub_error (GRUB_ERR_BAD_ARGUMENT, "You need to load the kernel first.");
+      grub_error (GRUB_ERR_BAD_ARGUMENT, "you need to load the kernel first");
       goto fail;
     }
 
@@ -970,7 +972,7 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
 
   if (addr < addr_min)
     {
-      grub_error (GRUB_ERR_OUT_OF_RANGE, "The initrd is too big");
+      grub_error (GRUB_ERR_OUT_OF_RANGE, "the initrd is too big");
       goto fail;
     }
 
@@ -978,7 +980,7 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
 
   if (grub_file_read (file, initrd_mem, size) != size)
     {
-      grub_error (GRUB_ERR_FILE_READ_ERROR, "Couldn't read file");
+      grub_error (GRUB_ERR_FILE_READ_ERROR, "couldn't read file");
       goto fail;
     }
 
@@ -1001,9 +1003,9 @@ static grub_command_t cmd_linux, cmd_initrd;
 GRUB_MOD_INIT(linux)
 {
   cmd_linux = grub_register_command ("linux", grub_cmd_linux,
-				     0, "load linux");
+				     0, "Load Linux.");
   cmd_initrd = grub_register_command ("initrd", grub_cmd_initrd,
-				      0, "load initrd");
+				      0, "Load initrd.");
   my_mod = mod;
 }
 

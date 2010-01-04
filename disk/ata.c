@@ -285,7 +285,7 @@ grub_ata_identify (struct grub_ata_device *dev)
       else
 	/* Other Error.  */
 	return grub_error (GRUB_ERR_UNKNOWN_DEVICE,
-			   "device can not be identified");
+			   "device cannot be identified");
     }
 
   grub_ata_pio_read (dev, info, GRUB_DISK_SECTOR_SIZE);
@@ -525,7 +525,7 @@ grub_ata_setaddress (struct grub_ata_device *dev,
 	    || cylinder > dev->cylinders
 	    || head > dev->heads)
 	  return grub_error (GRUB_ERR_OUT_OF_RANGE,
-			     "sector %d can not be addressed "
+			     "sector %d cannot be addressed "
 			     "using CHS addressing", sector);
 
 	grub_ata_regset (dev, GRUB_ATA_REG_DISK, (dev->device << 4) | head);
@@ -681,7 +681,7 @@ grub_ata_open (const char *name, grub_disk_t disk)
     }
 
   if (! dev)
-    return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "Can't open device");
+    return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "can't open device");
 
   if (dev->atapi)
     return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "not an ATA harddisk");
@@ -782,7 +782,7 @@ grub_atapi_read (struct grub_scsi *scsi,
 
       /* Count of last transfer may be uneven.  */
       if (! (0 < cnt && cnt <= size - nread && (! (cnt & 1) || cnt == size - nread)))
-	return grub_error (GRUB_ERR_READ_ERROR, "Invalid ATAPI transfer count");
+	return grub_error (GRUB_ERR_READ_ERROR, "invalid ATAPI transfer count");
 
       /* Read the data.  */
       grub_ata_pio_read (dev, buf + nread, cnt);
@@ -828,7 +828,7 @@ grub_atapi_open (const char *name, struct grub_scsi *scsi)
   grub_dprintf ("ata", "opening ATAPI dev `%s'\n", name);
 
   if (! devfnd)
-    return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "No such ATAPI device");
+    return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "no such ATAPI device");
 
   scsi->data = devfnd;
 

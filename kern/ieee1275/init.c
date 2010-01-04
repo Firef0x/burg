@@ -1,7 +1,7 @@
 /*  init.c -- Initialize GRUB on the newworld mac (PPC).  */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2003,2004,2005,2007,2008 Free Software Foundation, Inc.
+ *  Copyright (C) 2003,2004,2005,2007,2008,2009 Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -160,7 +160,7 @@ heap_init (grub_uint64_t addr, grub_uint64_t len, grub_uint32_t type,
       /* Claim and use it.  */
       if (grub_claimmap (addr, len) < 0)
 	return grub_error (GRUB_ERR_OUT_OF_MEMORY,
-			   "Failed to claim heap at 0x%llx, len 0x%llx\n",
+			   "failed to claim heap at 0x%llx, len 0x%llx\n",
 			   addr, len);
       grub_mm_init_region ((void *) (grub_addr_t) addr, len);
     }
@@ -194,7 +194,7 @@ grub_uint32_t grub_upper_mem;
 
 static int
 find_ext_mem (grub_uint64_t addr, grub_uint64_t len, grub_uint32_t type,
-	      void *closure UNUSED)
+	      void *closure __attribute__ ((unused)))
 {
   if (type == 1 && addr == 0x100000)
     {

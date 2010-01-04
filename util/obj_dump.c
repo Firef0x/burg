@@ -111,7 +111,8 @@ get_reloc_type (int type)
 }
 
 static int
-dump_segments_hook (struct grub_util_obj_segment *obj, void *closure UNUSED)
+dump_segments_hook (struct grub_util_obj_segment *obj,
+		    void *closure __attribute__ ((unused)))
 {
   printf ("%-10s%08x  %08x  %08x  %08x  %d\n",
 	  get_segment_name (obj->segment.type),
@@ -131,7 +132,8 @@ grub_obj_dump_segments (struct grub_util_obj *obj)
 }
 
 static int
-dump_symbols_hook (struct grub_util_obj_symbol *obj, void *closure UNUSED)
+dump_symbols_hook (struct grub_util_obj_symbol *obj,
+		   void *closure __attribute__ ((unused)))
 {
   if (obj->segment)
     printf ("%-10s%08x  %s\n",
@@ -151,7 +153,8 @@ grub_obj_dump_symbols (struct grub_util_obj *obj)
 }
 
 static int
-dump_reloc_hook (struct grub_util_obj_reloc *obj, void *closure UNUSED)
+dump_reloc_hook (struct grub_util_obj_reloc *obj,
+		 void *closure __attribute__ ((unused)))
 {
   if (obj->segment)
     {

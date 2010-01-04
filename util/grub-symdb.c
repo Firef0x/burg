@@ -91,7 +91,7 @@ grub_sort_list_find (grub_named_list_t head, const char *name)
 
 static int
 grub_sort_list_insert_test (grub_named_list_t new_item, grub_named_list_t item,
-			    void *closure UNUSED)
+			    void *closure __attribute__ ((unused)))
 {
   return (strcmp (new_item->name, item->name) < 0);
 }
