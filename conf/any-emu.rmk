@@ -8,7 +8,7 @@ util/grub-emu.c_DEPENDENCIES = grub_emu_init.h
 grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	commands/configfile.c commands/echo.c commands/help.c		\
 	commands/handler.c commands/ls.c commands/test.c 		\
-	commands/search_warp.c commands/search_file.c			\
+	commands/search_wrap.c commands/search_file.c			\
 	commands/search_label.c commands/search_uuid.c			\
 	commands/blocklist.c commands/hexdump.c				\
 	commands/halt.c commands/reboot.c commands/loadenv.c		\
@@ -42,6 +42,16 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	fs/ufs.c fs/ufs2.c fs/xfs.c fs/afs.c fs/afs_be.c		\
 	fs/befs.c fs/befs_be.c fs/tar.c					\
 	\
+	video/video.c video/fb/video_fb.c video/fb/fbblit.c             \
+	video/fb/fbfill.c video/fb/fbutil.c commands/videotest.c        \
+	video/bitmap.c video/bitmap_scale.c video/readers/tga.c 	\
+	video/readers/jpeg.c video/readers/png.c font/font_cmd.c 	\
+	font/font.c term/gfxterm.c io/bufio.c				\
+	\
+	menu/ext/main.c menu/ext/widget.c menu/ext/dialog.c		\
+	menu/ext/region.c menu/ext/text_region.c menu/ext/gfx_region.c	\
+	menu/ext/data_type.c ui/coreui.c commands/loadcfg.c		\
+	\
 	util/console.c util/hostfs.c util/grub-emu.c util/misc.c	\
 	util/hostdisk.c util/getroot.c					\
 	\
@@ -60,6 +70,11 @@ ifeq ($(enable_grub_emu_usb), yes)
 grub_emu_SOURCES += disk/usbms.c util/usb.c bus/usb/usb.c	\
 		commands/usbtest.c
 grub_emu_LDFLAGS += $(LIBCURSES) $(LIBUSB)
+endif
+
+ifeq ($(enable_grub_emu_sdl), yes)
+grub_emu_SOURCES += util/sdl.c
+grub_emu_LDFLAGS += $(LIBSDL)
 endif
 
 ifeq ($(enable_grub_emu_pci), yes)

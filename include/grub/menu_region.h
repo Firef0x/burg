@@ -90,6 +90,8 @@ struct grub_menu_region
   void (*free_bitmap) (struct grub_video_bitmap *bitmap);
   void (*scale_bitmap) (struct grub_menu_region_bitmap *bitmap);
   grub_video_color_t (*map_color) (int fg_color, int bg_color);
+  grub_video_color_t (*map_rgb) (grub_uint8_t red, grub_uint8_t green,
+				 grub_uint8_t blue);
   void (*get_screen_size) (int *width, int *height);
   int (*get_text_width) (grub_font_t font, const char *str,
 			 int count, int *chars);

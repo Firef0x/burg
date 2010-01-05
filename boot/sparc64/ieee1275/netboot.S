@@ -66,3 +66,4 @@ boot_continue:
 	.word	GRUB_BOOT_MACHINE_SIGNATURE
 
 kernel_start:
+

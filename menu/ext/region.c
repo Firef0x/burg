@@ -108,7 +108,7 @@ grub_menu_region_create_bitmap (const char *name, int scale,
   if (argv[0] == 0)
     goto quit;
 
-  cache = grub_named_list_find (GRUB_AS_NAMED_LIST_P (&cache_head), argv[0]);
+  cache = grub_named_list_find (GRUB_AS_NAMED_LIST (cache_head), argv[0]);
   if (cache)
     bitmap = cache->bitmap;
   else

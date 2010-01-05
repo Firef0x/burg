@@ -38,6 +38,10 @@
 #include <grub/partition.h>
 #include <grub/i18n.h>
 
+#ifdef HAVE_SDL_SDL_H
+#include <SDL/SDL.h>
+#endif
+
 #include <grub_emu_init.h>
 
 #include "progname.h"

@@ -110,13 +110,14 @@ parse_color (char *name, grub_uint32_t *fill)
 
   if (*name == '#')
     {
-      grub_video_color_t gfxcolor;
+      grub_uint32_t rgb;
 
-      gfxcolor = grub_strtoul (name + 1, &name, 16) | 0xff000000;
-      if (grub_menu_region_gfx_mode ())
+      rgb = grub_strtoul (name + 1, &name, 16);
+      if (grub_menu_region_get_current ()->map_rgb)
 	{
 	  grub_menu_restore_field (n, ',');
-	  return gfxcolor;
+	  return grub_menu_region_get_current ()->map_rgb (rgb >> 16, rgb >> 8,
+							   rgb);
 	}
 
       if (*name == '/')
