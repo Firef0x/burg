@@ -141,7 +141,9 @@ grub_biosdisk_open (const char *name, grub_disk_t disk)
 	    {
 	      data->flags = GRUB_BIOSDISK_FLAG_LBA;
 
-	      if (drp->total_sectors)
+	      if (drp->cylinders == 65535)
+		total_sectors = GRUB_ULONG_MAX;
+	      else if (drp->total_sectors)
 		total_sectors = drp->total_sectors;
 	      else
                 /* Some buggy BIOSes doesn't return the total sectors
