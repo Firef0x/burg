@@ -563,8 +563,9 @@ AC_CHECK_LIB([SDL], [SDL_Init], [LIBSDL=`sdl-config --libs`],
 
 [if [ x"$grub_emu_sdl_excuse" = x ]; then
     # Check for headers.]
-    AC_CHECK_HEADERS([SDL/SDL.h], [],
+    AC_CHECK_HEADERS([SDL/SDL.h], [INCSDL=`sdl-config --cflags`],
       [grub_emu_sdl_excuse=["libSDL header file is required to build \`grub-emu' with SDL support"]])
+    AC_SUBST([INCSDL])
 [fi]
 
 if test x"enable_grub_emu_sdl" = xyes && test x"$grub_emu_sdl_excuse" != x ; then
@@ -591,26 +592,11 @@ fi
     AC_SUBST([LIBPCIACCESS])
 [fi]
 
-[if [ x"$grub_emu_sdl_excuse" = x ]; then
-    # Check for headers.]
-    AC_CHECK_HEADERS([SDL/SDL.h], [],
-      [grub_emu_sdl_excuse=["libSDL header file is required to build \`grub-emu' with SDL support"]])
-[fi]
-
 [if [ x"$grub_emu_pci_excuse" = x ]; then
     # Check for headers.]
     AC_CHECK_HEADERS([pci/pci.h], [],
       [grub_emu_pci_excuse=["need libpciaccess headers"]])
 [fi]
-
-if test x"enable_grub_emu_sdl" = xyes && test x"$grub_emu_sdl_excuse" != x ; then
-  AC_MSG_ERROR([SDL support for grub-emu was explicitely requested but can't be compiled])
-fi
-if test x"$grub_emu_sdl_excuse" = x ; then
-enable_grub_emu_sdl=yes
-else
-enable_grub_emu_sdl=no
-fi
 
 if test x"$grub_emu_pci_excuse" = x ; then
 enable_grub_emu_pci=yes

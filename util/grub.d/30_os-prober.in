@@ -39,7 +39,7 @@ fi
 
 osx_entry() {
         cat << EOF
-menuentry "${LONGNAME} (${2}-bit) (on ${DEVICE})" {
+menuentry "${LONGNAME} (${2}-bit) (on ${DEVICE})" --class ${OSLABEL} {
 EOF
 	prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"
 	cat << EOF
@@ -93,6 +93,11 @@ for OS in ${OSPROBED} ; do
   LABEL="`echo ${OS} | cut -d ':' -f 3 | tr '^' ' '`"
   BOOT="`echo ${OS} | cut -d ':' -f 4`"
 
+  OSLABEL=${LABEL}
+  if [ -z "${OSLABEL}" ] ; then
+    OSLABEL="Unknown";
+  fi
+
   if [ -z "${LONGNAME}" ] ; then
     LONGNAME="${LABEL}"
   fi
@@ -103,7 +108,7 @@ for OS in ${OSPROBED} ; do
     chain)
 
       cat << EOF
-menuentry "${LONGNAME} (on ${DEVICE})" {
+menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} {
 EOF
       prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"
 
@@ -144,7 +149,7 @@ EOF
 	fi
 
         cat << EOF
-menuentry "${LLABEL} (on ${DEVICE})" {
+menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} {
 EOF
 	if [ -z "${prepare_boot_cache}" ]; then
 	  prepare_boot_cache="$(prepare_grub_to_access_device ${LBOOT} | sed -e "s/^/\t/")"
@@ -170,7 +175,7 @@ EOF
     ;;
     hurd)
       cat << EOF
-menuentry "${LONGNAME} (on ${DEVICE})" {
+menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} {
 EOF
       prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"
       grub_device="`${grub_probe} --device ${DEVICE} --target=drive`"

@@ -45,6 +45,7 @@ GRUB_EXPORT(grub_video_delete_render_target);
 GRUB_EXPORT(grub_video_set_active_render_target);
 GRUB_EXPORT(grub_video_set_mode);
 GRUB_EXPORT(grub_video_unmap_color);
+GRUB_EXPORT(grub_video_update_rect);
 
 /* The list of video adapters registered to system.  */
 grub_video_adapter_t grub_video_adapter_list;
@@ -703,6 +704,13 @@ grub_video_set_mode (const char *modestring,
 
   return grub_error (GRUB_ERR_BAD_ARGUMENT,
 		     "no suitable mode found");
+}
+
+void
+grub_video_update_rect (int x, int y, int width, int height)
+{
+  if ((grub_video_adapter_active) && (grub_video_adapter_active->update_rect))
+    grub_video_adapter_active->update_rect (x, y, width, height);
 }
 
 /* Initialize Video API module.  */

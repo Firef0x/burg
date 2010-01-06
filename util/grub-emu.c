@@ -241,7 +241,7 @@ main (int argc, char *argv[])
   dir = grub_get_prefix (dir);
   prefix = xmalloc (strlen (root_dev) + 2 + strlen (dir) + 1);
   sprintf (prefix, "(%s)%s", root_dev, dir);
-  free (dir);
+  free (dir);  
 
   /* Start GRUB!  */
   if (setjmp (main_env) == 0)

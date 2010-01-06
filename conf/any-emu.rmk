@@ -74,6 +74,7 @@ endif
 
 ifeq ($(enable_grub_emu_sdl), yes)
 grub_emu_SOURCES += util/sdl.c
+grub_emu_CFLAGS += $(INCSDL)
 grub_emu_LDFLAGS += $(LIBSDL)
 endif
 

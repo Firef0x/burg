@@ -25,6 +25,7 @@
 #include <grub/mm.h>
 #include <grub/video.h>
 #include <grub/video_fb.h>
+#include <grub/term.h>
 #include <SDL/SDL.h>
 
 static SDL_Surface *window = 0;
@@ -35,6 +36,147 @@ static grub_err_t
 grub_video_sdl_set_palette (unsigned int start, unsigned int count,
 			    struct grub_video_palette_data *palette_data);
 
+static int saved_char = -1;
+
+static int
+grub_sdl_checkkey (void)
+{
+  SDL_Event event;
+
+  if (SDL_PollEvent (&event))
+    {
+      if (event.type == SDL_KEYDOWN)
+	{
+	  int key;
+
+	  switch (event.key.keysym.sym)
+	    {
+	    case SDLK_LEFT:
+	      key = GRUB_TERM_LEFT;
+	      break;
+
+	    case SDLK_RIGHT:
+	      key = GRUB_TERM_RIGHT;
+	      break;
+
+	    case SDLK_UP:
+	      key = GRUB_TERM_UP;
+	      break;
+
+	    case SDLK_DOWN:
+	      key = GRUB_TERM_DOWN;
+	      break;
+
+	    case SDLK_HOME:
+	      key = GRUB_TERM_HOME;
+	      break;
+
+	    case SDLK_END:
+	      key = GRUB_TERM_END;
+	      break;
+
+	    case SDLK_PAGEUP:
+	      key = GRUB_TERM_PPAGE;
+	      break;
+
+	    case SDLK_PAGEDOWN:
+	      key = GRUB_TERM_NPAGE;
+	      break;
+
+	    case SDLK_DELETE:
+	      key = GRUB_TERM_DC;
+	      break;
+
+	    case SDLK_INSERT:
+	      key = GRUB_TERM_IC;
+	      break;
+
+	    case SDLK_F1:
+	      key = GRUB_TERM_F1;
+	      break;
+
+	    case SDLK_F2:
+	      key = GRUB_TERM_F2;
+	      break;
+
+	    case SDLK_F3:
+	      key = GRUB_TERM_F3;
+	      break;
+
+	    case SDLK_F4:
+	      key = GRUB_TERM_F4;
+	      break;
+
+	    case SDLK_F5:
+	      key = GRUB_TERM_F5;
+	      break;
+
+	    case SDLK_F6:
+	      key = GRUB_TERM_F6;
+	      break;
+
+	    case SDLK_F7:
+	      key = GRUB_TERM_F7;
+	      break;
+
+	    case SDLK_F8:
+	      key = GRUB_TERM_F8;
+	      break;
+
+	    case SDLK_F9:
+	      key = GRUB_TERM_F9;
+	      break;
+
+	    case SDLK_F10:
+	      key = GRUB_TERM_F10;
+	      break;
+
+	    default:
+	      key = (event.key.keysym.sym > 127) ? 0 : event.key.keysym.sym;
+	    }
+
+	  saved_char = key;
+	  return key;
+	}
+    }
+
+  return -1;
+}
+
+static int
+grub_sdl_getkey (void)
+{
+  if (saved_char != -1)
+    {
+      int key;
+
+      key = saved_char;
+      saved_char = -1;
+      return key;	
+    }
+
+  while (1)
+    {
+      int c;
+      
+      c = grub_sdl_checkkey ();
+      if (c != -1)
+	{
+	  saved_char = -1;
+	  return c;
+	}
+    } 
+}
+
+static struct grub_term_input grub_sdl_term_input =
+  {
+    .name = "sdl",
+    .checkkey = grub_sdl_checkkey,
+    .getkey = grub_sdl_getkey
+  };
+
+static grub_term_input_t saved_input;
+
 static grub_err_t
 grub_video_sdl_init (void)
 {
@@ -43,6 +185,9 @@ grub_video_sdl_init (void)
   if (SDL_Init (SDL_INIT_VIDEO) < 0)
     return grub_error (GRUB_ERR_BAD_DEVICE, "Couldn't init SDL: %s",
 		       SDL_GetError ());
+
+  saved_input = grub_term_get_current_input ();
+  grub_term_set_current_input (&grub_sdl_term_input);
 
   grub_memset (&mode_info, 0, sizeof (mode_info));
 
@@ -54,6 +199,8 @@ grub_video_sdl_fini (void)
 {
   SDL_Quit ();
   window = 0;
+
+  grub_term_set_current_input (saved_input);
 
   grub_memset (&mode_info, 0, sizeof (mode_info));
 
@@ -80,8 +227,8 @@ grub_video_sdl_setup (unsigned int width, unsigned int height,
   depth = (mode_type & GRUB_VIDEO_MODE_TYPE_DEPTH_MASK)
 	  >> GRUB_VIDEO_MODE_TYPE_DEPTH_POS;
 
-  if (depth == 0)
-    depth = 32;
+  if ((depth == 0) || (depth == 32))
+    depth = 24;
 
   if (width == 0 && height == 0)
     {
@@ -219,6 +366,12 @@ grub_video_sdl_set_active_render_target (struct grub_video_render_target *target
   return grub_video_fb_set_active_render_target (target);
 }
 
+static void
+grub_video_sdl_update_rect (int x, int y, int width, int height)
+{
+  SDL_UpdateRect (window, x, y, width, height);
+}
+
 static struct grub_video_adapter grub_video_sdl_adapter =
   {
     .name = "SDL Video Driver",
@@ -244,16 +397,19 @@ static struct grub_video_adapter grub_video_sdl_adapter =
     .delete_render_target = grub_video_fb_delete_render_target,
     .set_active_render_target = grub_video_sdl_set_active_render_target,
     .get_active_render_target = grub_video_fb_get_active_render_target,
+    .update_rect = grub_video_sdl_update_rect,
 
     .next = 0
   };
-	       
+
 GRUB_MOD_INIT(sdl)
 {
   grub_video_register (&grub_video_sdl_adapter);
+  grub_term_register_input ("sdl", &grub_sdl_term_input);
 }
 
 GRUB_MOD_FINI(sdl)
 {
   grub_video_unregister (&grub_video_sdl_adapter);
+  grub_term_unregister_input (&grub_sdl_term_input);
 }

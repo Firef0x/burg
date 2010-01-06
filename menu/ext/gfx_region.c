@@ -218,7 +218,7 @@ grub_gfx_region_update_rect (struct grub_menu_region_rect *rect,
     }
   else
     grub_video_fill_rect (rect->color, scn_x, scn_y, width, height);
-  grub_video_swap_buffers ();
+  grub_video_update_rect (scn_x, scn_y, width, height);
 }
 
 static void
@@ -230,7 +230,7 @@ grub_gfx_region_update_text (struct grub_menu_region_text *text,
   grub_font_draw_string (text->text, text->font, text->color, - x,
 			 - y + grub_font_get_ascent (text->font));
   grub_video_set_viewport (0, 0, screen_width, screen_height);
-  grub_video_swap_buffers ();
+  grub_video_update_rect (scn_x, scn_y, width, height);
 }
 
 static void
@@ -243,7 +243,7 @@ grub_gfx_region_update_bitmap (struct grub_menu_region_bitmap *bitmap,
   bm = (bitmap->bitmap) ? bitmap->bitmap : bitmap->cache->bitmap;
   grub_video_blit_bitmap (bm, GRUB_VIDEO_BLIT_BLEND,
 			  scn_x, scn_y, x, y, width, height);
-  grub_video_swap_buffers ();
+  grub_video_update_rect (scn_x, scn_y, width, height);
 }
 
 #define CURSOR_HEIGHT	2
@@ -263,7 +263,7 @@ grub_gfx_region_draw_cursor (struct grub_menu_region_text *text,
     height = CURSOR_HEIGHT;
 
   grub_video_fill_rect (text->color, scn_x, scn_y + y, width, height);
-  grub_video_swap_buffers ();
+  grub_video_update_rect (scn_x, scn_y + y, width, height);
 }
 
 static struct grub_menu_region grub_gfx_region =

@@ -628,6 +628,10 @@ grub_dl_load_file (const char *filename)
 grub_dl_t
 grub_dl_load (const char *name)
 {
+#ifdef GRUB_UTIL
+  (void) name;
+  return 0;
+#else
   char *filename;
   grub_dl_t mod;
   char *grub_dl_dir = grub_env_get ("prefix");
@@ -657,6 +661,7 @@ grub_dl_load (const char *name)
     grub_error (GRUB_ERR_BAD_MODULE, "mismatched names");
 
   return mod;
+#endif
 }
 
 /* Unload the module MOD.  */

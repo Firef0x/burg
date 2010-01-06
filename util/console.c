@@ -87,18 +87,27 @@ grub_ncurses_putchar (grub_uint32_t c)
       break;
 
     case GRUB_TERM_DISP_HLINE:
+    case GRUB_TERM_DISP_DHLINE:
       c = '-';
       break;
 
     case GRUB_TERM_DISP_VLINE:
+    case GRUB_TERM_DISP_DVLINE:
       c = '|';
       break;
 
     case GRUB_TERM_DISP_UL:
+    case GRUB_TERM_DISP_LR:
+    case GRUB_TERM_DISP_DUL:
+    case GRUB_TERM_DISP_DLR:
+      c = '/';
+      break;
+
     case GRUB_TERM_DISP_UR:
     case GRUB_TERM_DISP_LL:
-    case GRUB_TERM_DISP_LR:
-      c = '+';
+    case GRUB_TERM_DISP_DUR:
+    case GRUB_TERM_DISP_DLL:
+      c = '\\';
       break;
 
     default:
@@ -209,51 +218,56 @@ grub_ncurses_getkey (void)
   switch (c)
     {
     case KEY_LEFT:
-      c = 2;
+      c = GRUB_TERM_LEFT;
       break;
 
     case KEY_RIGHT:
-      c = 6;
+      c = GRUB_TERM_RIGHT;
       break;
 
     case KEY_UP:
-      c = 16;
+      c = GRUB_TERM_UP;
       break;
 
     case KEY_DOWN:
-      c = 14;
+      c = GRUB_TERM_DOWN;
       break;
 
     case KEY_IC:
-      c = 24;
+      c = GRUB_TERM_IC;
       break;
 
     case KEY_DC:
-      c = 4;
+      c = GRUB_TERM_DC;
       break;
 
     case KEY_BACKSPACE:
       /* XXX: For some reason ncurses on xterm does not return
 	 KEY_BACKSPACE.  */
     case 127:
-      c = 8;
+      c = GRUB_TERM_BACKSPACE;
       break;
 
     case KEY_HOME:
-      c = 1;
+      c = GRUB_TERM_DOWN;
       break;
 
     case KEY_END:
-      c = 5;
+      c = GRUB_TERM_END;
       break;
 
     case KEY_NPAGE:
-      c = 3;
+      c = GRUB_TERM_NPAGE;
       break;
 
     case KEY_PPAGE:
-      c = 7;
+      c = GRUB_TERM_PPAGE;
       break;
+    }
+
+  if ((c >= KEY_F(1)) && (c <= KEY_F(10)))
+    {
+      c = c - (KEY_F(1)) + GRUB_TERM_F1;
     }
 
   return c;
@@ -306,26 +320,13 @@ grub_ncurses_refresh (void)
   refresh ();
 }
 
-static int ncurses_closed;
-
-static grub_err_t
+static void
 grub_ncurses_fini (void)
 {
-  if (! ncurses_closed)
-    {
-      endwin ();
-      ncurses_closed = 1;
-    }
-  return 0;
+  endwin ();
 }
 
 static void
-ncurses_exit (void)
-{
-  grub_ncurses_fini ();
-}
-
-static grub_err_t
 grub_ncurses_init (void)
 {
   initscr ();
@@ -354,9 +355,7 @@ grub_ncurses_init (void)
         }
     }
 
-  ncurses_closed = 0;
-  atexit (ncurses_exit);
-  return 0;
+  atexit (grub_ncurses_fini);
 }
 
 
@@ -397,5 +396,4 @@ grub_console_init (void)
 void
 grub_console_fini (void)
 {
-  grub_ncurses_fini ();
 }

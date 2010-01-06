@@ -232,6 +232,8 @@ struct grub_video_adapter
   grub_err_t (*set_active_render_target) (struct grub_video_render_target *target);
 
   grub_err_t (*get_active_render_target) (struct grub_video_render_target **target);
+
+  void (*update_rect) (int x, int y, int width, int height);
 };
 typedef struct grub_video_adapter *grub_video_adapter_t;
 
@@ -332,5 +334,7 @@ grub_err_t grub_video_set_mode (const char *modestring,
 				int (*hook) (grub_video_adapter_t p,
 					     struct grub_video_mode_info *mode_info,
 					     void *closure), void *closure);
+
+void grub_video_update_rect (int x, int y, int width, int height);
 
 #endif /* ! GRUB_VIDEO_HEADER */

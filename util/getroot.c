@@ -79,15 +79,10 @@ xgetcwd (void)
   return path;
 }
 
-#ifdef __CYGWIN__
-/* Convert POSIX path to Win32 path,
-   remove drive letter, replace backslashes.  */
+#if defined(__CYGWIN__) || defined(__MINGW32__)
 static char *
-get_win32_path (const char *path)
+convert_win32_path (char *winpath)
 {
-  char winpath[PATH_MAX];
-  cygwin_conv_to_full_win32_path (path, winpath);
-
   int len = strlen (winpath);
   if (len > 2 && winpath[1] == ':')
     {
@@ -99,10 +94,46 @@ get_win32_path (const char *path)
   for (i = 0; i < len; i++)
     if (winpath[i] == '\\')
       winpath[i] = '/';
+
   return xstrdup (winpath);
 }
 #endif
 
+#ifdef __CYGWIN__
+/* Convert POSIX path to Win32 path,
+   remove drive letter, replace backslashes.  */
+static char *
+get_win32_path (const char *path)
+{
+  char winpath[PATH_MAX];
+  cygwin_conv_to_full_win32_path (path, winpath);
+  return convert_win32_path (winpath);
+}
+#endif
+
+#if defined(__MINGW32__)
+char *
+grub_get_prefix (const char *dir)
+{
+  char *saved_cwd;
+  char *path;
+  char *result;
+
+  saved_cwd = xgetcwd ();
+
+  if (chdir (dir) < 0)
+    grub_util_error ("Cannot change directory to `%s'", dir);
+
+  path = xgetcwd ();
+  result = convert_win32_path (path);
+  strip_extra_slashes (result);
+
+  chdir (saved_cwd);
+  free (saved_cwd);
+  free (path);  
+  return result;
+}
+#else
 char *
 grub_get_prefix (const char *dir)
 {
@@ -175,6 +206,7 @@ grub_get_prefix (const char *dir)
   grub_util_info ("prefix = %s", prefix);
   return prefix;
 }
+#endif
 
 #ifdef __MINGW32__
 

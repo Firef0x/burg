@@ -81,29 +81,44 @@ EOF
 esac
 
 if test "x${GRUB_THEME}" != "x" ; then
-  if test -e ${grub_prefix}/${GRUB_THEME}/config.lst ; then
-    for i in `cat ${grub_prefix}/${GRUB_THEME}/config.lst` ; do
+  theme_base_dir=`echo ${GRUB_THEME} | sed s,/.*,,`
+
+  cat << EOF
+insmod coreui
+menu_region.text
+set theme_dir=\${prefix}/themes/${theme_base_dir}
+EOF
+
+  grub_theme_dir=${grub_prefix}/themes
+  if test -e ${grub_theme_dir}/${GRUB_THEME}/config.lst ; then
+    for i in `cat ${grub_theme_dir}/${GRUB_THEME}/config.lst` ; do
       case "x$i" in
         x+*)
-          echo "merge_config \${prefix}/`echo $i | sed s,+,,`"
+          echo "merge_config \${theme_dir}/`echo $i | sed s,+,,`"
 	  ;;
 	x*)
-	  echo "load_config \${prefix}/$i"
+	  echo "load_config \${theme_dir}/$i"
 	  ;;
       esac
     done
   else
     echo "Theme file not found." >&2 ; exit 1
   fi
-  cat << EOF
+
+  case x${GRUB_TERMINAL_OUTPUT} in
+    xgfxterm)
+      cat << EOF
 insmod ${GRUB_VIDEO_BACKEND}
 insmod png
 insmod jpeg
-insmod coreui
 set gfxmode=${GRUB_GFXMODE}
 set gfxfont="Unifont Regular 16"
-menu_viewer.ext
+menu_region.gfx
 EOF
+    ;;
+  esac
+
+  echo "menu_viewer.ext"
   GRUB_TERMINAL_OUTPUT=
 fi
 

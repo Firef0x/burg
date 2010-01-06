@@ -27,6 +27,7 @@
 #define GRUB_TERM_HOME		1	/* ctrl-a  */
 #define GRUB_TERM_END		5	/* ctrl-e  */
 #define GRUB_TERM_DC		4	/* ctrl-d  */
+#define GRUB_TERM_IC		24	/* ctrl-x  */
 #define GRUB_TERM_PPAGE		7
 #define GRUB_TERM_NPAGE		3
 #define GRUB_TERM_ESC		'\e'
@@ -127,6 +128,12 @@ grub_term_color_state;
 #define GRUB_TERM_DISP_UR	0x2513
 #define GRUB_TERM_DISP_LL	0x2517
 #define GRUB_TERM_DISP_LR	0x251B
+#define GRUB_TERM_DISP_DHLINE	0x2550
+#define GRUB_TERM_DISP_DVLINE	0x2551
+#define GRUB_TERM_DISP_DUL	0x2554
+#define GRUB_TERM_DISP_DUR	0x2557
+#define GRUB_TERM_DISP_DLL	0x255A
+#define GRUB_TERM_DISP_DLR	0x255D
 
 
 /* Menu-related geometrical constants.  */

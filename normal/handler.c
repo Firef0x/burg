@@ -168,6 +168,9 @@ read_handler_list (void)
     return;
   first_time = 0;
 
+#ifdef GRUB_UTIL
+  (void) prefix;
+#else
   prefix = grub_env_get ("prefix");
   if (prefix)
     {
@@ -210,6 +213,7 @@ read_handler_list (void)
 	  grub_free (filename);
 	}
     }
+#endif
 
   grub_list_iterate (GRUB_AS_LIST (grub_handler_class_list),
 		     (grub_list_hook_t) iterate_class, 0);
