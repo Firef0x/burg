@@ -28,8 +28,10 @@ export TEXTDOMAINDIR=@localedir@
 
 if [ "x${GRUB_DISTRIBUTOR}" = "x" ] ; then
   OS=GNU/Linux
+  OSLABEL=Linux
 else
   OS="${GRUB_DISTRIBUTOR} GNU/Linux"
+  OSLABEL=${GRUB_DISTRIBUTOR}
 fi
 
 # loop-AES arranges things so that /dev/loop/X can be our root device, but
@@ -58,7 +60,7 @@ linux_entry ()
   else
     title="$(gettext "%s, with Linux %s")"
   fi
-  printf "menuentry \"${title}\" --class Linux {\n" "${os}" "${version}"
+  printf "menuentry \"${title}\" --class ${OSLABEL} {\n" "${os}" "${version}"
   if [ -z "${prepare_boot_cache}" ]; then
     prepare_boot_cache="$(prepare_grub_to_access_device ${GRUB_DEVICE_BOOT} | sed -e "s/^/\t/")"
   fi
