@@ -58,6 +58,8 @@ grub_video_bitmap_create_scaled_internal (struct grub_video_bitmap **dst,
   if (ret != GRUB_ERR_NONE)
     return ret;                 /* Error. */
 
+  (*dst)->transparent = src->transparent;
+
   switch (scale_method)
     {
     case GRUB_VIDEO_BITMAP_SCALE_METHOD_FASTEST:
@@ -150,7 +152,9 @@ grub_video_bitmap_create_scaled (struct grub_video_bitmap **dst,
 				  src->mode_info.blit_format);
   if (ret != GRUB_ERR_NONE)
     return ret;                 /* Error. */
-  
+
+  (*dst)->transparent = src->transparent;
+
   dst_info.mode_info = &(*dst)->mode_info;
   dst_info.data = (*dst)->data;
   color = map_color (dst_info.mode_info, color);

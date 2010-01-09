@@ -131,6 +131,7 @@ grub_menu_region_create_bitmap (const char *name, int scale,
   region->common.type = GRUB_MENU_REGION_TYPE_BITMAP;
   region->common.width = bitmap->mode_info.width;
   region->common.height = bitmap->mode_info.height;
+  region->bitmap = bitmap;
   region->cache = cache;
   region->scale = scale;
   region->color = color;
@@ -199,7 +200,8 @@ grub_menu_region_free (grub_menu_region_common_t region)
     {
       grub_menu_region_bitmap_t r = (grub_menu_region_bitmap_t) region;
 
-      if ((r->bitmap) && (r->bitmap != r->cache->scaled_bitmap))
+      if ((r->bitmap != r->cache->bitmap) &&
+	  (r->bitmap != r->cache->scaled_bitmap))
 	grub_cur_menu_region->free_bitmap (r->bitmap);
 
       grub_bitmap_cache_free (r->cache);
@@ -272,7 +274,9 @@ grub_menu_region_add_update (grub_menu_region_update_list_t *head,
 
   if ((! grub_menu_region_gfx_mode ()) ||
       ((region->type == GRUB_MENU_REGION_TYPE_RECT) &&
-       (! ((grub_menu_region_rect_t) region)->fill)))
+       (! ((grub_menu_region_rect_t) region)->fill)) ||
+      ((region->type == GRUB_MENU_REGION_TYPE_BITMAP) &&
+       (! ((grub_menu_region_bitmap_t) region)->bitmap->transparent)))
     {
       grub_menu_region_update_list_t *p, q;
 

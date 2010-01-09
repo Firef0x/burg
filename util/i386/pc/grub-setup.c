@@ -529,12 +529,14 @@ unable_to_embed:
     grub_util_error ("%s", grub_errmsg);
 
   file->read_hook = save_first_sector;
+  file->closure = &c;
   if (grub_file_read (file, tmp_img, GRUB_DISK_SECTOR_SIZE)
       != GRUB_DISK_SECTOR_SIZE)
     grub_util_error (_("Failed to read the first sector of the core image"));
 
   c.block = c.first_block;
   file->read_hook = save_blocklists;
+  file->closure = &c;
   if (grub_file_read (file, tmp_img, core_size - GRUB_DISK_SECTOR_SIZE)
       != (grub_ssize_t) core_size - GRUB_DISK_SECTOR_SIZE)
     grub_util_error (_("Failed to read the rest sectors of the core image"));

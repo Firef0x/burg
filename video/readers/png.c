@@ -779,6 +779,24 @@ grub_png_convert_image (struct grub_png_data *data)
     *d1 = *d2;
 }
 
+static void
+grub_png_check_transparency (struct grub_png_data *data)
+{
+  grub_uint8_t *p;
+  int i;
+
+  if (data->bpp != 4)
+    return;
+
+  p = (*data->bitmap)->data;
+  for (i = 0, p += 3; i < data->image_width * data->image_height; i++, p += 4)
+    if (*p != 255)
+      {
+	(*data->bitmap)->transparent = 1;
+	break;
+      }
+}
+
 static grub_err_t
 grub_png_decode_png (struct grub_png_data *data)
 {
@@ -817,6 +835,8 @@ grub_png_decode_png (struct grub_png_data *data)
 	case PNG_CHUNK_IEND:
           if (data->is_16bit)
             grub_png_convert_image (data);
+
+	  grub_png_check_transparency (data);
 
 	  return grub_errno;
 

@@ -171,12 +171,11 @@ grub_gfx_region_free_bitmap (struct grub_video_bitmap *bitmap)
 static void
 grub_gfx_region_scale_bitmap (struct grub_menu_region_bitmap *bitmap)
 {
-  if (bitmap->bitmap)
-    {
-      grub_video_bitmap_destroy (bitmap->bitmap);
-      bitmap->bitmap = 0;
-    }
+  if ((bitmap->bitmap != bitmap->cache->bitmap) &&
+      (bitmap->bitmap != bitmap->cache->scaled_bitmap))
+    grub_video_bitmap_destroy (bitmap->bitmap);
 
+  bitmap->bitmap = 0;
   grub_video_bitmap_create_scaled (&bitmap->bitmap, bitmap->common.width,
 				   bitmap->common.height,
 				   bitmap->cache->bitmap,
@@ -238,10 +237,7 @@ grub_gfx_region_update_bitmap (struct grub_menu_region_bitmap *bitmap,
 			       int x, int y, int width, int height,
 			       int scn_x, int scn_y)
 {
-  struct grub_video_bitmap *bm;
-
-  bm = (bitmap->bitmap) ? bitmap->bitmap : bitmap->cache->bitmap;
-  grub_video_blit_bitmap (bm, GRUB_VIDEO_BLIT_BLEND,
+  grub_video_blit_bitmap (bitmap->bitmap, GRUB_VIDEO_BLIT_BLEND,
 			  scn_x, scn_y, x, y, width, height);
   grub_video_update_rect (scn_x, scn_y, width, height);
 }

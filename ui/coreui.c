@@ -226,6 +226,19 @@ panel_init_size (grub_widget_t widget)
 					 &data->color_selected,
 					 &data->fill_selected);
 
+  widget->node->flags |= GRUB_WIDGET_FLAG_DYNAMIC;
+  if ((data->fill == data->fill_selected) &&
+      (data->color == data->color_selected))
+    {
+      for (i = INDEX_TOP_LEFT + INDEX_SELECTED;
+	   i <= INDEX_BACKGROUND + INDEX_SELECTED; i++)
+	if (data->bitmaps[i])
+	  break;
+
+      if (i > INDEX_BACKGROUND + INDEX_SELECTED)
+	widget->node->flags &= ~GRUB_WIDGET_FLAG_DYNAMIC;
+    }
+
   p = grub_widget_get_prop (widget->node, "border_size");
   border_size = (p) ? grub_menu_parse_size (p, 0, 1) : 0;
 
@@ -491,6 +504,11 @@ image_init_size (grub_widget_t widget)
   if (! data->image)
     return;
 
+  if (data->image_selected)
+    widget->node->flags |= GRUB_WIDGET_FLAG_DYNAMIC;
+  else
+    widget->node->flags &= ~GRUB_WIDGET_FLAG_DYNAMIC;
+
   if (! (widget->node->flags & GRUB_WIDGET_FLAG_FIXED_WIDTH))
     widget->width = data->image->width;
 
@@ -568,6 +586,11 @@ text_init_size (grub_widget_t widget)
   p = grub_widget_get_prop (widget->node, "color");
   if (p)
     data->color = grub_menu_parse_color (p, 0, &data->color_selected, 0);
+
+  if (data->color != data->color_selected)
+    widget->node->flags |= GRUB_WIDGET_FLAG_DYNAMIC;
+  else
+    widget->node->flags &= ~GRUB_WIDGET_FLAG_DYNAMIC;
 
   p = (grub_menu_region_gfx_mode ()) ?
     grub_widget_get_prop (widget->node, "gfx_text") : 0;
@@ -667,6 +690,11 @@ password_init_size (grub_widget_t widget)
   p = grub_widget_get_prop (widget->node, "color");
   if (p)
     data->color = grub_menu_parse_color (p, 0, &data->color_selected, 0);
+
+  if (data->color != data->color_selected)
+    widget->node->flags |= GRUB_WIDGET_FLAG_DYNAMIC;
+  else
+    widget->node->flags &= ~GRUB_WIDGET_FLAG_DYNAMIC;
 
   data->char_width = grub_menu_region_get_text_width (font, "*", 0, 0);
   data->char_height = grub_menu_region_get_text_height (font);
@@ -956,6 +984,11 @@ edit_init_size (grub_widget_t widget)
   p = grub_widget_get_prop (widget->node, "color");
   if (p)
     data->color = grub_menu_parse_color (p, 0, &data->color_selected, 0);
+
+  if (data->color != data->color_selected)
+    widget->node->flags |= GRUB_WIDGET_FLAG_DYNAMIC;
+  else
+    widget->node->flags &= ~GRUB_WIDGET_FLAG_DYNAMIC;
 
   p = grub_widget_get_prop (widget->node, "max_lines");
   data->max_lines = (p) ? grub_strtoul (p, 0, 0) : DEFAULT_MAX_LINES;

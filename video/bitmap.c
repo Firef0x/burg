@@ -155,6 +155,8 @@ grub_video_bitmap_create (struct grub_video_bitmap **bitmap,
       return grub_errno;
     }
 
+  (*bitmap)->transparent = 0;
+
   return GRUB_ERR_NONE;
 }
 

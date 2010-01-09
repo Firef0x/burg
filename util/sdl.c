@@ -43,8 +43,11 @@ grub_sdl_checkkey (void)
 {
   SDL_Event event;
 
-  if (SDL_PollEvent (&event))
+  while (SDL_PollEvent (&event))
     {
+      if (event.type == SDL_QUIT)
+	grub_halt ();
+
       if (event.type == SDL_KEYDOWN)
 	{
 	  int key;

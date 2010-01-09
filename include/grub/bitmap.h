@@ -31,6 +31,8 @@ struct grub_video_bitmap
 
   /* Pointer to bitmap data formatted according to mode_info.  */
   void *data;
+
+  int transparent;
 };
 
 struct grub_video_bitmap_reader

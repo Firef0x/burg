@@ -955,6 +955,7 @@ static void
 change_node (grub_uitree_t prev, grub_uitree_t node)
 {
   grub_uitree_t child, parent, scroll;
+  grub_uitree_t dyn_prev, dyn_node;
 
   child = node;
   while (child->data)
@@ -963,11 +964,13 @@ change_node (grub_uitree_t prev, grub_uitree_t node)
       child = child->parent;
     }
 
-  parent = prev;
+  dyn_prev = parent = prev;
   prev = 0;
   while (! (parent->flags & GRUB_WIDGET_FLAG_MARKED))
     {
       prev = parent;
+      if (prev->flags & GRUB_WIDGET_FLAG_DYNAMIC)
+	dyn_prev = prev;
       parent = parent->parent;
     }
 
@@ -978,6 +981,7 @@ change_node (grub_uitree_t prev, grub_uitree_t node)
       child = child->parent;
     }
 
+  dyn_node = node;
   scroll = grub_widget_scroll (node);
   while (1)
     {
@@ -989,6 +993,8 @@ change_node (grub_uitree_t prev, grub_uitree_t node)
       if (p == parent)
 	break;
       node = p;
+      if (node->flags & GRUB_WIDGET_FLAG_DYNAMIC)
+	dyn_node = node;
     }
 
   if (scroll)
@@ -997,8 +1003,8 @@ change_node (grub_uitree_t prev, grub_uitree_t node)
     grub_widget_draw (parent);
   else
     {
-      grub_widget_draw (prev);
-      grub_widget_draw (node);
+      grub_widget_draw (dyn_prev);
+      grub_widget_draw (dyn_node);
     }
 }
 
