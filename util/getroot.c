@@ -113,7 +113,7 @@ get_win32_path (const char *path)
 
 #if defined(__MINGW32__)
 char *
-grub_get_prefix (const char *dir)
+grub_get_prefix (const char *dir, int host_dev __attribute__ ((unused)))
 {
   char *saved_cwd;
   char *path;
@@ -135,7 +135,7 @@ grub_get_prefix (const char *dir)
 }
 #else
 char *
-grub_get_prefix (const char *dir)
+grub_get_prefix (const char *dir, int host_dev)
 {
   char *saved_cwd;
   char *abs_dir, *prev_dir;
@@ -150,6 +150,13 @@ grub_get_prefix (const char *dir)
 
   abs_dir = xgetcwd ();
   strip_extra_slashes (abs_dir);
+  if (host_dev)
+    {
+      if (chdir (saved_cwd) < 0)
+	grub_util_error ("Cannot change directory to `%s'", saved_cwd);
+      free (saved_cwd);
+      return abs_dir;
+    }
   prev_dir = xstrdup (abs_dir);
 
   if (stat (".", &prev_st) < 0)

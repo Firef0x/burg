@@ -49,6 +49,9 @@ struct grub_menu_entry
 
   int save;
 
+  const char *submenu;
+  const char *menuid;
+
   /* The next element.  */
   struct grub_menu_entry *next;
 };

@@ -646,7 +646,7 @@ main (int argc, char *argv[])
 
   find_dest_dev (&ginfo, argv);
 
-  ginfo.prefix = grub_get_prefix (ginfo.dir ? : DEFAULT_DIRECTORY);
+  ginfo.prefix = grub_get_prefix (ginfo.dir ? : DEFAULT_DIRECTORY, 0);
 
   check_root_dev (&ginfo);
 

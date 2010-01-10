@@ -34,6 +34,8 @@ else
   OSLABEL=${GRUB_DISTRIBUTOR}
 fi
 
+FOLD_OPTION=
+
 # loop-AES arranges things so that /dev/loop/X can be our root device, but
 # the initrds that Linux uses don't like that.
 case ${GRUB_DEVICE} in
@@ -60,7 +62,14 @@ linux_entry ()
   else
     title="$(gettext "%s, with Linux %s")"
   fi
-  printf "menuentry \"${title}\" --class ${OSLABEL} {\n" "${os}" "${version}"
+  if [ -n "${GRUB_FOLD}" ]; then
+    if [ -z "${FOLD_OPTION}" ]; then
+      FOLD_OPTION="--submenu menu_${OSLABEL} "
+    else
+      FOLD_OPTION="--menu menu_${OSLABEL} "
+    fi
+  fi
+  printf "menuentry \"${title}\" --class ${OSLABEL} ${FOLD_OPTION}{\n" "${os}" "${version}"
   if [ -z "${prepare_boot_cache}" ]; then
     prepare_boot_cache="$(prepare_grub_to_access_device ${GRUB_DEVICE_BOOT} | sed -e "s/^/\t/")"
   fi

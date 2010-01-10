@@ -38,6 +38,28 @@ grub_video_sdl_set_palette (unsigned int start, unsigned int count,
 
 static int saved_char = -1;
 
+const char *ascii_mapping = "`~1!2@3#4$5%6^7&8*9(0)-_=+\\|[{]};:'\",<.>/?";
+
+static int
+get_ascii (int key, SDLMod mod)
+{
+  const char *p;
+
+  if ((mod != KMOD_LSHIFT) && (mod != KMOD_RSHIFT))
+    return key;
+
+  if ((key >= 'a') && (key <= 'z'))
+    return key - 'a' + 'A';
+
+  for (p = ascii_mapping; *p; p += 2)
+    {
+      if (*p == key)
+	return *(p + 1);
+    }
+
+  return key;
+}
+
 static int
 grub_sdl_checkkey (void)
 {
@@ -135,7 +157,8 @@ grub_sdl_checkkey (void)
 	      break;
 
 	    default:
-	      key = (event.key.keysym.sym > 127) ? 0 : event.key.keysym.sym;
+	      key = (event.key.keysym.sym > 127) ? 0 :
+		get_ascii (event.key.keysym.sym, event.key.keysym.mod);
 	    }
 
 	  saved_char = key;

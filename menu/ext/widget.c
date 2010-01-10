@@ -1367,6 +1367,7 @@ char *
 grub_widget_get_prop (grub_uitree_t node, const char *name)
 {
   grub_uitree_t class_node;
+  grub_uitree_t child;
   char *prop, *class;
 
   prop = grub_uitree_get_prop (node, name);
@@ -1378,12 +1379,8 @@ grub_widget_get_prop (grub_uitree_t node, const char *name)
     return 0;
 
   class = grub_uitree_get_prop (node, "class");
-  if (! class)
-    class = node->name;
-
-  do
+  while (class)
     {
-      grub_uitree_t child;
       char *p;
 
       p = grub_menu_next_field (class, ',');
@@ -1397,7 +1394,11 @@ grub_widget_get_prop (grub_uitree_t node, const char *name)
 	}
       class = p;
     }
-  while (class);
 
-  return 0;
+  prop = 0;
+  child = find_child (class_node, node->name);
+  if (child)
+    prop = grub_uitree_get_prop (child, name);
+
+  return prop;
 }

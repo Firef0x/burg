@@ -130,6 +130,7 @@ EOF
     linux)
       LINUXPROBED="`linux-boot-prober ${DEVICE} 2> /dev/null | tr ' ' '^' | paste -s -d ' '`"
       prepare_boot_cache=
+      FOLD_OPTION=
 
       for LINUX in ${LINUXPROBED} ; do
         LROOT="`echo ${LINUX} | cut -d ':' -f 1`"
@@ -148,8 +149,16 @@ EOF
 	  LINITRD="${LINITRD#/boot}"
 	fi
 
+        if [ -n "${GRUB_FOLD}" ]; then
+          if [ -z "${FOLD_OPTION}" ]; then
+            FOLD_OPTION="--submenu menu_${OSLABEL} "
+          else
+            FOLD_OPTION="--menu menu_${OSLABEL} "
+          fi
+        fi
+
         cat << EOF
-menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} {
+menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} ${FOLD_OPTION}{
 EOF
 	if [ -z "${prepare_boot_cache}" ]; then
 	  prepare_boot_cache="$(prepare_grub_to_access_device ${LBOOT} | sed -e "s/^/\t/")"

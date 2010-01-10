@@ -44,6 +44,8 @@ free_menu (grub_menu_t menu)
 
       grub_free ((void *) entry->title);
       grub_free ((void *) entry->sourcecode);
+      grub_free ((void *) entry->submenu);
+      grub_free ((void *) entry->menuid);
       entry = next_entry;
     }
 
@@ -82,6 +84,8 @@ grub_menu_entry_add (int argc, const char **args, const char *sourcecode)
   struct grub_menu_entry_class *classes_tail;
   char *users = NULL;
   int save = -1;
+  const char *submenu = NULL;
+  const char *menuid = NULL;
 
   /* Allocate dummy head node for class list.  */
   classes_head = grub_zalloc (sizeof (struct grub_menu_entry_class));
@@ -158,6 +162,30 @@ grub_menu_entry_add (int argc, const char **args, const char *sourcecode)
 	      save = 0;
 	      continue;
 	    }
+	  else if (grub_strcmp(arg, "submenu") == 0)
+	    {
+	      i++;
+	      grub_free ((void *) submenu);
+	      submenu = grub_strdup (args[i]);
+	      if (! submenu)
+		{
+		  failed = 1;
+		  break;
+		}
+	      continue;
+	    }
+	  else if (grub_strcmp(arg, "menu") == 0)
+	    {
+	      i++;
+	      grub_free ((void *) menuid);
+	      menuid = grub_strdup (args[i]);
+	      if (! menuid)
+		{
+		  failed = 1;
+		  break;
+		}
+	      continue;
+	    }
 	  else
 	    {
 	      /* Handle invalid argument.  */
@@ -220,6 +248,8 @@ grub_menu_entry_add (int argc, const char **args, const char *sourcecode)
   (*last)->users = users;
   (*last)->sourcecode = menusourcecode;
   (*last)->save = save;
+  (*last)->submenu = submenu;
+  (*last)->menuid = menuid;
 
   menu->size++;
 

@@ -204,12 +204,36 @@ panel_get_data_size (void)
 }
 
 static void
+get_border_size (struct panel_data *data, int *dx1, int *dy1,
+		 int *dx2, int *dy2)
+{
+  int i;
+
+  *dx1 = *dy1 = *dx2 = *dy2 = 0;
+  for (i = INDEX_SELECTED; i >= 0; i -= INDEX_SELECTED)
+    {
+      if (data->bitmaps[INDEX_LEFT + i])
+	*dx1 = data->bitmaps[INDEX_LEFT + i]->width;
+
+      if (data->bitmaps[INDEX_TOP + i])
+	*dy1 = data->bitmaps[INDEX_TOP + i]->height;
+
+      if (data->bitmaps[INDEX_RIGHT + i])
+	*dx2 = (data->bitmaps[INDEX_RIGHT + i])->width;
+
+      if (data->bitmaps[INDEX_BOTTOM + i])
+	*dy2 = data->bitmaps[INDEX_BOTTOM + i]->height;
+    }
+}
+
+static void
 panel_init_size (grub_widget_t widget)
 {
   struct panel_data *data = widget->data;
   int border_size, size;
   char *p;
   int i;
+  int dx1, dy1, dx2, dy2;
 
   for (i = INDEX_TOP_LEFT; i <= INDEX_BOTTOM_RIGHT; i++)
     data->bitmaps[i] = get_bitmap (widget, border_names[i - INDEX_TOP_LEFT],
@@ -276,13 +300,11 @@ panel_init_size (grub_widget_t widget)
 
   widget->node->flags |= GRUB_WIDGET_FLAG_TRANSPARENT;
 
+  get_border_size (data, &dx1, &dy1, &dx2, &dy2);
+
   if (! (widget->node->flags & GRUB_WIDGET_FLAG_FIXED_WIDTH))
     {
-      if (data->bitmaps[INDEX_LEFT])
-	widget->width += data->bitmaps[INDEX_LEFT]->width;
-
-      if (data->bitmaps[INDEX_RIGHT])
-	widget->width += data->bitmaps[INDEX_RIGHT]->width;
+      widget->width += dx1 + dx2;
 
       if (data->bitmaps[INDEX_BORDER_LEFT])
 	widget->width += data->bitmaps[INDEX_BORDER_LEFT]->width;
@@ -296,11 +318,7 @@ panel_init_size (grub_widget_t widget)
 
   if (! (widget->node->flags & GRUB_WIDGET_FLAG_FIXED_HEIGHT))
     {
-      if (data->bitmaps[INDEX_TOP])
-	widget->height += data->bitmaps[INDEX_TOP]->height;
-
-      if (data->bitmaps[INDEX_BOTTOM])
-	widget->height += data->bitmaps[INDEX_BOTTOM]->height;
+      widget->height += dy1 + dy2;
 
       if (data->bitmaps[INDEX_BORDER_TOP])
 	widget->height += data->bitmaps[INDEX_BORDER_TOP]->height;
@@ -341,14 +359,7 @@ panel_fini_size (grub_widget_t widget)
 
   adjust_margin (widget, "padding", MARGIN_FINI);
 
-  dx1 = (data->bitmaps[INDEX_LEFT]) ?
-    data->bitmaps[INDEX_LEFT]->width : 0;
-  dy1 = (data->bitmaps[INDEX_TOP]) ?
-    data->bitmaps[INDEX_TOP]->height : 0;
-  dx2 = (data->bitmaps[INDEX_RIGHT]) ?
-    data->bitmaps[INDEX_RIGHT]->width : 0;
-  dy2 = (data->bitmaps[INDEX_BOTTOM]) ?
-    data->bitmaps[INDEX_BOTTOM]->height : 0;
+  get_border_size (data, &dx1, &dy1, &dx2, &dy2);
 
   bw1 = (data->bitmaps[INDEX_BORDER_LEFT]) ?
     data->bitmaps[INDEX_BORDER_LEFT]->width : 0;
