@@ -261,6 +261,7 @@ grub_raid_read (grub_disk_t disk, grub_disk_addr_t sector,
                           grub_errno = GRUB_ERR_NONE;
 
                         err = grub_disk_read (array->device[k],
+					      array->offset[k] +
                                               read_sector + j * far_ofs + b,
                                               0,
                                               read_size << GRUB_DISK_SECTOR_BITS,
@@ -373,6 +374,7 @@ grub_raid_read (grub_disk_t disk, grub_disk_addr_t sector,
                   grub_errno = GRUB_ERR_NONE;
 
                 err = grub_disk_read (array->device[disknr],
+				      array->offset[disknr] +
                                       read_sector + b, 0,
                                       read_size << GRUB_DISK_SECTOR_BITS,
                                       buf);
@@ -531,6 +533,7 @@ insert_array (grub_disk_t disk, struct grub_raid_array *new_array,
       *array = *new_array;
       array->nr_devs = 0;
       grub_memset (&array->device, 0, sizeof (array->device));
+      grub_memset (&array->offset, 0, sizeof (array->offset));
 
       /* Check whether we don't have multiple arrays with the same number. */
       for (p = array_list; p != NULL; p = p->next)
@@ -589,6 +592,7 @@ insert_array (grub_disk_t disk, struct grub_raid_array *new_array,
 
   /* Add the device to the array. */
   array->device[new_array->index] = disk;
+  array->offset[new_array->index] = array->disk_offset;
   array->nr_devs++;
 
   return 0;

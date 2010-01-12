@@ -43,6 +43,7 @@ struct grub_raid_array
   grub_size_t chunk_size;  /* The size of a chunk, in 512 byte sectors. */
   grub_uint64_t disk_size; /* Size of an individual disk, in 512 byte
 			      sectors. */
+  grub_uint64_t disk_offset;
   int index;               /* Index of current device.  */
   int uuid_len;            /* The length of uuid.  */
   char *uuid;              /* The UUID of the device. */
@@ -51,6 +52,8 @@ struct grub_raid_array
   char *name;              /* That will be "md<number>". */
   unsigned int nr_devs;    /* The number of devices we've found so far. */
   grub_disk_t device[GRUB_RAID_MAX_DEVICES];  /* Array of total_devs devices. */
+  grub_uint64_t offset[GRUB_RAID_MAX_DEVICES];
+
   struct grub_raid_array *next;
 };
 

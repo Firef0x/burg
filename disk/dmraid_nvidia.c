@@ -135,6 +135,7 @@ grub_dmraid_nv_detect (grub_disk_t disk, struct grub_raid_array *array)
   array->number = 0;
   array->total_devs = sb.array.total_volumes;
   array->chunk_size = sb.array.stripe_block_size;
+  array->disk_offset = 0;
   array->index = sb.unit_number;
   array->uuid_len = sizeof (sb.array.signature);
   array->uuid = grub_malloc (sizeof (sb.array.signature));

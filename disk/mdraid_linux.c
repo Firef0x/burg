@@ -159,8 +159,135 @@ struct grub_raid_super_09
   struct grub_raid_disk_09 this_disk;
 } __attribute__ ((packed));
 
+struct grub_raid_super_1
+{
+  grub_uint32_t md_magic;	/* MD identifier.  */
+  grub_uint32_t major_version;	/* Major version.  */
+  grub_uint32_t feature_map;
+  grub_uint32_t pad0;
+  grub_uint8_t set_uuid[16];
+  char set_name[32];
+  grub_uint64_t ctime;          /* Creation time. low 40 bits are seconds,  */
+				/* top 24 are microseconds or 0.  */
+  grub_uint32_t level;		/* Raid personality.  */
+  grub_uint32_t layout;		/* Only for raid5 currently.  */
+  grub_uint64_t size;		/* Apparent size of each individual disk.  */
+  grub_uint32_t chunk_size;	/* In 512 byte sectors.  */
+  grub_uint32_t raid_disks;	/* Disks in a fully functional raid set.  */
+  grub_uint32_t bitmap_offset;
+  grub_uint32_t new_level;	/* New level we are reshaping to.  */
+  grub_uint64_t reshape_position;
+  grub_uint32_t delta_disks;
+  grub_uint32_t new_layout;
+  grub_uint32_t new_chunk;
+  grub_uint8_t pad1[128 - 124];
+
+  grub_uint64_t data_offset;
+  grub_uint64_t data_size;
+  grub_uint64_t super_offset;
+  grub_uint64_t recovery_offset;
+  grub_uint32_t dev_number;
+  grub_uint32_t cnt_corrected_read;
+  grub_uint8_t device_uuid[16];
+  grub_uint8_t devflags;
+  grub_uint8_t pad2[64 - 57];
+
+  grub_uint64_t utime;
+  grub_uint64_t events;
+  grub_uint64_t rsync_offset;
+  grub_uint32_t sb_csum;
+  grub_uint32_t max_dev;
+  grub_uint8_t pad3[64 - 32];
+
+  grub_uint16_t dev_roles[0];
+} __attribute__ ((packed));
+
+static int
+detect_super_1 (grub_disk_t disk, grub_disk_addr_t sector,
+		struct grub_raid_super_1 *sb)
+{
+  if (grub_disk_read (disk, sector, 0, sizeof (*sb), sb))
+    return 0;
+
+  if (grub_le_to_cpu32 (sb->md_magic) != SB_MAGIC)
+    return 0;
+
+  if (grub_le_to_cpu32 (sb->major_version) != 1)
+    return 0;
+
+  if (grub_le_to_cpu64 (sb->super_offset) != sector)
+    return 0;
+
+  return 1;
+}
+
+static int
+grub_mdraid_detect_1 (grub_disk_t disk, struct grub_raid_array *array)
+{
+  struct grub_raid_super_1 sb;
+  grub_disk_addr_t sector, best_offset;
+  grub_uint64_t best_ctime;
+  int i, best_ver;
+
+  sector = grub_disk_get_size (disk);
+  if (sector < 24)
+    return 0;
+
+  best_offset = 0;
+  best_ctime = 0;
+  best_ver = -1;
+  for (i = 0; i <= 2; i++)
+    {
+      grub_disk_addr_t offset;
+
+      if (i == 0)
+	offset = (sector - 16) & ~7ULL;
+      else if (i == 1)
+	offset = 0;
+      else
+	offset = 8;
+
+      if (detect_super_1 (disk, offset, &sb))
+	{
+	  if ((best_ver < 0) ||
+	      (best_ctime < grub_le_to_cpu64 (sb.ctime)))
+	    {
+	      best_ver = i;
+	      best_ctime = grub_le_to_cpu64 (sb.ctime);
+	      best_offset = offset;
+	    }
+	}
+
+      if (grub_errno)
+	return 0;
+    }
+
+  if (best_ver < 0)
+    return 0;
+
+  if (grub_disk_read (disk, best_offset, 0, sizeof (sb), &sb))
+    return 0;
+
+  array->number = 0;
+  array->level = grub_le_to_cpu32 (sb.level);
+  array->layout = grub_le_to_cpu32 (sb.layout);
+  array->total_devs = grub_le_to_cpu32 (sb.raid_disks);
+  array->disk_size = grub_le_to_cpu64 (sb.data_size);
+  array->disk_offset = grub_le_to_cpu64 (sb.data_offset);
+  array->chunk_size = grub_le_to_cpu32 (sb.chunk_size);
+  array->index = grub_le_to_cpu32 (sb.dev_number);
+  array->uuid_len = sizeof (sb.set_uuid);
+  array->uuid = grub_malloc (sizeof (sb.set_uuid));
+  if (!array->uuid)
+    return 0;
+
+  grub_memcpy (array->uuid, &sb.set_uuid, sizeof (sb.set_uuid));
+
+  return 1;
+}
+
 static grub_err_t
-grub_mdraid_detect (grub_disk_t disk, struct grub_raid_array *array)
+grub_mdraid_detect_09 (grub_disk_t disk, struct grub_raid_array *array)
 {
   grub_disk_addr_t sector;
   grub_uint64_t size;
@@ -200,6 +327,7 @@ grub_mdraid_detect (grub_disk_t disk, struct grub_raid_array *array)
   array->layout = sb.layout;
   array->total_devs = sb.raid_disks;
   array->disk_size = (sb.size) ? sb.size * 2 : sector;
+  array->disk_offset = 0;
   array->chunk_size = sb.chunk_size >> 9;
   array->index = sb.this_disk.number;
   array->uuid_len = 16;
@@ -214,6 +342,18 @@ grub_mdraid_detect (grub_disk_t disk, struct grub_raid_array *array)
   uuid[3] = sb.set_uuid3;
 
   return 0;
+}
+
+static grub_err_t
+grub_mdraid_detect (grub_disk_t disk, struct grub_raid_array *array)
+{
+  if (grub_mdraid_detect_1 (disk, array))
+    return 0;
+
+  if (grub_errno)
+    return grub_errno;
+
+  return grub_mdraid_detect_09 (disk, array);
 }
 
 static struct grub_raid grub_mdraid_dev = {
