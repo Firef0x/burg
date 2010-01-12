@@ -1095,21 +1095,19 @@ run_dir_cmd (char *name)
   return next;
 }
 
-/* Check every 0.5 second.  */
-#define WAIT_TIME	5
-
 static int
 check_timeout (grub_uitree_t root, int *key)
 {
   char *p;
   int total, left, has_key;
+  grub_uint64_t last_time;
 
   p = grub_env_get ("timeout");
   if (! p)
     return 0;
 
   total = grub_strtoul (p, 0, 0);
-  has_key = (grub_checkkey () != -1);
+  has_key = (grub_checkkey () >= 0);
   if ((has_key) || (! total))
     {
       *key = (has_key) ? GRUB_TERM_ASCII_CHAR (grub_getkey ()) : '\r';
@@ -1118,11 +1116,21 @@ check_timeout (grub_uitree_t root, int *key)
 
   grub_widget_draw (root);
   root = grub_uitree_find_id (root, "__timeout__");
-  total *= 10;
+  total *= 1000;
   left = total;
   *key = '\r';
+  last_time = grub_get_time_ms ();
   while (left > 0)
     {
+      grub_uint64_t delta;
+
+      if (grub_checkkey () >= 0)
+	{
+	  *key = GRUB_TERM_ASCII_CHAR (grub_getkey ());
+	  left = 0;
+	  break;
+	}
+
       if (root)
 	{
 	  grub_uitree_t child;
@@ -1149,14 +1157,9 @@ check_timeout (grub_uitree_t root, int *key)
 	  grub_menu_region_apply_update (head);
 	}
 
-      grub_millisleep (WAIT_TIME * 100);
-      left -= WAIT_TIME;
-
-      if (grub_checkkey () != -1)
-	{
-	  *key = GRUB_TERM_ASCII_CHAR (grub_getkey ());
-	  left = 0;
-	}
+      delta = grub_get_time_ms () - last_time;
+      last_time += delta;
+      left -= delta;
     }
 
   if (root)
