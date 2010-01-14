@@ -77,7 +77,7 @@ Install GRUB on your drive.
   --no-floppy             do not probe any floppy drive
   --recheck               probe a device map even if it already exists
   --force                 install even if problems are detected
-  --safe                  safe mode
+  --alt                   alternative setup mode
 EOF
 if [ "${target_cpu}-${platform}" = "i386-pc" ] ; then
     cat <<EOF
@@ -130,8 +130,8 @@ for option in "$@"; do
 	debug=yes ;;
     -f | --force)
         setup_force="--force" ;;
-    --safe)
-        setup_safe="--safe" ;;
+    --alt)
+        setup_alt="--alt" ;;
     -*)
 	echo "Unrecognized option \`$option'" 1>&2
 	usage
@@ -333,7 +333,7 @@ if [ "${target_cpu}-${platform}" = "i386-pc" ] || [ "${target_cpu}-${platform}" 
     $grub_mkimage ${config_opt} --output=${grubdir}/core.img --prefix=${prefix_drive}${relative_grubdir} $modules || exit 1
 
     # Now perform the installation.
-    $grub_setup ${setup_verbose} ${setup_force} ${setup_safe} --directory=${grubdir} --device-map=${device_map} \
+    $grub_setup ${setup_verbose} ${setup_force} ${setup_alt} --directory=${grubdir} --device-map=${device_map} \
         ${install_device} || exit 1
 else
     $grub_mkimage ${config_opt} -d ${pkglibdir} --output=/boot/multiboot.img --prefix=${prefix_drive}${relative_grubdir} $modules || exit 1

@@ -189,7 +189,7 @@ static void
 setup (const char *dir,
        const char *boot_file, const char *core_file,
        const char *root, const char *dest, int must_embed, int force,
-       int fs_probe, int safe_mode)
+       int fs_probe, int alt_mode)
 {
   char *boot_path, *core_path, *core_path_dev, *core_path_dev_full;
   char *boot_img, *core_img;
@@ -367,9 +367,6 @@ setup (const char *dir,
   else
     grub_util_error (_("No DOS-style partitions found"));
 
-  if (safe_mode)
-    goto use_blocklist;
-
   if (c.embed_region.end == c.embed_region.start)
     {
       if (! strcmp (c.dest_partmap, "part_msdos"))
@@ -386,6 +383,14 @@ setup (const char *dir,
       else /* embed_region.end - embed_region.start < 62 */
 	grub_util_warn (_("Your embedding area is unusually small.  core.img won't fit in it."));
       goto unable_to_embed;
+    }
+
+  if (alt_mode)
+    {
+      if (grub_disk_write (dest_dev->disk, c.embed_region.start, 0,
+			   core_size, core_img))
+	grub_util_error ("%s", grub_errmsg);
+      goto use_blocklist;
     }
 
   grub_util_info ("the core image will be embedded at sector 0x%llx",
@@ -592,7 +597,7 @@ static struct option options[] =
     {"root-device", required_argument, 0, 'r'},
     {"force", no_argument, 0, 'f'},
     {"skip-fs-probe", no_argument, 0, 's'},
-    {"safe", no_argument, 0, 0x100},
+    {"alt", no_argument, 0, 'a'},
     {"help", no_argument, 0, 'h'},
     {"version", no_argument, 0, 'V'},
     {"verbose", no_argument, 0, 'v'},
@@ -618,7 +623,7 @@ DEVICE must be a GRUB device (e.g. ``(hd0,1)'').\n\
   -r, --root-device=DEV   use DEV as the root device [default=guessed]\n\
   -f, --force             install even if problems are detected\n\
   -s, --skip-fs-probe     do not probe for filesystems in DEVICE\n\
-  --safe                  safe mode\n\
+  -a, --alt               alternative setup mode\n\
   -h, --help              display this message and exit\n\
   -V, --version           print version information and exit\n\
   -v, --verbose           print verbose messages\n\
@@ -653,7 +658,7 @@ main (int argc, char *argv[])
   char *root_dev = 0;
   char *dest_dev;
   int must_embed = 0, force = 0, fs_probe = 1;
-  int safe_mode = 0;
+  int alt_mode = 0;
 
   set_program_name (argv[0]);
 
@@ -662,7 +667,7 @@ main (int argc, char *argv[])
   /* Check for options.  */
   while (1)
     {
-      int c = getopt_long (argc, argv, "b:c:d:m:r:hVvf", options, 0);
+      int c = getopt_long (argc, argv, "b:c:d:m:r:ahVvf", options, 0);
 
       if (c == -1)
 	break;
@@ -712,8 +717,8 @@ main (int argc, char *argv[])
 	    fs_probe = 0;
 	    break;
 
-	  case 0x100:
-	    safe_mode = 1;
+	  case 'a':
+	    alt_mode = 1;
 	    break;
 
 	  case 'h':
@@ -826,7 +831,7 @@ main (int argc, char *argv[])
     setup (dir ? : DEFAULT_DIRECTORY,
 	   boot_file ? : DEFAULT_BOOT_FILE,
 	   core_file ? : DEFAULT_CORE_FILE,
-	   root_dev, dest_dev, must_embed, force, fs_probe, safe_mode);
+	   root_dev, dest_dev, must_embed, force, fs_probe, alt_mode);
 
   /* Free resources.  */
   grub_fini_all ();
