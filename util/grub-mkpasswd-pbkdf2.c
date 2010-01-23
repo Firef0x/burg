@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
-#include <termios.h>
 #include <getline.h>
 
 #include "progname.h"
@@ -110,87 +109,84 @@ hexify (char *hex, grub_uint8_t *bin, grub_size_t n)
   *hex = 0;
 }
 
-int
-main (int argc, char *argv[])
+#ifdef __MINGW32__
+
+#include <conio.h>
+#include <time.h>
+
+#define SIZE_INC	16
+
+static char *
+get_line (void)
 {
-  unsigned int c = 10000, buflen = 64, saltlen = 64;
-  char *pass1, *pass2;
-  char *bufhex, *salthex;
-  gcry_err_code_t gcry_err;
-  grub_uint8_t *buf, *salt;
-  ssize_t nr;
-  FILE *in, *out;
-  struct termios s, t;
-  int tty_changed;
+  char *buf = 0;
+  int pos, size;
 
-  set_program_name (argv[0]);
-
-  grub_util_init_nls ();
-
-  /* Check for options.  */
+  pos = size = 0;
   while (1)
     {
-      int c = getopt_long (argc, argv, "c:l:s:hvV", options, 0);
+      int ch;
 
-      if (c == -1)
-	break;
-
-      switch (c)
+      if (pos >= size)
 	{
-	case 'c':
-	  c = strtoul (optarg, NULL, 0);
-	  break;
-
-	case 'l':
-	  buflen = strtoul (optarg, NULL, 0);
-	  break;
-
-	case 's':
-	  saltlen = strtoul (optarg, NULL, 0);
-	  break;
-
-	case 'h':
-	  usage (0);
-	  return 0;
-
-	case 'V':
-	  printf ("%s (%s) %s\n", program_name,
-		  PACKAGE_NAME, PACKAGE_VERSION);
-	  return 0;
-
-	default:
-	  usage (1);
-	  return 1;
+	  size += SIZE_INC;
+	  buf = xrealloc (buf, size);
 	}
+      ch = getch ();
+      if (ch == '\r')
+	break;
+      else if ((ch == '\b') && (pos > 0))
+	buf[pos--] = 0;
+      else
+	buf[pos++] = ch;
     }
+  buf[pos] = 0;
 
-  bufhex = malloc (buflen * 2 + 1);
-  if (!bufhex)
-    grub_util_error ("out of memory");
-  buf = malloc (buflen);
-  if (!buf)
-    {
-      free (bufhex);
-      grub_util_error ("out of memory");
-    }
+  return buf;
+}
 
-  salt = malloc (saltlen);
-  if (!salt)
+static char *
+get_pass (grub_uint8_t *buf, char *bufhex, grub_uint8_t *salt, char *salthex)
+{
+  char *pass1, *pass2;
+  _cprintf ("Enter password: ");
+  pass1 = get_line ();
+  _cprintf ("\nReenter password: ");
+  pass2 = get_line ();
+  _cprintf ("\n");
+
+  if (strcmp (pass1, pass2) != 0)
     {
-      free (bufhex);
+      memset (pass1, 0, strlen (pass1));
+      memset (pass2, 0, strlen (pass2));
+      free (pass1);
+      free (pass2);
       free (buf);
-      grub_util_error ("out of memory");
-    }
-  salthex = malloc (saltlen * 2 + 1);
-  if (!salthex)
-    {
+      free (bufhex);
+      free (salthex);
       free (salt);
-      free (bufhex);
-      free (buf);
-      grub_util_error ("out of memory");
+      grub_util_error ("passwords don't match");
     }
+  memset (pass2, 0, strlen (pass2));
+  free (pass2);
 
-  /* Disable echoing. Based on glibc.  */
+  return pass1;
+}
+
+#else
+
+#include <termios.h>
+
+static char *
+get_pass (grub_uint8_t *buf, char *bufhex, grub_uint8_t *salt, char *salthex)
+{
+  char *pass1, *pass2;
+  struct termios s, t;
+  ssize_t nr;
+  FILE *in, *out;
+  int tty_changed;
+
+    /* Disable echoing. Based on glibc.  */
   in = fopen ("/dev/tty", "w+c");
   if (in == NULL)
     {
@@ -270,6 +266,98 @@ main (int argc, char *argv[])
   memset (pass2, 0, strlen (pass2));
   free (pass2);
 
+  return pass1;
+}
+#endif
+
+int
+main (int argc, char *argv[])
+{
+  unsigned int c = 10000, buflen = 64, saltlen = 64;
+  char *pass1;
+  char *bufhex, *salthex;
+  gcry_err_code_t gcry_err;
+  grub_uint8_t *buf, *salt;
+
+  set_program_name (argv[0]);
+
+  grub_util_init_nls ();
+
+  /* Check for options.  */
+  while (1)
+    {
+      int c = getopt_long (argc, argv, "c:l:s:hvV", options, 0);
+
+      if (c == -1)
+	break;
+
+      switch (c)
+	{
+	case 'c':
+	  c = strtoul (optarg, NULL, 0);
+	  break;
+
+	case 'l':
+	  buflen = strtoul (optarg, NULL, 0);
+	  break;
+
+	case 's':
+	  saltlen = strtoul (optarg, NULL, 0);
+	  break;
+
+	case 'h':
+	  usage (0);
+	  return 0;
+
+	case 'V':
+	  printf ("%s (%s) %s\n", program_name,
+		  PACKAGE_NAME, PACKAGE_VERSION);
+	  return 0;
+
+	default:
+	  usage (1);
+	  return 1;
+	}
+    }
+
+  bufhex = malloc (buflen * 2 + 1);
+  if (!bufhex)
+    grub_util_error ("out of memory");
+  buf = malloc (buflen);
+  if (!buf)
+    {
+      free (bufhex);
+      grub_util_error ("out of memory");
+    }
+
+  salt = malloc (saltlen);
+  if (!salt)
+    {
+      free (bufhex);
+      free (buf);
+      grub_util_error ("out of memory");
+    }
+  salthex = malloc (saltlen * 2 + 1);
+  if (!salthex)
+    {
+      free (salt);
+      free (bufhex);
+      free (buf);
+      grub_util_error ("out of memory");
+    }
+
+  pass1 = get_pass (buf, bufhex, salt, salthex);
+
+#ifdef __MINGW32__
+ {
+   unsigned i;
+   time_t tm;
+
+   srand (time (&tm));
+   for (i = 0; i < saltlen; i++)
+     salt[i] = rand ();
+ }
+#else
 #if ! defined (__linux__) && ! defined (__FreeBSD__)
   printf ("WARNING: your random generator isn't known to be secure\n");
 #endif
@@ -304,6 +392,7 @@ main (int argc, char *argv[])
       }
     fclose (f);
   }
+#endif
 
   gcry_err = grub_crypto_pbkdf2 (GRUB_MD_SHA512,
 				 (grub_uint8_t *) pass1, strlen (pass1),

@@ -609,7 +609,7 @@ grub_video_set_mode (const char *modestring,
       if (depth != -1 && (flagmask & GRUB_VIDEO_MODE_TYPE_DEPTH_MASK)
 	  &&
 	  (((flags & GRUB_VIDEO_MODE_TYPE_DEPTH_MASK)
-	    != ((depth << GRUB_VIDEO_MODE_TYPE_DEPTH_POS)
+	    != (((unsigned) depth << GRUB_VIDEO_MODE_TYPE_DEPTH_POS)
 		& GRUB_VIDEO_MODE_TYPE_DEPTH_MASK))))
 	continue;
 

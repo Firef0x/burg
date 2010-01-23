@@ -817,6 +817,6 @@ bin_UTILITIES += grub-mkpasswd-pbkdf2
 grub_mkpasswd_pbkdf2_SOURCES = gnulib/progname.c util/grub-mkpasswd-pbkdf2.c \
 	lib/crypto.c lib/libgcrypt-grub/cipher/sha512.c lib/pbkdf2.c \
 	util/misc.c kern/err.c gnulib/getline.c gnulib/getdelim.c
-grub_mkpasswd_pbkdf2_CFLAGS += -Wno-missing-field-initializers -Wno-error -I$(srcdir)/lib/libgcrypt_wrap -DGRUB_MKPASSWD=1
+grub_mkpasswd_pbkdf2_CFLAGS += -Wno-error -I$(srcdir)/lib/libgcrypt_wrap -DGRUB_MKPASSWD=1
 
 include $(srcdir)/conf/gcry.mk

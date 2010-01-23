@@ -46,6 +46,10 @@
 # define getc_maybe_unlocked(fp)	getc_unlocked(fp)
 #endif
 
+#ifndef EOVERFLOW
+#define EOVERFLOW E2BIG
+#endif
+
 /* Read up to (and including) a DELIMITER from FP into *LINEPTR (and
    NUL-terminate it).  *LINEPTR is a pointer returned from malloc (or
    NULL), pointing to *N characters of space.  It is realloc'ed as
@@ -55,7 +59,7 @@
 ssize_t
 getdelim (char **lineptr, size_t *n, int delimiter, FILE *fp)
 {
-  ssize_t result;
+  ssize_t result = -1;
   size_t cur_len = 0;
 
   if (lineptr == NULL || n == NULL || fp == NULL)

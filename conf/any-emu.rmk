@@ -64,7 +64,7 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	lib/libgcrypt-grub/cipher/md5.c \
 	lib/libgcrypt-grub/cipher/sha512.c lib/pbkdf2.c \
 	grub_emu_init.c gnulib/progname.c
-grub_emu_CFLAGS += -Wno-missing-field-initializers -Wno-error -I$(srcdir)/lib/libgcrypt_wrap
+grub_emu_CFLAGS += -Wno-error -I$(srcdir)/lib/libgcrypt_wrap
 
 
 ifeq ($(host_cpu), i386)

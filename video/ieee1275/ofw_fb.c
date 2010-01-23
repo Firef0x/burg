@@ -118,7 +118,8 @@ grub_video_ofw_set_palette (unsigned int start, unsigned int count,
 
 static grub_err_t
 grub_video_ofw_setup (unsigned int width, unsigned int height,
-		      unsigned int mode_type)
+		      unsigned int mode_type,
+		      unsigned int mode_mask __attribute__ ((unused)))
 {
   unsigned int depth;
 

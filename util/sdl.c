@@ -427,11 +427,11 @@ static struct grub_video_adapter grub_video_sdl_adapter =
 
 GRUB_MOD_INIT(sdl)
 {
-  grub_video_register (&grub_video_sdl_adapter);
-  grub_term_register_input ("sdl", &grub_sdl_term_input);
-  grub_list_push (GRUB_AS_LIST_P (&grub_term_inputs),
-		  GRUB_AS_LIST (&grub_sdl_term_input));
+  grub_term_input_t term = &grub_sdl_term_input;
 
+  grub_video_register (&grub_video_sdl_adapter);
+  grub_term_register_input ("sdl", term);
+  grub_list_push (GRUB_AS_LIST_P (&grub_term_inputs), GRUB_AS_LIST (term));
 }
 
 GRUB_MOD_FINI(sdl)
