@@ -23,7 +23,7 @@
 #include <grub/types.h>
 #include <grub/err.h>
 #include <grub/misc.h>
-#include <grub/i386/cmos.h>
+#include <grub/cmos.h>
 
 GRUB_EXPORT(grub_machine_mmap_iterate);
 

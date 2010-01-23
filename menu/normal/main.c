@@ -42,15 +42,15 @@ grub_normal_init_page (struct grub_term_output *term)
   int msg_len;
   int posx;
   const char *msg = _("GNU GRUB  version %s");
-
-  char *msg_formatted = grub_malloc (grub_strlen(msg) +
-  				     grub_strlen(PACKAGE_VERSION));
+  char *msg_formatted;
   grub_uint32_t *unicode_msg;
   grub_uint32_t *last_position;
 
   grub_term_cls (term);
 
-  grub_sprintf (msg_formatted, msg, PACKAGE_VERSION);
+  msg_formatted = grub_xasprintf (msg, PACKAGE_VERSION);
+  if (!msg_formatted)
+    return;
 
   msg_len = grub_utf8_to_ucs4_alloc (msg_formatted,
   				     &unicode_msg, &last_position);
@@ -145,10 +145,11 @@ grub_normal_reader_init (int nested)
 		      "the first word, TAB lists possible command completions. Anywhere "
 		      "else TAB lists possible device or file completions. %s");
   const char *msg_esc = _("ESC at any time exits.");
-  char *msg_formatted = grub_malloc (sizeof (char) * (grub_strlen (msg) +
-                grub_strlen(msg_esc) + 1));
+  char *msg_formatted;
 
-  grub_sprintf (msg_formatted, msg, nested ? msg_esc : "");
+  msg_formatted = grub_xasprintf (msg, nested ? msg_esc : "");
+  if (!msg_formatted)
+    return grub_errno;
 
   FOR_ACTIVE_TERM_OUTPUTS(term)
   {
@@ -168,12 +169,15 @@ static grub_err_t
 grub_normal_read_line_real (char **line, int cont, int nested)
 {
   grub_parser_t parser = grub_parser_get_current ();
-  char prompt[sizeof(">") + grub_strlen (parser->name)];
+  char *prompt;
 
   if (cont)
-    grub_sprintf (prompt, ">");
+    prompt = grub_xasprintf (">");
   else
-    grub_sprintf (prompt, "%s>", parser->name);
+    prompt = grub_xasprintf ("%s>", parser->name);
+
+  if (!prompt)
+    return grub_errno;
 
   while (1)
     {

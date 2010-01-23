@@ -66,8 +66,8 @@ mostlyclean-image-#{@name}.#{@rule_count}:
 
 MOSTLYCLEAN_IMAGE_TARGETS += mostlyclean-image-#{@name}.#{@rule_count}
 
-#{@name}: #{objs_str} grub-mkrawimage
-	$(call quiet-command,./grub-mkrawimage -o $@ -b $(#{prefix}_LINKADDR) $(filter %.o, $^),\"  IMG   #{@name}\")
+#{@name}: #{objs_str} grub-mkimg
+	$(call quiet-command,./grub-mkimg -o $@ -b $(#{prefix}_LINKADDR) $(filter %.o, $^),\"  IMG   #{@name}\")
 
 " + objs.collect_with_index do |obj, i|
       src = sources[i]

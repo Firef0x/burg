@@ -43,7 +43,6 @@ struct search_fs_closure
   const char *var;
   int no_floppy;
   int count;
-  char *buf;
 };
 
 static int
@@ -59,24 +58,20 @@ iterate_device (const char *name, void *closure)
 
 #ifdef DO_SEARCH_FILE
   {
-    grub_size_t len;
-    char *p;
+    char *buf;
     grub_file_t file;
 
-    len = grub_strlen (name) + 2 + grub_strlen (c->key) + 1;
-    p = grub_realloc (c->buf, len);
-    if (! p)
+    buf = grub_xasprintf ("(%s)%s", name, c->key);
+    if (! buf)
       return 1;
 
-    c->buf = p;
-    grub_sprintf (c->buf, "(%s)%s", name, c->key);
-
-    file = grub_file_open (c->buf);
+    file = grub_file_open (buf);
     if (file)
       {
 	found = 1;
 	grub_file_close (file);
       }
+    grub_free (buf);
   }
 #else
   {
@@ -138,7 +133,6 @@ FUNC_NAME (const char *key, const char *var, int no_floppy)
   c.var = var;
   c.no_floppy = no_floppy;
   c.count = 0;
-  c.buf = NULL;
 
   /* First try without autoloading if we're setting variable. */
   if (c.var)
@@ -158,8 +152,6 @@ FUNC_NAME (const char *key, const char *var, int no_floppy)
     }
   else
     grub_device_iterate (iterate_device, &c);
-
-  grub_free (c.buf);
 
   if (grub_errno == GRUB_ERR_NONE && c.count == 0)
     grub_error (GRUB_ERR_FILE_NOT_FOUND, "no such device: %s", key);

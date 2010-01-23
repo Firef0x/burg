@@ -87,6 +87,9 @@ endif
 bin_UTILITIES += grub-mkrelpath
 grub_mkrelpath_SOURCES = gnulib/progname.c util/grub-mkrelpath.c util/misc.c
 
+bin_UTILITIES += grub-bin2h
+grub_bin2h_SOURCES = gnulib/progname.c util/bin2h.c
+
 # For grub-script-check.
 bin_UTILITIES += grub-script-check
 util/grub-script-check.c_DEPENDENCIES = grub_script_check_init.h
@@ -179,12 +182,12 @@ grub_mkmod_SOURCES = gnulib/progname.c util/grub-mkmod.c util/misc.c \
 	util/obj.c util/obj_pe.c util/obj_elf.c util/obj_macho.c kern/list.c
 CLEANFILES += grub-mkmod
 
-# grub-mkrawimage
-bin_UTILITIES += grub-mkrawimage
-grub_mkrawimage_SOURCES = gnulib/progname.c util/grub-mkrawimage.c \
+# grub-mkimg
+bin_UTILITIES += grub-mkimg
+grub_mkimg_SOURCES = gnulib/progname.c util/grub-mkimg.c \
 	util/misc.c util/obj.c util/obj_pe.c util/obj_elf.c util/obj_macho.c \
 	kern/list.c
-CLEANFILES += grub-mkrawimage
+CLEANFILES += grub-mkimg
 
 # grub-symdb
 bin_UTILITIES += grub-symdb
@@ -489,7 +492,7 @@ hello_mod_LDFLAGS = $(COMMON_LDFLAGS)
 lib_mod_SOURCES = lib/tree.c lib/uitree.c lib/auth.c lib/print_ucs4.c \
 	lib/datetime.c lib/completion.c lib/misc.c lib/crc.c \
 	lib/hexdump.c lib/getline.c lib/history.c lib/menu_entry.c \
-	lib/autolist.c
+	lib/autolist.c lib/context.c
 lib_mod_CFLAGS = $(COMMON_CFLAGS)
 lib_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
@@ -698,7 +701,7 @@ sh_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # Common Video Subsystem specific modules.
 pkglib_MODULES += video.mod videotest.mod bitmap.mod tga.mod jpeg.mod	\
-	png.mod	font.mod gfxterm.mod video_fb.mod
+	png.mod	gfxterm.mod video_fb.mod
 
 # For video.mod.
 video_mod_SOURCES = video/video.c
@@ -735,7 +738,10 @@ png_mod_SOURCES = video/readers/png.c
 png_mod_CFLAGS = $(COMMON_CFLAGS)
 png_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
-# For font.mod.
+pkglib_MODULES += font.mod
+ifneq (, $(FONT_SOURCE))
+font/font.c_DEPENDENCIES = ascii.h
+endif
 font_mod_SOURCES = font/font_cmd.c font/font.c
 font_mod_CFLAGS = $(COMMON_CFLAGS)
 font_mod_LDFLAGS = $(COMMON_LDFLAGS)

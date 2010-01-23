@@ -156,7 +156,6 @@ grub_set_root_dev (void)
   const char *prefix;
 
   grub_register_variable_hook ("root", 0, grub_env_write_root);
-  grub_env_export ("root");
 
   prefix = grub_env_get ("prefix");
 
@@ -200,12 +199,14 @@ grub_main (void)
   grub_setcolorstate (GRUB_TERM_COLOR_STANDARD);
 
   /* Load pre-loaded modules and free the space.  */
+#ifdef GRUB_LINKER_HAVE_INIT
+  grub_arch_dl_init_linker ();
+#endif
   grub_load_modules ();
 
   /* It is better to set the root device as soon as possible,
      for convenience.  */
   grub_machine_set_prefix ();
-  grub_env_export ("prefix");
   grub_set_root_dev ();
 
   grub_register_core_commands ();

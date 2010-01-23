@@ -95,7 +95,7 @@ set_position (grub_uitree_t root, grub_uitree_t node)
       if (right > 0)
 	v += widget->width;
     }
-  grub_sprintf (buf, "%d/%d", v, v);
+  grub_snprintf (buf, sizeof (buf), "%d/%d", v, v);
   grub_uitree_set_prop (node, p, buf);
 
   bottom = (! horizontal) ? -1 :
@@ -118,7 +118,7 @@ set_position (grub_uitree_t root, grub_uitree_t node)
       if (bottom > 0)
 	v += widget->height;
     }
-  grub_sprintf (buf, "%d/%d", v, v);
+  grub_snprintf (buf, sizeof (buf), "%d/%d", v, v);
   grub_uitree_set_prop (node, p, buf);
 }
 
@@ -313,8 +313,18 @@ create_node (grub_uitree_t menu, grub_uitree_t tree, int *num, int main_menu)
 
   if (menu->child)
     {
-      char buf[sizeof ("menu_popup -ri XXXXX menu_tree")];
+      char* buf;
       grub_uitree_t sub, child;
+
+      buf = grub_xasprintf ("menu_popup -ri %d menu_tree",
+			    *num - menu->parent->flags - 1);
+      if (! buf)
+	{
+	  grub_uitree_free (node);
+	  return 0;
+	}
+      grub_uitree_set_prop (node, "command", buf);
+      grub_free (buf);
 
       sub = grub_dialog_create ("template_submenu", 1, 0, 0, 0);
       if (! sub)
@@ -322,10 +332,6 @@ create_node (grub_uitree_t menu, grub_uitree_t tree, int *num, int main_menu)
 	  grub_uitree_free (node);
 	  return 0;
 	}
-
-      grub_sprintf (buf, "menu_popup -ri %d menu_tree",
-		    *num - menu->parent->flags - 1);
-      grub_uitree_set_prop (node, "command", buf);
 
       grub_tree_add_child (GRUB_AS_TREE (tree), GRUB_AS_TREE (sub), -1);
       child = grub_uitree_find_id (sub, "__child__");
@@ -379,7 +385,7 @@ add_sys_menu (grub_uitree_t node, int index, int default_num)
       if (! n)
 	return;
 
-      grub_sprintf (buf, "%d", index);
+      grub_snprintf (buf, sizeof (buf), "%d", index);
       grub_uitree_set_prop (n, "index", buf);
 
       grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (n), -1);
@@ -516,7 +522,7 @@ add_user_menu (grub_uitree_t node, grub_menu_t menu, int default_num,
 	}
 
       grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (item), -1);
-      grub_sprintf (buf, "%d", index);
+      grub_snprintf (buf, sizeof (buf), "%d", index);
       grub_uitree_set_prop (item, "index", buf);
       if (index == default_num)
 	grub_widget_select_node (item, 1);

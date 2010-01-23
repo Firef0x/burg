@@ -389,7 +389,7 @@ main (int argc, char *argv[])
 
 	    break;
 
-	case 'c':
+	  case 'c':
 	    if (config)
 	      free (config);
 

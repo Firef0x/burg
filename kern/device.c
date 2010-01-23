@@ -87,7 +87,7 @@ struct grub_device_iterate_closure
   struct part_ent
   {
     struct part_ent *next;
-    char name[0];
+    char *name;
   } *ents;
 };
 
@@ -104,15 +104,20 @@ iterate_partition (grub_disk_t disk, const grub_partition_t partition,
   if (! partition_name)
     return 1;
 
-  p = grub_malloc (sizeof (p->next) + grub_strlen (disk->name) + 1 +
-		   grub_strlen (partition_name) + 1);
+  p = grub_malloc (sizeof (*p));
   if (!p)
     {
       grub_free (partition_name);
       return 1;
     }
 
-  grub_sprintf (p->name, "%s,%s", disk->name, partition_name);
+  p->name = grub_xasprintf ("%s,%s", disk->name, partition_name);
+  if (!p->name)
+    {
+      grub_free (partition_name);
+      grub_free (p);
+      return 1;
+    }
   grub_free (partition_name);
 
   p->next = c->ents;
@@ -155,6 +160,7 @@ iterate_disk (const char *disk_name, void *closure)
 
 	  if (!ret)
 	    ret = c->hook (p->name, c->closure);
+	  grub_free (p->name);
 	  grub_free (p);
 	  p = next;
 	}

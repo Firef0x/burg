@@ -208,7 +208,7 @@ grub_elf32_calcsize (grub_elf_t _elf __attribute__ ((unused)),
 
 /* Calculate the amount of memory spanned by the segments.  */
 grub_size_t
-grub_elf32_size (grub_elf_t elf)
+grub_elf32_size (grub_elf_t elf, Elf32_Addr *base)
 {
   struct grub_elf32_size_closure c;
 
@@ -216,6 +216,9 @@ grub_elf32_size (grub_elf_t elf)
   c.segments_end = 0;
   c.nr_phdrs = 0;
   grub_elf32_phdr_iterate (elf, grub_elf32_calcsize, &c);
+
+  if (base)
+    *base = 0;
 
   if (c.nr_phdrs == 0)
     {
@@ -229,6 +232,9 @@ grub_elf32_size (grub_elf_t elf)
       grub_error (GRUB_ERR_BAD_OS, "bad program header load addresses");
       return 0;
     }
+
+  if (base)
+    *base = c.segments_start;
 
   return c.segments_end - c.segments_start;
 }
@@ -408,7 +414,7 @@ grub_elf64_calcsize (grub_elf_t _elf __attribute__ ((unused)),
 
 /* Calculate the amount of memory spanned by the segments.  */
 grub_size_t
-grub_elf64_size (grub_elf_t elf)
+grub_elf64_size (grub_elf_t elf, Elf64_Addr *base)
 {
   struct grub_elf64_size_closure c;
 
@@ -416,6 +422,9 @@ grub_elf64_size (grub_elf_t elf)
   c.segments_end = 0;
   c.nr_phdrs = 0;
   grub_elf64_phdr_iterate (elf, grub_elf64_calcsize, &c);
+
+  if (base)
+    *base = 0;
 
   if (c.nr_phdrs == 0)
     {
@@ -429,6 +438,9 @@ grub_elf64_size (grub_elf_t elf)
       grub_error (GRUB_ERR_BAD_OS, "bad program header load addresses");
       return 0;
     }
+
+  if (base)
+    *base = c.segments_start;
 
   return c.segments_end - c.segments_start;
 }

@@ -78,11 +78,10 @@ grub_cmd_normal (struct grub_command *cmd __attribute__ ((unused)),
       prefix = grub_env_get ("prefix");
       if (prefix)
 	{
-	  config = grub_malloc (grub_strlen (prefix) + sizeof ("/grub.cfg"));
+	  config = grub_xasprintf ("%s/grub.cfg", prefix);
 	  if (! config)
 	    goto quit;
 
-	  grub_sprintf (config, "%s/grub.cfg", prefix);
 	  grub_enter_normal_mode (config);
 	  grub_free (config);
 	}
@@ -108,8 +107,28 @@ grub_cmd_normal_exit (struct grub_command *cmd __attribute__ ((unused)),
   return GRUB_ERR_NONE;
 }
 
+static grub_command_t export_cmd;
+
+static grub_err_t
+grub_cmd_export (struct grub_command *cmd __attribute__ ((unused)),
+		 int argc, char **args)
+{
+  if (argc < 1)
+    return grub_error (GRUB_ERR_BAD_ARGUMENT,
+		       "no environment variable specified");
+
+  grub_env_export (args[0]);
+  return 0;
+}
+
 GRUB_MOD_INIT(normal)
 {
+  grub_env_export ("root");
+  grub_env_export ("prefix");
+
+  export_cmd = grub_register_command ("export", grub_cmd_export,
+				      "export ENVVAR", "Export a variable.");
+
   /* Normal mode shouldn't be unloaded.  */
   if (mod)
     grub_dl_ref (mod);
@@ -125,6 +144,8 @@ GRUB_MOD_INIT(normal)
 
 GRUB_MOD_FINI(normal)
 {
+  grub_unregister_command (export_cmd);
+
   grub_history_init (0);
   grub_register_variable_hook ("pager", 0, 0);
   grub_fs_autoload_hook = 0;

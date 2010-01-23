@@ -78,6 +78,12 @@ struct grub_glyph_info
   grub_uint8_t bitmap[0];
 };
 
+enum file_formats
+{
+  PF2,
+  ASCII_BITMAPS
+};
+
 #define GRUB_FONT_FLAG_BOLD		1
 #define GRUB_FONT_FLAG_NOBITMAP		2
 #define GRUB_FONT_FLAG_NOHINTING	4
@@ -114,13 +120,14 @@ static struct option options[] =
   {"bold", no_argument, 0, 'b'},
   {"no-bitmap", no_argument, 0, 0x100},
   {"no-hinting", no_argument, 0, 0x101},
-  {"add-ascii", no_argument, 0, 0x102},
+  {"add-ascii", no_argument, 0, 0x103},
   {"add-text", required_argument, 0, 't'},
   {"force-autohint", no_argument, 0, 'a'},
   {"info", no_argument, 0, 'i'},
   {"help", no_argument, 0, 'h'},
   {"version", no_argument, 0, 'V'},
   {"verbose", no_argument, 0, 'v'},
+  {"ascii-bitmaps", no_argument, 0, 0x102},
   {0, 0, 0, 0}
 };
 
@@ -136,6 +143,7 @@ usage (int status)
 Usage: %s [OPTIONS] FONT_FILES\n\
 \nOptions:\n\
   -o, --output=FILE_NAME    set output file name\n\
+  --ascii-bitmaps           save only the ASCII bitmaps\n\
   -I, --index=N             set face index\n\
   -r, --range=A-B[,C-D]     set font range\n\
   -n, --name=S              set font family name\n\
@@ -378,7 +386,39 @@ print_glyphs (struct grub_font_info *font_info)
 }
 
 void
-write_font (struct grub_font_info *font_info, char *output_file)
+write_font_ascii_bitmap (struct grub_font_info *font_info, char *output_file)
+{
+  FILE *file;
+  struct grub_glyph_info *glyph;
+  int num;
+
+  file = fopen (output_file, "wb");
+  if (! file)
+    grub_util_error ("Can\'t write to file %s.", output_file);
+
+  int correct_size;
+  for (glyph = font_info->glyph, num = 0; glyph; glyph = glyph->next, num++)
+    {
+      correct_size = 1;
+      if (glyph->width != 8 || glyph->height != 16)
+      {
+        /* printf ("Width or height from glyph U+%04x not supported, skipping.\n", glyph->char_code);  */
+	correct_size = 0;
+      }
+      int row;
+      for (row = 0; row < glyph->height; row++)
+        {
+	  if (correct_size)
+	    fwrite (&glyph->bitmap[row], sizeof(glyph->bitmap[row]), 1, file);
+	  else
+	    fwrite (&correct_size, 1, 1, file);
+        }
+    }
+    fclose (file);
+}
+
+void
+write_font_pf2 (struct grub_font_info *font_info, char *output_file)
 {
   FILE *file;
   grub_uint32_t leng, data;
@@ -513,9 +553,6 @@ write_font (struct grub_font_info *font_info, char *output_file)
       grub_util_write_image ((char *) &data, 2, file);
       grub_util_write_image ((char *) &cur->bitmap[0], cur->bitmap_size, file);
     }
-
-  if (font_verbosity > 1)
-    print_glyphs (font_info);
 
   fclose (file);
 }
@@ -667,6 +704,7 @@ main (int argc, char *argv[])
   int font_size = 0;
   char *output_file = NULL;
   int info_mode = 0;
+  enum file_formats file_format = PF2;
 
   memset (&font_info, 0, sizeof (font_info));
 
@@ -696,7 +734,7 @@ main (int argc, char *argv[])
 	    font_info.flags |= GRUB_FONT_FLAG_NOHINTING;
 	    break;
 
-	  case 0x102:
+	  case 0x103:
 	    {
 	      grub_uint32_t *c;
 
@@ -784,6 +822,10 @@ main (int argc, char *argv[])
 	    font_verbosity++;
 	    break;
 
+	  case 0x102:
+	     file_format = ASCII_BITMAPS;
+	     break;
+
 	  default:
 	    usage (1);
 	    break;
@@ -796,6 +838,22 @@ main (int argc, char *argv[])
 	print_info (argv[optind]);
 
       return 0;
+    }
+
+  if (file_format == ASCII_BITMAPS && font_info.num_range > 0)
+    {
+      grub_util_error ("Option --ascii-bitmaps doesn't accept ranges (use ASCII).");
+      return 1;
+    }
+  else if (file_format == ASCII_BITMAPS)
+    {
+      font_info.ranges = xrealloc (font_info.ranges,
+				   GRUB_FONT_RANGE_BLOCK *
+				   sizeof (grub_uint32_t) * 2);
+
+      font_info.ranges[0] = (grub_uint32_t) 0x00;
+      font_info.ranges[1] = (grub_uint32_t) 0x7f;
+      font_info.num_range = 1;
     }
 
   if (! output_file)
@@ -839,7 +897,13 @@ main (int argc, char *argv[])
 
   FT_Done_FreeType (ft_lib);
 
-  write_font (&font_info, output_file);
+  if (file_format == PF2)
+    write_font_pf2 (&font_info, output_file);
+  else if (file_format == ASCII_BITMAPS)
+    write_font_ascii_bitmap (&font_info, output_file);
+
+  if (font_verbosity > 1)
+    print_glyphs (&font_info);
 
   return 0;
 }

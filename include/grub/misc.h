@@ -224,8 +224,12 @@ void grub_real_dprintf (const char *file,
 			const char *condition,
 			const char *fmt, ...) __attribute__ ((format (printf, 4, 5)));
 int grub_vprintf (const char *fmt, va_list args);
-int grub_sprintf (char *str, const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
-int grub_vsprintf (char *str, const char *fmt, va_list args);
+int grub_snprintf (char *str, grub_size_t n, const char *fmt, ...)
+     __attribute__ ((format (printf, 3, 4)));
+int grub_vsnprintf (char *str, grub_size_t n, const char *fmt, va_list args);
+char *grub_xasprintf (const char *fmt, ...)
+     __attribute__ ((format (printf, 1, 2)));
+char *grub_xvasprintf (const char *fmt, va_list args);
 void grub_exit (void) __attribute__ ((noreturn));
 void grub_abort (void) __attribute__ ((noreturn));
 grub_size_t grub_utf8_to_ucs4 (grub_uint32_t *dest,

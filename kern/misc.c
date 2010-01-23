@@ -52,19 +52,19 @@ GRUB_EXPORT(grub_puts);
 GRUB_EXPORT(grub_puts_);
 GRUB_EXPORT(grub_real_dprintf);
 GRUB_EXPORT(grub_vprintf);
-GRUB_EXPORT(grub_sprintf);
-GRUB_EXPORT(grub_vsprintf);
+GRUB_EXPORT(grub_snprintf);
+GRUB_EXPORT(grub_vsnprintf);
+GRUB_EXPORT(grub_xasprintf);
+GRUB_EXPORT(grub_xvasprintf);
 GRUB_EXPORT(grub_exit);
 GRUB_EXPORT(grub_abort);
 GRUB_EXPORT(grub_utf8_to_ucs4);
 GRUB_EXPORT(grub_divmod64);
-
-#ifdef NEED_ENABLE_EXECUTE_STACK
-GRUB_EXPORT(__enable_execute_stack);
-#endif
-
 GRUB_EXPORT(grub_gettext);
 GRUB_EXPORT(grub_gettext_dummy);
+
+static int
+grub_vsnprintf_real (char *str, grub_size_t n, const char *fmt, va_list args);
 
 static int
 grub_iswordseparator (int c)
@@ -226,7 +226,7 @@ grub_vprintf (const char *fmt, va_list args)
 {
   int ret;
 
-  ret = grub_vsprintf (0, fmt, args);
+  ret = grub_vsnprintf_real (0, 0, fmt, args);
   grub_refresh ();
   return ret;
 }
@@ -642,42 +642,56 @@ grub_lltoa (char *str, int c, unsigned long long n)
   return p;
 }
 
-static void
-write_char (unsigned char ch, char **str, int *count)
+struct vsnprintf_closure
 {
-  if (*str)
-    *(*str)++ = ch;
+  char *str;
+  grub_size_t count;
+  grub_size_t max_len;
+};
+
+static void
+write_char (unsigned char ch, struct vsnprintf_closure *cc)
+{
+  if (cc->str)
+    {
+      if (cc->count < cc->max_len)
+	*(cc->str)++ = ch;
+    }
   else
     grub_putchar (ch);
 
-  (*count)++;
+  (cc->count)++;
 }
 
 static void
-write_str (const char *s, char **str, int *count)
+write_str (const char *s, struct vsnprintf_closure *cc)
 {
   while (*s)
-    write_char (*s++, str, count);
+    write_char (*s++, cc);
 }
 
 static void
-write_fill (const char ch, int n, char **str, int *count)
+write_fill (const char ch, int n, struct vsnprintf_closure *cc)
 {
   int i;
   for (i = 0; i < n; i++)
-    write_char (ch, str, count);
+    write_char (ch, cc);
 }
 
-int
-grub_vsprintf (char *str, const char *fmt, va_list args)
+static int
+grub_vsnprintf_real (char *str, grub_size_t max_len, const char *fmt, va_list args)
 {
   char c;
-  int count = 0;
+  struct vsnprintf_closure cc;
+
+  cc.str = str;
+  cc.max_len = max_len;
+  cc.count = 0;
 
   while ((c = *fmt++) != 0)
     {
       if (c != '%')
-	write_char (c, &str, &count);
+	write_char (c, &cc);
       else
 	{
 	  char tmp[32];
@@ -745,7 +759,7 @@ grub_vsprintf (char *str, const char *fmt, va_list args)
 	  switch (c)
 	    {
 	    case 'p':
-	      write_str ("0x", &str, &count);
+	      write_str ("0x", &cc);
 	      c = 'x';
 	      longlongfmt |= (sizeof (void *) == sizeof (long long));
 	      /* Fall through. */
@@ -782,17 +796,15 @@ grub_vsprintf (char *str, const char *fmt, va_list args)
 		  grub_lltoa (tmp, c, n);
 		}
 	      if (! rightfill && grub_strlen (tmp) < format1)
-		write_fill (zerofill, format1 - grub_strlen (tmp),
-			    &str, &count);
-	      write_str (tmp, &str, &count);
+		write_fill (zerofill, format1 - grub_strlen (tmp), &cc);
+	      write_str (tmp, &cc);
 	      if (rightfill && grub_strlen (tmp) < format1)
-		write_fill (zerofill, format1 - grub_strlen (tmp),
-			    &str, &count);
+		write_fill (zerofill, format1 - grub_strlen (tmp), &cc);
 	      break;
 
 	    case 'c':
 	      n = va_arg (args, int);
-	      write_char (n & 0xff, &str, &count);
+	      write_char (n & 0xff, &cc);
 	      break;
 
 	    case 'C':
@@ -838,11 +850,10 @@ grub_vsprintf (char *str, const char *fmt, va_list args)
 		    mask = 0;
 		  }
 
-		write_char (mask | (code >> shift), &str, &count);
+		write_char (mask | (code >> shift), &cc);
 
 		for (shift -= 6; shift >= 0; shift -= 6)
-		  write_char (0x80 | (0x3f & (code >> shift)),
-			      &str, &count);
+		  write_char (0x80 | (0x3f & (code >> shift)), &cc);
 	      }
 	      break;
 
@@ -855,44 +866,95 @@ grub_vsprintf (char *str, const char *fmt, va_list args)
 		    len++;
 
 		  if (!rightfill && len < format1)
-		    write_fill (zerofill, format1 - len, &str, &count);
+		    write_fill (zerofill, format1 - len, &cc);
 
 		  grub_size_t i;
 		  for (i = 0; i < len; i++)
-		    write_char (*p++, &str, &count);
+		    write_char (*p++, &cc);
 
 		  if (rightfill && len < format1)
-		    write_fill (zerofill, format1 - len, &str, &count);
+		    write_fill (zerofill, format1 - len, &cc);
 		}
 	      else
-		write_str ("(null)", &str, &count);
+		write_str ("(null)", &cc);
 
 	      break;
 
 	    default:
-	      write_char (c, &str, &count);
+	      write_char (c, &cc);
 	      break;
 	    }
 	}
     }
 
-  if (str)
-    *str = '\0';
+  if (cc.str)
+    *(cc.str) = '\0';
 
-  if (count && !str)
+  if (cc.count && !cc.str)
     grub_refresh ();
 
-  return count;
+  return cc.count;
 }
 
 int
-grub_sprintf (char *str, const char *fmt, ...)
+grub_vsnprintf (char *str, grub_size_t n, const char *fmt, va_list ap)
+{
+  grub_size_t ret;
+
+  if (!n)
+    return 0;
+
+  n--;
+
+  ret = grub_vsnprintf_real (str, n, fmt, ap);
+
+  return ret < n ? ret : n;
+}
+
+int
+grub_snprintf (char *str, grub_size_t n, const char *fmt, ...)
 {
   va_list ap;
   int ret;
 
   va_start (ap, fmt);
-  ret = grub_vsprintf (str, fmt, ap);
+  ret = grub_vsnprintf (str, n, fmt, ap);
+  va_end (ap);
+
+  return ret;
+}
+
+#define PREALLOC_SIZE 255
+
+char *
+grub_xvasprintf (const char *fmt, va_list ap)
+{
+  grub_size_t s, as = PREALLOC_SIZE;
+  char *ret;
+
+  while (1)
+    {
+      ret = grub_malloc (as + 1);
+      if (!ret)
+	return NULL;
+
+      s = grub_vsnprintf_real (ret, as, fmt, ap);
+      if (s <= as)
+	return ret;
+
+      grub_free (ret);
+      as = s;
+    }
+}
+
+char *
+grub_xasprintf (const char *fmt, ...)
+{
+  va_list ap;
+  char *ret;
+
+  va_start (ap, fmt);
+  ret = grub_xvasprintf (fmt, ap);
   va_end (ap);
 
   return ret;

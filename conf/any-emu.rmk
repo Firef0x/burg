@@ -33,7 +33,7 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	lib/arg.c lib/auth.c lib/autolist.c lib/completion.c lib/crc.c	\
 	lib/datetime.c lib/envblk.c lib/getline.c lib/hexdump.c		\
 	lib/history.c lib/print_ucs4.c lib/menu_entry.c lib/misc.c	\
-	lib/tree.c lib/uitree.c	lib/crypto.c lib/charset.c		\
+	lib/tree.c lib/uitree.c	lib/crypto.c lib/charset.c lib/context.c\
 	script/main.c script/execute.c script/function.c		\
 	script/lexer.c script/script.c grub_script.tab.c		\
 	partmap/amiga.c	partmap/apple.c partmap/msdos.c partmap/sun.c	\
@@ -119,3 +119,6 @@ endif
 grub_script.tab.c grub_script.tab.h: script/parser.y
 	$(YACC) -d -p grub_script_yy -b grub_script $(srcdir)/script/parser.y
 DISTCLEANFILES += grub_script.tab.c grub_script.tab.h
+
+bin_UTILITIES += grub-bin2h
+grub_bin2h_SOURCES = gnulib/progname.c util/bin2h.c

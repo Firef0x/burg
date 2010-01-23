@@ -51,7 +51,7 @@ free_menu (grub_menu_t menu)
     }
 
   grub_free (menu);
-  grub_env_unset_data_slot ("menu");
+  grub_env_unset_menu ();
 }
 
 static void
@@ -94,7 +94,7 @@ grub_menu_entry_add (int argc, const char **args, const char *sourcecode)
     return grub_errno;
   classes_tail = classes_head;
 
-  menu = grub_env_get_data_slot ("menu");
+  menu = grub_env_get_menu ();
   if (! menu)
     return grub_error (GRUB_ERR_MENU, "no menu context");
 
@@ -322,14 +322,14 @@ read_config_file (const char *config)
 
   c.old_parser = 0;
 
-  newmenu = grub_env_get_data_slot ("menu");
+  newmenu = grub_env_get_menu ();
   if (! newmenu)
     {
       newmenu = grub_zalloc (sizeof (*newmenu));
       if (! newmenu)
 	return 0;
 
-      grub_env_set_data_slot ("menu", newmenu);
+      grub_env_set_menu (newmenu);
     }
 
   /* Try to open the config file.  */

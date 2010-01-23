@@ -200,7 +200,6 @@ static int
 scsi_iterate (const char *name, int luns, void *closure)
 {
   struct grub_scsi_iterate_closure *c = closure;
-  char sname[40];
   int i;
 
   /* In case of a single LUN, just return `usbX'.  */
@@ -211,9 +210,17 @@ scsi_iterate (const char *name, int luns, void *closure)
      distinguish it.  */
   for (i = 0; i < luns; i++)
     {
-      grub_sprintf (sname, "%s%c", name, 'a' + i);
-      if (c->hook (sname, c->closure))
+      char *sname;
+
+      sname = grub_xasprintf ("%s%c", name, 'a' + i);
+      if (!sname)
 	return 1;
+      if (c->hook (sname, c->closure))
+	{
+	  grub_free (sname);
+	  return 1;
+	}
+      grub_free (sname);
     }
   return 0;
 }

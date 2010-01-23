@@ -445,7 +445,7 @@ grub_efidisk_iterate (int (*hook) (const char *name, void *closure), void *closu
 
   for (d = fd_devices, count = 0; d; d = d->next, count++)
     {
-      grub_sprintf (buf, "fd%d", count);
+      grub_snprintf (buf, sizeof (buf), "fd%d", count);
       grub_dprintf ("efidisk", "iterating %s\n", buf);
       if (hook (buf, closure))
 	return 1;
@@ -453,7 +453,7 @@ grub_efidisk_iterate (int (*hook) (const char *name, void *closure), void *closu
 
   for (d = hd_devices, count = 0; d; d = d->next, count++)
     {
-      grub_sprintf (buf, "hd%d", count);
+      grub_snprintf (buf, sizeof (buf), "hd%d", count);
       grub_dprintf ("efidisk", "iterating %s\n", buf);
       if (hook (buf, closure))
 	return 1;
@@ -461,7 +461,7 @@ grub_efidisk_iterate (int (*hook) (const char *name, void *closure), void *closu
 
   for (d = cd_devices, count = 0; d; d = d->next, count++)
     {
-      grub_sprintf (buf, "cd%d", count);
+      grub_snprintf (buf, sizeof (buf), "cd%d", count);
       grub_dprintf ("efidisk", "iterating %s\n", buf);
       if (hook (buf, closure))
 	return 1;
@@ -876,18 +876,10 @@ grub_efidisk_get_device_name (grub_efi_handle_t *handle)
 	  return 0;
 	}
 
-      device_name = grub_malloc (grub_strlen (parent->name) + 1
-				 + grub_strlen (partition_name) + 1);
-      if (! device_name)
-	{
-	  grub_free (partition_name);
-	  grub_disk_close (parent);
-	  return 0;
-	}
-
-      grub_sprintf (device_name, "%s,%s", parent->name, partition_name);
+      device_name = grub_xasprintf ("%s,%s", parent->name, partition_name);
       grub_free (partition_name);
       grub_disk_close (parent);
+
       return device_name;
     }
   else

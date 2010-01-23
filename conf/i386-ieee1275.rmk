@@ -40,6 +40,12 @@ kernel_mod_SOURCES = kern/i386/ieee1275/startup.S \
 kernel_mod_CFLAGS = $(COMMON_CFLAGS)
 kernel_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
+# Scripts.
+sbin_SCRIPTS = grub-install
+
+# For grub-install.
+grub_install_SOURCES = util/ieee1275/grub-install.in
+
 # For boot.mod.
 pkglib_MODULES += boot.mod
 boot_mod_SOURCES = commands/boot.c
@@ -73,7 +79,7 @@ halt_mod_CFLAGS = $(COMMON_CFLAGS)
 halt_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For serial.mod.
-serial_mod_SOURCES = term/i386/pc/serial.c
+serial_mod_SOURCES = term/serial.c
 serial_mod_CFLAGS = $(COMMON_CFLAGS)
 serial_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
@@ -103,7 +109,7 @@ lspci_mod_CFLAGS = $(COMMON_CFLAGS)
 lspci_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For datetime.mod
-datetime_mod_SOURCES = lib/i386/datetime.c
+datetime_mod_SOURCES = lib/cmos_datetime.c
 datetime_mod_CFLAGS = $(COMMON_CFLAGS)
 datetime_mod_LDFLAGS = $(COMMON_LDFLAGS)
 

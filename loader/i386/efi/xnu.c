@@ -79,7 +79,7 @@ find_card (grub_pci_device_t dev, grub_pci_id_t pciid, void *closure)
   struct find_framebuf_closure *c = closure;
   grub_pci_address_t addr;
 
-  addr = grub_pci_make_address (dev, 2);
+  addr = grub_pci_make_address (dev, GRUB_PCI_REG_CLASS);
   if (grub_pci_read (addr) >> 24 == 0x3)
     {
       int i;

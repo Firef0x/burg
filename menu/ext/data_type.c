@@ -322,9 +322,10 @@ grub_menu_key2name (int key)
       keyname[1] = 0;
     }
   else if ((key >= GRUB_TERM_CTRL_A) && (key <= GRUB_TERM_CTRL_Z))
-    grub_sprintf (keyname, "ctrl-%c", key - GRUB_TERM_CTRL_A + 'a');
+    grub_snprintf (keyname, sizeof (keyname), "ctrl-%c",
+		   key - GRUB_TERM_CTRL_A + 'a');
   else if ((key >= GRUB_TERM_F1) && (key <= GRUB_TERM_F10))
-    grub_sprintf (keyname, "f%d", key - GRUB_TERM_F1 + 1);
+    grub_snprintf (keyname, sizeof (keyname), "f%d", key - GRUB_TERM_F1 + 1);
 
   return (keyname[0]) ? keyname : 0;
 }

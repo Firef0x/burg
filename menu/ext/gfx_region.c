@@ -49,9 +49,9 @@ grub_gfx_region_init (void)
   else
     {
       char *tmp;
-      tmp = grub_malloc (grub_strlen (modevar)
-			 + sizeof (DEFAULT_VIDEO_MODE) + 1);
-      grub_sprintf (tmp, "%s;" DEFAULT_VIDEO_MODE, modevar);
+      tmp = grub_xasprintf ("%s;" DEFAULT_VIDEO_MODE, modevar);
+      if (!tmp)
+	return grub_errno;
       err = grub_video_set_mode (tmp,
 				 GRUB_VIDEO_MODE_TYPE_PURE_TEXT, 0);
       grub_free (tmp);

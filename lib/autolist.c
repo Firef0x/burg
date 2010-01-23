@@ -62,12 +62,11 @@ grub_autolist_load (const char *name)
     {
       char *filename;
 
-      filename = grub_malloc (grub_strlen (prefix) + grub_strlen (name) + 2);
+      filename = grub_xasprintf ("%s/%s", prefix, name);
       if (filename)
 	{
 	  grub_file_t file;
 
-	  grub_sprintf (filename, "%s/%s", prefix, name);
 	  file = grub_file_open (filename);
 	  if (file)
 	    {
