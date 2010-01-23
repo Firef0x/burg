@@ -65,6 +65,9 @@ grub_sdl_checkkey (void)
 {
   SDL_Event event;
 
+  if (saved_char != -1)
+    return saved_char;
+
   while (SDL_PollEvent (&event))
     {
       if (event.type == SDL_QUIT)
@@ -201,8 +204,6 @@ static struct grub_term_input grub_sdl_term_input =
     .getkey = grub_sdl_getkey
   };
 
-static grub_term_input_t saved_input;
-
 static grub_err_t
 grub_video_sdl_init (void)
 {
@@ -211,9 +212,6 @@ grub_video_sdl_init (void)
   if (SDL_Init (SDL_INIT_VIDEO) < 0)
     return grub_error (GRUB_ERR_BAD_DEVICE, "Couldn't init SDL: %s",
 		       SDL_GetError ());
-
-  saved_input = grub_term_get_current_input ();
-  grub_term_set_current_input (&grub_sdl_term_input);
 
   grub_memset (&mode_info, 0, sizeof (mode_info));
 
@@ -225,8 +223,6 @@ grub_video_sdl_fini (void)
 {
   SDL_Quit ();
   window = 0;
-
-  grub_term_set_current_input (saved_input);
 
   grub_memset (&mode_info, 0, sizeof (mode_info));
 
@@ -243,7 +239,8 @@ get_mask_size (grub_uint32_t mask)
 
 static grub_err_t
 grub_video_sdl_setup (unsigned int width, unsigned int height,
-		      unsigned int mode_type)
+		      unsigned int mode_type,
+		      unsigned int mode_mask __attribute__ ((unused)))
 {
   int depth;
   int flags = 0;
@@ -432,6 +429,9 @@ GRUB_MOD_INIT(sdl)
 {
   grub_video_register (&grub_video_sdl_adapter);
   grub_term_register_input ("sdl", &grub_sdl_term_input);
+  grub_list_push (GRUB_AS_LIST_P (&grub_term_inputs),
+		  GRUB_AS_LIST (&grub_sdl_term_input));
+
 }
 
 GRUB_MOD_FINI(sdl)

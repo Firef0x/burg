@@ -38,7 +38,7 @@ pkglib_MODULES = kernel.mod chain.mod appleldr.mod \
 # For kernel.mod.
 kernel_mod_SOURCES = kern/i386/efi/startup.S kern/main.c kern/device.c \
 	kern/disk.c kern/dl.c kern/file.c kern/fs.c kern/err.c \
-	kern/misc.c kern/mm.c kern/reader.c kern/term.c \
+	kern/misc.c kern/mm.c kern/term.c \
 	kern/rescue_parser.c kern/rescue_reader.c \
 	kern/i386/efi/init.c kern/parser.c kern/partition.c \
 	kern/env.c kern/efi/efi.c kern/efi/init.c kern/efi/mm.c \

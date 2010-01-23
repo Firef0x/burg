@@ -202,16 +202,18 @@ update_screen (grub_uitree_t node)
   widget = node->data;
   root = node->parent;
   head = 0;
-  child = root->child;
   ((grub_widget_t) root->data)->class->draw (root->data, &head,
 					     widget->org_x, widget->org_y,
 					     widget->width, widget->height);
-  while ((child) && (child != node))
+  for (child = root->child; ((child) && (child != node)); child = child->next)
     {
       int x, y, width, height;
       grub_widget_t c;
 
       c = child->data;
+      if (! c)
+	continue;
+
       x = widget->org_x - c->org_x;
       y = widget->org_y - c->org_y;
       width = widget->width;
@@ -220,11 +222,9 @@ update_screen (grub_uitree_t node)
       if (grub_menu_region_check_rect (&x, &y, &width, &height, 0, 0,
 				       c->width, c->height))
 	grub_widget_draw_region (&head, child, x, y, width, height);
-      child = child->next;
     }
   grub_menu_region_apply_update (head);
 }
-
 
 grub_err_t
 grub_dialog_popup (grub_uitree_t node)
@@ -311,13 +311,17 @@ grub_dialog_password (const char *userlist)
   grub_errno = 0;
   if (grub_dialog_popup (node) == 0)
     {
-      char *parm, *user, *pass;
+      char *parm, *user;
+      char pass[GRUB_AUTH_MAX_PASSLEN];
 
       parm = grub_uitree_get_prop (node, "parameters");
       user = grub_dialog_get_parm (node, parm, "username");
-      pass = grub_dialog_get_parm (node, parm, "password");
       if (user)
-	result = (grub_auth_check_password (userlist, user, pass));
+	{
+	  grub_memset (pass, 0, sizeof (pass));
+	  grub_strcpy (pass, grub_dialog_get_parm (node, parm, "password"));
+	  result = (grub_auth_check_password (userlist, user, pass));
+	}
 
       if (! result)
 	grub_dialog_message ("Access denied.");

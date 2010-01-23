@@ -1734,10 +1734,12 @@ term_onkey (grub_widget_t widget, int key)
       edit_handle_key (widget, GRUB_TERM_DOWN);
       if (*cmd)
 	{
+	  /*
 	  if (! data->hist_pos)
 	    grub_history_add (cmd);
 	  else
 	    grub_history_replace (data->hist_pos - 1, cmd);
+	  */
 	  data->hist_pos = 0;
 
 	  grub_parser_execute (cmd);
@@ -1771,8 +1773,9 @@ term_onkey (grub_widget_t widget, int key)
 	    return GRUB_WIDGET_RESULT_DONE;
 	}
 
-      line = (data->hist_pos > 0) ?
-	grub_history_get (data->hist_pos - 1) : "";
+      //line = (data->hist_pos > 0) ?
+      // grub_history_get (data->hist_pos - 1) : "";
+      line = "";
 
       data->edit.lines[data->edit.line] =
 	resize_text (data->edit.lines[data->edit.line],
@@ -2043,7 +2046,7 @@ grub_gfxmenu_putchar (grub_uint32_t c)
     }
 }
 
-static struct grub_term_output grub_gfxmenu_term =
+struct grub_term_output grub_gfxmenu_term =
   {
     .name = "gfxmenu",
     .putchar = grub_gfxmenu_putchar,

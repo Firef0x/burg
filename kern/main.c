@@ -29,10 +29,17 @@
 #include <grub/command.h>
 #include <grub/reader.h>
 #include <grub/parser.h>
+#include <grub/controller.h>
 
 GRUB_EXPORT(grub_arch_sync_caches);
 GRUB_EXPORT(grub_module_iterate);
 GRUB_EXPORT(grub_machine_fini);
+GRUB_EXPORT(grub_controller_class);
+
+struct grub_handler_class grub_controller_class =
+  {
+    .name = "controller"
+  };
 
 void
 grub_module_iterate (int (*hook) (struct grub_module_header *header))
@@ -206,6 +213,5 @@ grub_main (void)
 
   grub_load_config ();
   grub_load_normal_mode ();
-
-  grub_rescue_reader ();
+  grub_rescue_run ();
 }

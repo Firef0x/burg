@@ -24,43 +24,25 @@
 #include <grub/symbol.h>
 #include <grub/types.h>
 #include <grub/menu.h>
-#include <grub/handler.h>
+#include <grub/term.h>
 
 struct grub_menu_viewer
 {
   struct grub_menu_viewer *next;
-
-  /* The menu viewer name.  */
-  const char *name;
-
-  grub_err_t (*init) (void);
-  grub_err_t (*fini) (void);
-  grub_err_t (*show_menu) (grub_menu_t menu, int nested);
+  void *data;
+  void (*set_chosen_entry) (int entry, void *data);
+  void (*print_timeout) (int timeout, void *data);
+  void (*clear_timeout) (void *data);
+  void (*fini) (void *fini);
 };
-typedef struct grub_menu_viewer *grub_menu_viewer_t;
 
-extern struct grub_handler_class grub_menu_viewer_class;
+void grub_menu_register_viewer (struct grub_menu_viewer *viewer);
 
-#define grub_menu_viewer_register(name, viewer) \
-  grub_menu_viewer_register_internal (viewer); \
-  GRUB_MODATTR ("handler", "menu_viewer." name);
+grub_err_t
+grub_menu_try_text (struct grub_term_output *term,
+		    int entry, grub_menu_t menu, int nested);
 
-static inline void
-grub_menu_viewer_register_internal (grub_menu_viewer_t viewer)
-{
-  grub_handler_register (&grub_menu_viewer_class, GRUB_AS_HANDLER (viewer));
-}
-
-static inline void
-grub_menu_viewer_unregister (grub_menu_viewer_t viewer)
-{
-  grub_handler_unregister (&grub_menu_viewer_class, GRUB_AS_HANDLER (viewer));
-}
-
-static inline grub_menu_viewer_t
-grub_menu_viewer_get_current (void)
-{
-  return (grub_menu_viewer_t) grub_menu_viewer_class.cur_handler;
-}
+extern grub_err_t (*grub_gfxmenu_try_hook) (int entry, grub_menu_t menu,
+					    int nested);
 
 #endif /* GRUB_MENU_VIEWER_HEADER */

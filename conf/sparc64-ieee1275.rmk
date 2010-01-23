@@ -75,7 +75,7 @@ pkglib_MODULES = kernel.mod halt.mod \
 kernel_mod_SOURCES = kern/sparc64/ieee1275/crt0.S kern/ieee1275/cmain.c	\
 	kern/ieee1275/ieee1275.c kern/main.c kern/device.c		\
 	kern/disk.c kern/dl.c kern/err.c kern/file.c kern/fs.c		\
-	kern/misc.c kern/mm.c kern/reader.c kern/term.c			\
+	kern/misc.c kern/mm.c kern/term.c			\
 	kern/rescue_parser.c kern/rescue_reader.c \
 	kern/list.c kern/handler.c kern/command.c kern/corecmd.c	\
 	kern/sparc64/ieee1275/ieee1275.c 				\

@@ -1,7 +1,7 @@
 /* rescue_reader.c - rescue mode reader  */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2009  Free Software Foundation, Inc.
+ *  Copyright (C) 2009,2010  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -19,19 +19,14 @@
 
 #include <grub/types.h>
 #include <grub/reader.h>
+#include <grub/parser.h>
 #include <grub/misc.h>
 #include <grub/term.h>
+#include <grub/mm.h>
 
 #define GRUB_RESCUE_BUF_SIZE	256
 
 static char linebuf[GRUB_RESCUE_BUF_SIZE];
-
-static grub_err_t
-grub_rescue_init (void)
-{
-  grub_printf ("Entering rescue mode...\n");
-  return 0;
-}
 
 /* Prompt to input a command and read the line.  */
 static grub_err_t
@@ -76,8 +71,23 @@ grub_rescue_read_line (char **line, int cont,
 }
 
 void
-grub_rescue_reader (void)
+grub_rescue_run (void)
 {
-  grub_rescue_init ();
-  grub_reader_loop (grub_rescue_read_line, 0);
+  grub_printf ("Entering rescue mode...\n");
+
+  while (1)
+    {
+      char *line;
+
+      /* Print an error, if any.  */
+      grub_print_error ();
+      grub_errno = GRUB_ERR_NONE;
+
+      grub_rescue_read_line (&line, 0, 0);
+      if (! line || line[0] == '\0')
+	continue;
+
+      grub_parser_get_current ()->parse_line (line, grub_rescue_read_line, 0);
+      grub_free (line);
+    }
 }

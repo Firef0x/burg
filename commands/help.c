@@ -23,8 +23,8 @@
 #include <grub/extcmd.h>
 #include <grub/i18n.h>
 #include <grub/mm.h>
-#include <grub/normal.h>
-#include <grub/normal_menu.h>
+#include <grub/lib.h>
+#include <grub/charset.h>
 
 struct grub_cmd_help_closure
 {
@@ -35,17 +35,16 @@ struct grub_cmd_help_closure
 static int
 print_command_info (grub_command_t cmd, void *closure)
 {
-  struct grub_cmd_help_closure *c  = closure;
+  struct grub_cmd_help_closure *c = closure;
 
   if ((cmd->prio & GRUB_PRIO_LIST_FLAG_ACTIVE) &&
       (cmd->flags & GRUB_COMMAND_FLAG_CMDLINE))
     {
+      struct grub_term_output *term;
+      const char *summary_translated = _(cmd->summary);
       char *command_help;
-      int stringwidth;
       grub_uint32_t *unicode_command_help;
       grub_uint32_t *unicode_last_position;
-      grub_uint32_t *unicode_last_screen_position;
-      const char *summary_translated = _(cmd->summary);
 
       command_help = grub_malloc (grub_strlen (cmd->name) +
 				  sizeof (" ") - 1 +
@@ -56,27 +55,33 @@ print_command_info (grub_command_t cmd, void *closure)
       grub_utf8_to_ucs4_alloc (command_help, &unicode_command_help,
 			       &unicode_last_position);
 
-      unicode_last_screen_position = unicode_command_help;
-
-      stringwidth = 0;
-
-      while (unicode_last_screen_position < unicode_last_position &&
-	     stringwidth < ((GRUB_TERM_WIDTH / 2) - 2))
+      FOR_ACTIVE_TERM_OUTPUTS(term)
 	{
-	  stringwidth += grub_getcharwidth (*unicode_last_screen_position);
-	  unicode_last_screen_position++;
-	}
+	  unsigned stringwidth;
+	  grub_uint32_t *unicode_last_screen_position;
 
-      grub_print_ucs4 (unicode_command_help, unicode_last_screen_position);
+	  unicode_last_screen_position = unicode_command_help;
 
-      if ((c->cnt++) % 2)
-	{
-	  grub_putchar ('\n');
+	  stringwidth = 0;
+
+	  while (unicode_last_screen_position < unicode_last_position &&
+		 stringwidth < ((grub_term_width (term) / 2) - 2))
+	    {
+	      stringwidth
+		+= grub_term_getcharwidth (term,
+					   *unicode_last_screen_position);
+	      unicode_last_screen_position++;
+	    }
+
+	  grub_print_ucs4 (unicode_command_help,
+			   unicode_last_screen_position, term);
+	  if (!(c->cnt % 2))
+	    grub_print_spaces (term, grub_term_width (term) / 2
+			       - stringwidth);
 	}
-      else
-	{
-	  grub_print_spaces (GRUB_TERM_WIDTH / 2 - stringwidth);
-	}
+      if (c->cnt % 2)
+	grub_printf ("\n");
+      c->cnt++;
 
       grub_free (command_help);
       grub_free (unicode_command_help);
@@ -87,7 +92,7 @@ print_command_info (grub_command_t cmd, void *closure)
 static int
 print_command_help (grub_command_t cmd, void *closure)
 {
-  struct grub_cmd_help_closure *c  = closure;
+  struct grub_cmd_help_closure *c = closure;
 
   if (cmd->prio & GRUB_PRIO_LIST_FLAG_ACTIVE)
     {
@@ -99,8 +104,7 @@ print_command_help (grub_command_t cmd, void *closure)
 	  if (cmd->flags & GRUB_COMMAND_FLAG_EXTCMD)
 	    grub_arg_show_help ((grub_extcmd_t) cmd->data);
 	  else
-	    grub_printf ("%s %s %s\n%s\b", _("Usage:"), cmd->name,
-			 _(cmd->summary),
+	    grub_printf ("%s %s %s\n%s\b", _("Usage:"), cmd->name, _(cmd->summary),
 			 _(cmd->description));
 	}
     }
@@ -116,7 +120,11 @@ grub_cmd_help (grub_extcmd_t ext __attribute__ ((unused)), int argc,
   c.cnt = 0;
 
   if (argc == 0)
-    grub_command_iterate (print_command_info, &c);
+    {
+      grub_command_iterate (print_command_info, &c);
+      if (!(c.cnt % 2))
+	grub_printf ("\n");
+    }
   else
     {
       int i;

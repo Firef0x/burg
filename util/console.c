@@ -19,14 +19,6 @@
 
 #include <config.h>
 
-#if defined(HAVE_NCURSES_CURSES_H)
-# include <ncurses/curses.h>
-#elif defined(HAVE_NCURSES_H)
-# include <ncurses.h>
-#elif defined(HAVE_CURSES_H)
-# include <curses.h>
-#endif
-
 /* For compatibility.  */
 #ifndef A_NORMAL
 # define A_NORMAL	0
@@ -39,6 +31,14 @@
 #include <grub/term.h>
 #include <grub/types.h>
 #include <stdlib.h>
+
+#if defined(HAVE_NCURSES_CURSES_H)
+# include <ncurses/curses.h>
+#elif defined(HAVE_NCURSES_H)
+# include <ncurses.h>
+#elif defined(HAVE_CURSES_H)
+# include <curses.h>
+#endif
 
 static int grub_console_attr = A_NORMAL;
 
@@ -379,8 +379,7 @@ static struct grub_term_output grub_ncurses_term_output =
     .setcolor = grub_ncurses_setcolor,
     .getcolor = grub_ncurses_getcolor,
     .setcursor = grub_ncurses_setcursor,
-    .refresh = grub_ncurses_refresh,
-    .flags = 0,
+    .refresh = grub_ncurses_refresh
   };
 
 void
@@ -389,8 +388,6 @@ grub_console_init (void)
   grub_ncurses_init ();
   grub_term_register_output ("console", &grub_ncurses_term_output);
   grub_term_register_input ("console", &grub_ncurses_term_input);
-  grub_term_set_current_output (&grub_ncurses_term_output);
-  grub_term_set_current_input (&grub_ncurses_term_input);
 }
 
 void

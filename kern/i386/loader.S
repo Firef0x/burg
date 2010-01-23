@@ -50,7 +50,7 @@ GRUB_EXPORT(grub_linux_prot_size);
 GRUB_EXPORT(grub_linux_tmp_addr);
 GRUB_EXPORT(grub_linux_real_addr);
 GRUB_EXPORT(grub_linux_is_bzimage);
-GRUB_EXPORT(grub_linux16_boot);
+GRUB_EXPORT(grub_linux16_real_boot);
 GRUB_EXPORT_END
 
 	.p2align	2	/* force 4-byte alignment */
@@ -67,7 +67,7 @@ VARIABLE(grub_linux_real_addr)
 VARIABLE(grub_linux_is_bzimage)
 	.long	0
 
-FUNCTION(grub_linux16_boot)
+FUNCTION(grub_linux16_real_boot)
 	/* Must be done before zImage copy.  */
 	call	EXT_C(grub_dl_unload_all)
 

@@ -34,14 +34,6 @@ static struct grub_menu_region grub_gfx_region;
 
 #define REFERENCE_STRING	"m"
 
-static int
-video_hook (grub_video_adapter_t p __attribute__ ((unused)),
-	    struct grub_video_mode_info *info,
-	    void *closure __attribute__ ((unused)))
-{
-  return ! (info->mode_type & GRUB_VIDEO_MODE_TYPE_PURE_TEXT);
-}
-
 static grub_err_t
 grub_gfx_region_init (void)
 {
@@ -52,17 +44,16 @@ grub_gfx_region_init (void)
 
   modevar = grub_env_get ("gfxmode");
   if (! modevar || *modevar == 0)
-    err = grub_video_set_mode (DEFAULT_VIDEO_MODE, video_hook, 0);
+    err = grub_video_set_mode (DEFAULT_VIDEO_MODE,
+			       GRUB_VIDEO_MODE_TYPE_PURE_TEXT, 0);
   else
     {
       char *tmp;
-
       tmp = grub_malloc (grub_strlen (modevar)
 			 + sizeof (DEFAULT_VIDEO_MODE) + 1);
-      if (! tmp)
-	return grub_errno;
       grub_sprintf (tmp, "%s;" DEFAULT_VIDEO_MODE, modevar);
-      err = grub_video_set_mode (tmp, video_hook, 0);
+      err = grub_video_set_mode (tmp,
+				 GRUB_VIDEO_MODE_TYPE_PURE_TEXT, 0);
       grub_free (tmp);
     }
 

@@ -25,6 +25,7 @@
 #include <grub/command.h>
 #include <grub/menu_viewer.h>
 #include <grub/uitree.h>
+#include <grub/controller.h>
 
 GRUB_EXPORT(grub_menu_entry_add);
 GRUB_EXPORT(grub_menu_execute);
@@ -336,7 +337,21 @@ read_config_file (const char *config)
   if (! c.file)
     return 0;
 
-  grub_reader_loop (getline, &c);
+  while (1)
+    {
+      char *line;
+
+      /* Print an error, if any.  */
+      grub_print_error ();
+      grub_errno = GRUB_ERR_NONE;
+
+      if ((getline (&line, 0, &c)) || (! line))
+	break;
+
+      grub_parser_get_current ()->parse_line (line, getline, &c);
+      grub_free (line);
+    }
+
   grub_file_close (c.file);
 
   if (c.old_parser)
@@ -364,15 +379,16 @@ grub_menu_execute (const char *config, int nested, int batch)
     {
       if (menu && menu->size)
 	{
-	  if (grub_menu_viewer_get_current ())
-	    grub_menu_viewer_get_current ()->show_menu (menu, nested);
-
+	  if (grub_controller_show_menu (menu, nested))
+	    {
+	      grub_errno = 0;
+	      grub_command_execute ("controller.normal", 0, 0);
+	      grub_controller_show_menu (menu, nested);
+	    }
 	  free_menu (menu);
 	}
-      else if (! nested)
-	{
-	  if (grub_menu_viewer_get_current ())
-	    grub_menu_viewer_get_current ()->show_menu (0, 0);
-	}
     }
+
+  if ((! menu) && (! nested))
+    grub_controller_show_menu (0, 0);
 }

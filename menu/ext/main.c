@@ -26,7 +26,7 @@
 #include <grub/dialog.h>
 #include <grub/menu_data.h>
 #include <grub/menu_region.h>
-#include <grub/menu_viewer.h>
+#include <grub/controller.h>
 
 static const struct grub_arg_option options[] =
   {
@@ -531,15 +531,38 @@ static grub_err_t
 show_menu (grub_menu_t menu, int nested)
 {
   grub_uitree_t root;
+  grub_err_t err;
 
   root = get_screen ();
   if (! root)
-    return grub_errno;
+    goto quit;
 
   if (! nested)
     {
       grub_uitree_t node;
-      grub_term_output_t output;
+      grub_term_output_t term, gfxmenu_term;
+
+      if (! grub_menu_region_get_current ())
+	{
+	  grub_error (GRUB_ERR_BAD_ARGUMENT, "no menu region handler");
+	  goto quit;
+	}
+
+      gfxmenu_term = 0;
+      FOR_DISABLED_TERM_OUTPUTS(term)
+      {
+	if (! grub_strcmp (term->name, "gfxmenu"))
+	  {
+	    gfxmenu_term = term;
+	    break;
+	  }
+      }
+
+      if (! gfxmenu_term)
+	{
+	  grub_error (GRUB_ERR_BAD_ARGUMENT, "gfxmenu term not found");
+	  goto quit;
+	}
 
       node = grub_uitree_find_id (root, "__menu__");
       if (node)
@@ -553,22 +576,22 @@ show_menu (grub_menu_t menu, int nested)
 	  add_sys_menu (node, index, default_num);
 	}
 
-      if (! grub_menu_region_get_current ())
-	{
-	  grub_command_execute ("menu_region.text", 0, 0);
-	  if (grub_env_get ("gfxmode"))
-	    grub_command_execute ("menu_region.gfx", 0, 0);
-	}
+      grub_menu_region_text_term = grub_term_outputs;
+      grub_list_remove (GRUB_AS_LIST_P (&(grub_term_outputs_disabled)),
+			GRUB_AS_LIST (gfxmenu_term));
+      grub_term_outputs = gfxmenu_term;
+      gfxmenu_term->next = NULL;
 
-      output = grub_term_get_current_output ();
-      grub_command_execute ("terminal_output.gfxmenu", 0, 0);
       if (grub_widget_create (root) == GRUB_ERR_NONE)
 	{
 	  grub_widget_init (root);
 	  grub_widget_input (root, 0);
 	}
       grub_widget_free (root);
-      grub_term_set_current_output (output);
+
+      grub_list_push (GRUB_AS_LIST_P (&grub_term_outputs_disabled),
+		      GRUB_AS_LIST (gfxmenu_term));
+      grub_term_outputs = grub_menu_region_text_term;
     }
   else
     {
@@ -588,10 +611,16 @@ show_menu (grub_menu_t menu, int nested)
       grub_dialog_free (node, 0, 0);
     }
 
-  return 0;
+ quit:
+  err = grub_errno;
+
+  if (! nested)
+    grub_command_execute ("menu_region.text", 0, 0);
+
+  return err;
 }
 
-struct grub_menu_viewer grub_ext_menu_viewer =
+struct grub_controller grub_ext_controller =
 {
   .name = "ext",
   .show_menu = show_menu
@@ -602,7 +631,7 @@ static grub_command_t cmd_refresh, cmd_toggle_mode;
 
 GRUB_MOD_INIT(emenu)
 {
-  grub_menu_viewer_register ("ext", &grub_ext_menu_viewer);
+  grub_controller_register ("ext", &grub_ext_controller);
 
   cmd_popup = grub_register_extcmd ("menu_popup", grub_cmd_popup,
 				    GRUB_COMMAND_FLAG_BOTH,
@@ -621,7 +650,7 @@ GRUB_MOD_INIT(emenu)
 
 GRUB_MOD_FINI(emenu)
 {
-  grub_menu_viewer_unregister (&grub_ext_menu_viewer);
+  grub_controller_unregister (&grub_ext_controller);
 
   grub_unregister_extcmd (cmd_popup);
   grub_unregister_extcmd (cmd_edit);

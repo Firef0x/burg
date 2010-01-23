@@ -22,6 +22,7 @@
 #include <grub/types.h>
 #include <grub/file.h>
 #include <grub/err.h>
+#include <grub/term.h>
 
 /* The type of a completion item.  */
 enum grub_completion_type
@@ -44,6 +45,11 @@ char *grub_complete (char *buf, int *restore,
 void grub_wait_after_message (void);
 grub_err_t grub_print_device_info (const char *name);
 
+/* Defined in `print_ucs4.c'.  */
+void grub_print_ucs4 (const grub_uint32_t * str,
+		      const grub_uint32_t * last_position,
+		      struct grub_term_output *term);
+
 /* Defined in `md5_password.c'.  */
 /* If CHECK is true, check a password for correctness. Returns 0
    if password was correct, and a value != 0 for error, similarly
@@ -65,9 +71,10 @@ char *grub_getline (grub_file_t file);
 
 /* Defined in `history.c'.  */
 grub_err_t grub_history_init (int newsize);
-char *grub_history_get (int pos);
-void grub_history_add (char *s);
-void grub_history_replace (int pos, char *s);
+grub_uint32_t *grub_history_get (int pos);
+void grub_history_set (int pos, grub_uint32_t *s, grub_size_t len);
+void grub_history_add (grub_uint32_t *s, grub_size_t len);
+void grub_history_replace (int pos, grub_uint32_t *s, grub_size_t len);
 int grub_history_used (void);
 
 /* Defined in `crc.c'.  */

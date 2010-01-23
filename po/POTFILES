@@ -37,7 +37,9 @@ commands/probe.c
 commands/read.c
 commands/reboot.c
 commands/search.c
-commands/search.c
+commands/search_file.c
+commands/search_label.c
+commands/search_uuid.c
 commands/sleep.c
 commands/test.c
 commands/true.c
@@ -52,7 +54,19 @@ hello/hello.c
 lib/arg.c
 lib/misc.c
 
+loader/efi/appleloader.c
+loader/efi/chainloader.c
 loader/i386/bsd.c
+loader/i386/efi/linux.c
+loader/i386/ieee1275/linux.c
+loader/i386/linux.c
+loader/i386/pc/chainloader.c
+loader/i386/pc/linux.c
+loader/i386/xnu.c
+loader/multiboot_loader.c
+loader/powerpc/ieee1275/linux.c
+loader/sparc64/ieee1275/linux.c
+loader/xnu.c
 
 menu/normal/main.c
 menu/normal/auth.c

@@ -22,7 +22,6 @@
 #include <grub/menu_region.h>
 
 static struct grub_menu_region grub_text_region;
-static grub_term_output_t term;
 
 static grub_err_t
 grub_text_region_init (void)
@@ -34,10 +33,8 @@ grub_text_region_init (void)
 static void
 grub_text_region_get_screen_size (int *width, int *height)
 {
-  int wh = term->getwh ();
-
-  *width = ((wh >> 8) & 0xff) - 1;
-  *height = wh & 0xff;
+  *width = grub_term_width (grub_menu_region_text_term) - 1;
+  *height = grub_term_height (grub_menu_region_text_term);
 }
 
 static int
@@ -75,14 +72,14 @@ grub_text_region_update_rect (struct grub_menu_region_rect *rect,
   grub_uint32_t fill;
 
   fill = (rect->fill) ? rect->fill : ' ';
-  term->setcolor (rect->color, 0);
-  term->setcolorstate (GRUB_TERM_COLOR_NORMAL);
+  grub_term_setcolor (grub_menu_region_text_term, rect->color, 0);
+  grub_term_setcolorstate (grub_menu_region_text_term, GRUB_TERM_COLOR_NORMAL);
   for (h = 0; h < height; h++)
     {
-      term->gotoxy (scn_x, scn_y);
+      grub_term_gotoxy (grub_menu_region_text_term, scn_x, scn_y);
 
       for (w = 0; w < width; w++)
-	term->putchar (fill);
+	grub_putcode (fill, grub_menu_region_text_term);
 
       scn_y++;
     }
@@ -97,18 +94,18 @@ grub_text_region_update_text (struct grub_menu_region_text *text,
   char *s;
   int i;
 
-  term->setcolor (text->color, 0);
-  term->setcolorstate (GRUB_TERM_COLOR_NORMAL);
-  term->gotoxy (scn_x, scn_y);
+  grub_term_setcolor (grub_menu_region_text_term, text->color, 0);
+  grub_term_setcolorstate (grub_menu_region_text_term, GRUB_TERM_COLOR_NORMAL);
+  grub_term_gotoxy (grub_menu_region_text_term, scn_x, scn_y);
   s = text->text + x;
   for (i = 0; i < width; i++, s++)
-    term->putchar (*s);
+    grub_putcode (*s, grub_menu_region_text_term);
 }
 
 static void
 grub_text_region_hide_cursor (void)
 {
-  term->setcursor (0);
+  grub_term_setcursor (grub_menu_region_text_term, 0);
 }
 
 static void
@@ -118,8 +115,8 @@ grub_text_region_draw_cursor (struct grub_menu_region_text *text
 			      int height __attribute__ ((unused)),
 			      int scn_x, int scn_y)
 {
-  term->gotoxy (scn_x, scn_y);
-  term->setcursor (1);
+  grub_term_gotoxy (grub_menu_region_text_term, scn_x, scn_y);
+  grub_term_setcursor (grub_menu_region_text_term, 1);
 }
 
 static struct grub_menu_region grub_text_region =
@@ -138,7 +135,6 @@ static struct grub_menu_region grub_text_region =
 
 GRUB_MOD_INIT(textmenu)
 {
-  term = grub_term_get_current_output ();
   grub_menu_region_register ("text", &grub_text_region);
 }
 

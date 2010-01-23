@@ -29,27 +29,45 @@
 #include <grub/command.h>
 #include <grub/i18n.h>
 
+GRUB_EXPORT(grub_normal_exit_level);
+
+static int nested_level = 0;
+int grub_normal_exit_level = 0;
+
+static char *
+read_lists (struct grub_env_var *var __attribute__ ((unused)),
+	    const char *val)
+{
+  read_command_list ();
+  read_fs_list ();
+  read_crypto_list ();
+  read_terminal_list ();
+  return val ? grub_strdup (val) : NULL;
+}
+
 /* This starts the normal mode.  */
 static void
 grub_enter_normal_mode (const char *config)
 {
-  read_command_list ();
-  read_fs_list ();
+  nested_level++;
+  read_lists (NULL, NULL);
   read_handler_list ();
   grub_autolist_font = grub_autolist_load ("fonts/font.lst");
   grub_errno = 0;
+  grub_register_variable_hook ("prefix", NULL, read_lists);
   grub_command_execute ("parser.grub", 0, 0);
-  grub_command_execute ("menu_viewer.normal", 0, 0);
+  grub_command_execute ("controller.normal", 0, 0);
   grub_menu_execute (config, 0, 0);
+  nested_level--;
+  if (grub_normal_exit_level)
+    grub_normal_exit_level--;
 }
 
 /* Enter normal mode from rescue mode.  */
 static grub_err_t
-grub_cmd_normal (struct grub_command *cmd,
+grub_cmd_normal (struct grub_command *cmd __attribute__ ((unused)),
 		 int argc, char *argv[])
 {
-  grub_unregister_command (cmd);
-
   if (argc == 0)
     {
       /* Guess the config filename. It is necessary to make CONFIG static,
@@ -78,6 +96,18 @@ quit:
   return 0;
 }
 
+/* Exit from normal mode to rescue mode.  */
+static grub_err_t
+grub_cmd_normal_exit (struct grub_command *cmd __attribute__ ((unused)),
+		      int argc __attribute__ ((unused)),
+		      char *argv[] __attribute__ ((unused)))
+{
+  if (nested_level <= grub_normal_exit_level)
+    return grub_error (GRUB_ERR_BAD_ARGUMENT, "not in normal environment");
+  grub_normal_exit_level++;
+  return GRUB_ERR_NONE;
+}
+
 GRUB_MOD_INIT(normal)
 {
   /* Normal mode shouldn't be unloaded.  */
@@ -87,12 +117,16 @@ GRUB_MOD_INIT(normal)
   grub_history_init (GRUB_DEFAULT_HISTORY_SIZE);
 
   /* Register a command "normal" for the rescue mode.  */
-  grub_reg_cmd ("normal", grub_cmd_normal, 0, "Enter normal mode.", 0);
+  grub_register_command ("normal", grub_cmd_normal,
+			 0, "Enter normal mode.");
+  grub_register_command ("normal_exit", grub_cmd_normal_exit,
+			 0, "Exit from normal mode.");
 }
 
 GRUB_MOD_FINI(normal)
 {
   grub_history_init (0);
+  grub_register_variable_hook ("pager", 0, 0);
   grub_fs_autoload_hook = 0;
   free_handler_list ();
 }

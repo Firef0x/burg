@@ -25,6 +25,7 @@
 #include <grub/menu.h>
 #include <grub/command.h>
 #include <grub/file.h>
+#include <grub/term.h>
 
 /* The maximum size of a command-line.  */
 #define GRUB_MAX_CMDLINE	1600
@@ -34,18 +35,20 @@
 
 /* Defined in `main.c'.  */
 void grub_normal_execute (const char *config, int nested, int batch);
-void grub_normal_init_page (void);
-void grub_menu_init_page (int nested, int edit);
-void grub_cmdline_run (int nested);
+void grub_menu_init_page (int nested, int edit,
+			  struct grub_term_output *term);
+void grub_normal_init_page (struct grub_term_output *term);
+void grub_normal_cmdline_run (int nested);
 grub_err_t grub_normal_check_authentication (const char *userlist);
-int grub_utf8_to_ucs4_alloc (const char *msg, grub_uint32_t **unicode_msg,
-			     grub_uint32_t **last_position);
-void grub_print_ucs4 (const grub_uint32_t * str,
-		      const grub_uint32_t * last_position);
 grub_ssize_t grub_getstringwidth (grub_uint32_t * str,
-				  const grub_uint32_t * last_position);
+				  const grub_uint32_t * last_position,
+				  struct grub_term_output *term);
 void grub_print_message_indented (const char *msg, int margin_left,
-				  int margin_right);
+				  int margin_right,
+				  struct grub_term_output *term);
+void grub_menu_text_register_instances (int entry, grub_menu_t menu,
+					int nested);
+grub_err_t grub_normal_show_menu (grub_menu_t menu, int nested);
 
 /* Defined in `color.c'.  */
 char *grub_env_write_color_normal (struct grub_env_var *var, const char *val);
@@ -53,8 +56,7 @@ char *grub_env_write_color_highlight (struct grub_env_var *var, const char *val)
 void grub_parse_color_name_pair (grub_uint8_t *ret, const char *name);
 
 /* Defined in `cmdline.c'.  */
-int grub_cmdline_get (const char *prompt, char cmdline[], unsigned max_len,
-		      int echo_char, int readline, int history);
+char *grub_cmdline_get (const char *prompt);
 
 /* Callback structure menu viewers can use to provide user feedback when
    default entries are executed, possibly including fallback entries.  */

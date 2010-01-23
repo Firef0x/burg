@@ -17,43 +17,27 @@
  */
 
 #include <grub/auth.h>
+#include <grub/crypto.h>
 #include <grub/list.h>
 #include <grub/mm.h>
 #include <grub/misc.h>
 #include <grub/env.h>
-#include <grub/dl.h>
-#include <grub/lib.h>
 #include <grub/command.h>
+#include <grub/dl.h>
 #include <grub/i18n.h>
-
-#define PASSWORD_PLAIN	1
-#define PASSWORD_MD5	2
 
 static grub_dl_t my_mod;
 
-static int
-check_password (const char *user __attribute__ ((unused)),
-		const char *entered, void *data)
+static grub_err_t
+check_password (const char *user, const char *entered,
+		void *password)
 {
-  char *password = data;
-  
-  if (! entered)
-    entered = "";
+  if (grub_crypto_memcmp (entered, password, GRUB_AUTH_MAX_PASSLEN) != 0)
+    return GRUB_ACCESS_DENIED;
 
-  if (! password)
-    return 0;
-  
-  switch (password[0])
-    {
-    case PASSWORD_PLAIN:
-      return (grub_auth_strcmp (entered, password + 1) == 0);
+  grub_auth_authenticate (user);
 
-    case PASSWORD_MD5:
-      return (grub_check_md5_password (entered, password + 1) == 0);
-      
-    default:
-      return 0;
-    }
+  return GRUB_ERR_NONE;
 }
 
 static grub_err_t
@@ -62,26 +46,18 @@ grub_cmd_password (grub_command_t cmd __attribute__ ((unused)),
 {
   grub_err_t err;
   char *pass;
-  int type;
+  int copylen;
 
-  if ((argc > 0) && (! grub_strcmp (args[0], "--md5")))
-    {
-      type = PASSWORD_MD5;
-      argc--;
-      args++;
-    }
-  else
-    type = PASSWORD_PLAIN;
-    
   if (argc != 2)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, "two arguments expected");
 
-  pass = grub_malloc (grub_strlen (args[1]) + 2);
+  pass = grub_zalloc (GRUB_AUTH_MAX_PASSLEN);
   if (!pass)
     return grub_errno;
-
-  pass[0] = type;
-  grub_strcpy (pass + 1, args[1]);  
+  copylen = grub_strlen (args[1]);
+  if (copylen >= GRUB_AUTH_MAX_PASSLEN)
+    copylen = GRUB_AUTH_MAX_PASSLEN - 1;
+  grub_memcpy (pass, args[1], copylen);
 
   err = grub_auth_register_authentication (args[0], check_password, pass);
   if (err)
@@ -99,7 +75,7 @@ GRUB_MOD_INIT(password)
 {
   my_mod = mod;
   cmd = grub_register_command ("password", grub_cmd_password,
-			       N_("[--md5] USER PASSWORD"),
+			       N_("USER PASSWORD"),
 			       N_("Set user password (plaintext). "
 			       "Unrecommended and insecure."));
 }

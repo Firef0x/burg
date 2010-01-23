@@ -1,7 +1,6 @@
-/* reader.c - reader support */
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2009  Free Software Foundation, Inc.
+ *  Copyright (C) 2010 Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,28 +16,20 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/types.h>
-#include <grub/mm.h>
-#include <grub/reader.h>
-#include <grub/parser.h>
+/* All tests need to include test.h for GRUB testing framework.  */
+#include <grub/test.h>
 
-GRUB_EXPORT(grub_reader_loop);
-
-grub_err_t
-grub_reader_loop (grub_reader_getline_t getline, void *closure)
+/* Functional test main method.  */
+static void
+example_test (void)
 {
-  while (1)
-    {
-      char *line;
+  /* Check if 1st argument is true and report with default error message.  */
+  grub_test_assert (1 == 1);
 
-      /* Print an error, if any.  */
-      grub_print_error ();
-      grub_errno = GRUB_ERR_NONE;
-
-      if ((getline (&line, 0, closure)) || (! line))
-	return grub_errno;
-
-      grub_parser_get_current ()->parse_line (line, getline, closure);
-      grub_free (line);
-    }
+  /* Check if 1st argument is true and report with custom error message.  */
+  grub_test_assert (2 == 2, "2 equal 2 expected");
+  grub_test_assert (2 == 3, "2 is not equal to %d", 3);
 }
+
+/* Register example_test method as a functional test.  */
+GRUB_FUNCTIONAL_TEST ("example_functional_test", example_test);

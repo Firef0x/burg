@@ -70,7 +70,7 @@ execute_command (char *name, int n, char **args)
 
   cmd = grub_command_find (name);
   if (! cmd)
-    grub_util_error ("Can\'t find command %s", name);
+    grub_util_error ("can\'t find command %s", name);
 
   return (cmd->func) (cmd, n, args);
 }
@@ -101,9 +101,9 @@ read_file (char *pathname,
 
       dev = grub_device_open (0);
       if ((! dev) || (! dev->disk))
-        grub_util_error ("Can\'t open device.");
+        grub_util_error ("can\'t open device");
 
-      grub_util_info ("total sectors : %lld.",
+      grub_util_info ("total sectors : %lld",
                       (unsigned long long) dev->disk->total_sectors);
 
       if (! leng)
@@ -116,7 +116,7 @@ read_file (char *pathname,
           len = (leng > BUF_SIZE) ? BUF_SIZE : leng;
 
           if (grub_disk_read (dev->disk, 0, skip, len, buf))
-            grub_util_error ("Disk read fails at offset %lld, length %d.",
+            grub_util_error ("disk read fails at offset %lld, length %d",
                              skip, len);
 
           if (hook (skip, buf, len, closure))
@@ -133,15 +133,15 @@ read_file (char *pathname,
   file = grub_file_open (pathname);
   if (!file)
     {
-      grub_util_error ("cannot open file %s.", pathname);
+      grub_util_error ("cannot open file %s", pathname);
       return;
     }
 
-  grub_util_info ("file size : %lld.", (unsigned long long) file->size);
+  grub_util_info ("file size : %lld", (unsigned long long) file->size);
 
   if (skip > file->size)
     {
-      grub_util_error ("invalid skip value %lld.", (unsigned long long) skip);
+      grub_util_error ("invalid skip value %lld", (unsigned long long) skip);
       return;
     }
 
@@ -159,7 +159,7 @@ read_file (char *pathname,
       sz = grub_file_read (file, buf, (len > BUF_SIZE) ? BUF_SIZE : len);
       if (sz < 0)
 	{
-	  grub_util_error ("read error at offset %llu.", ofs);
+	  grub_util_error ("read error at offset %llu", ofs);
 	  break;
 	}
 
@@ -181,7 +181,7 @@ cp_hook (grub_off_t ofs __attribute__ ((unused)), char *buf, int len,
 
   if ((int) fwrite (buf, 1, len, file) != len)
     {
-      grub_util_error ("write error.");
+      grub_util_error ("write error");
       return 1;
     }
 
@@ -196,7 +196,7 @@ cmd_cp (char *src, char *dest)
   ff = fopen (dest, "wb");
   if (ff == NULL)
     {
-      grub_util_error ("open error.");
+      grub_util_error ("open error");
       return;
     }
   read_file (src, cp_hook, ff);
@@ -211,7 +211,7 @@ cmp_hook (grub_off_t ofs, char *buf, int len, void *closure)
 
   if ((int) fread (buf_1, 1, len, file) != len)
     {
-      grub_util_error ("read error at offset %llu.", ofs);
+      grub_util_error ("read error at offset %llu", ofs);
       return 1;
     }
 
@@ -222,7 +222,7 @@ cmp_hook (grub_off_t ofs, char *buf, int len, void *closure)
       for (i = 0; i < len; i++, ofs++)
 	if (buf_1[i] != buf[i])
 	  {
-	    grub_util_error ("compare fail at offset %llu.", ofs);
+	    grub_util_error ("compare fail at offset %llu", ofs);
 	    return 1;
 	  }
     }
@@ -237,12 +237,12 @@ cmd_cmp (char *src, char *dest)
   ff = fopen (dest, "rb");
   if (ff == NULL)
     {
-      grub_util_error ("open error.");
+      grub_util_error ("open error");
       return;
     }
 
   if ((skip) && (fseeko (ff, skip, SEEK_SET)))
-    grub_util_error ("seek error.");
+    grub_util_error ("seek error");
 
   read_file (src, cmp_hook, ff);
   fclose (ff);
@@ -291,13 +291,13 @@ fstest (char **images, int num_disks, int cmd, int n, char **args)
   for (i = 0; i < num_disks; i++)
     {
       if (grub_strlen (images[i]) + 7 > sizeof (host_file))
-        grub_util_error ("Pathname %s too long.", images[i]);
+        grub_util_error ("pathname %s too long", images[i]);
 
       grub_sprintf (loop_name, "loop%d", i);
       grub_sprintf (host_file, "(host)%s", images[i]);
 
       if (execute_command ("loopback", 3, argv))
-        grub_util_error ("loopback command fails.");
+        grub_util_error ("loopback command fails");
     }
 
   grub_lvm_fini ();
@@ -354,7 +354,7 @@ static void
 usage (int status)
 {
   if (status)
-    fprintf (stderr, "Try ``%s --help'' for more information.\n", program_name);
+    fprintf (stderr, "Try `%s --help' for more information.\n", program_name);
   else
     printf ("\
 Usage: %s [OPTION]... IMAGE_PATH COMMANDS\n\

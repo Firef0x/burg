@@ -20,6 +20,7 @@
 #include <grub/err.h>
 #include <grub/misc.h>
 #include <stdarg.h>
+#include <grub/i18n.h>
 
 GRUB_EXPORT(grub_errno);
 GRUB_EXPORT(grub_errmsg);
@@ -54,7 +55,7 @@ grub_error (grub_err_t n, const char *fmt, ...)
   grub_errno = n;
 
   va_start (ap, fmt);
-  grub_vsprintf (grub_errmsg, fmt, ap);
+  grub_vsprintf (grub_errmsg, _(fmt), ap);
   va_end (ap);
 
   return n;
@@ -66,7 +67,7 @@ grub_fatal (const char *fmt, ...)
   va_list ap;
 
   va_start (ap, fmt);
-  grub_vprintf (fmt, ap);
+  grub_vprintf (_(fmt), ap);
   va_end (ap);
 
   grub_abort ();
@@ -131,7 +132,7 @@ grub_print_error (void)
   do
     {
       if (grub_errno != GRUB_ERR_NONE)
-        grub_err_printf ("error: %s\n", grub_errmsg);
+        grub_err_printf (_("error: %s.\n"), grub_errmsg);
     }
   while (grub_error_pop ());
 

@@ -27,7 +27,7 @@ GRUB_EXPORT(grub_history_replace);
 GRUB_EXPORT(grub_history_used);
 
 static int hist_size;
-static char **hist_lines = 0;
+static grub_uint32_t **hist_lines = 0;
 static int hist_pos = 0;
 static int hist_end = 0;
 static int hist_used = 0;
@@ -35,8 +35,8 @@ static int hist_used = 0;
 grub_err_t
 grub_history_init (int newsize)
 {
-  char **old_hist_lines = hist_lines;
-  hist_lines = grub_malloc (sizeof (char *) * newsize);
+  grub_uint32_t **old_hist_lines = hist_lines;
+  hist_lines = grub_malloc (sizeof (grub_uint32_t *) * newsize);
 
   /* Copy the old lines into the new buffer.  */
   if (old_hist_lines)
@@ -63,16 +63,16 @@ grub_history_init (int newsize)
 
       if (hist_pos < hist_end)
 	grub_memmove (hist_lines, old_hist_lines + hist_pos,
-		      (hist_end - hist_pos) * sizeof (char *));
+		      (hist_end - hist_pos) * sizeof (grub_uint32_t *));
       else if (hist_used)
 	{
 	  /* Copy the older part.  */
 	  grub_memmove (hist_lines, old_hist_lines + hist_pos,
- 			(hist_size - hist_pos) * sizeof (char *));
+ 			(hist_size - hist_pos) * sizeof (grub_uint32_t *));
 
 	  /* Copy the newer part. */
 	  grub_memmove (hist_lines + hist_size - hist_pos, old_hist_lines,
-			hist_end * sizeof (char *));
+			hist_end * sizeof (grub_uint32_t *));
 	}
     }
 
@@ -86,16 +86,32 @@ grub_history_init (int newsize)
 
 /* Get the entry POS from the history where `0' is the newest
    entry.  */
-char *
+grub_uint32_t *
 grub_history_get (int pos)
 {
   pos = (hist_pos + pos) % hist_size;
   return hist_lines[pos];
 }
 
+/* Replace the history entry on position POS with the string S.  */
+void
+grub_history_set (int pos, grub_uint32_t *s, grub_size_t len)
+{
+  grub_free (hist_lines[pos]);
+  hist_lines[pos] = grub_malloc ((len + 1) * sizeof (grub_uint32_t));
+  if (!hist_lines[pos])
+    {
+      grub_print_error ();
+      grub_errno = GRUB_ERR_NONE;
+      return ;
+    }
+  grub_memcpy (hist_lines[pos], s, len * sizeof (grub_uint32_t));
+  hist_lines[pos][len] = 0;
+}
+
 /* Insert a new history line S on the top of the history.  */
 void
-grub_history_add (char *s)
+grub_history_add (grub_uint32_t *s, grub_size_t len)
 {
   /* Remove the oldest entry in the history to make room for a new
      entry.  */
@@ -116,16 +132,15 @@ grub_history_add (char *s)
     hist_pos = hist_size + hist_pos;
 
   /* Insert into history.  */
-  hist_lines[hist_pos] = grub_strdup (s);
+  hist_lines[hist_pos] = NULL;
+  grub_history_set (hist_pos, s, len);
 }
 
 /* Replace the history entry on position POS with the string S.  */
 void
-grub_history_replace (int pos, char *s)
+grub_history_replace (int pos, grub_uint32_t *s, grub_size_t len)
 {
-  pos = (hist_pos + pos) % hist_size;
-  grub_free (hist_lines[pos]);
-  hist_lines[pos] = grub_strdup (s);
+  grub_history_set ((hist_pos + pos) % hist_size, s, len);
 }
 
 int

@@ -228,11 +228,11 @@ int grub_sprintf (char *str, const char *fmt, ...) __attribute__ ((format (print
 int grub_vsprintf (char *str, const char *fmt, va_list args);
 void grub_exit (void) __attribute__ ((noreturn));
 void grub_abort (void) __attribute__ ((noreturn));
-grub_ssize_t grub_utf8_to_ucs4 (grub_uint32_t *dest,
-				grub_size_t destsize,
-				const grub_uint8_t *src,
-				grub_size_t srcsize,
-				const grub_uint8_t **srcend);
+grub_size_t grub_utf8_to_ucs4 (grub_uint32_t *dest,
+			       grub_size_t destsize,
+			       const grub_uint8_t *src,
+			       grub_size_t srcsize,
+			       const grub_uint8_t **srcend);
 grub_uint64_t grub_divmod64 (grub_uint64_t n,
 			     grub_uint32_t d, grub_uint32_t *r);
 

@@ -13,7 +13,8 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	commands/blocklist.c commands/hexdump.c				\
 	commands/halt.c commands/reboot.c commands/loadenv.c		\
 	commands/gptsync.c commands/probe.c commands/xnu_uuid.c		\
-	commands/password.c commands/keystatus.c			\
+	commands/password.c commands/keystatus.c commands/terminal.c	\
+	commands/true.c commands/password_pbkdf2.c			\
 	disk/host.c disk/loopback.c disk/scsi.c				\
 	fs/fshelp.c 							\
 	\
@@ -22,15 +23,17 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	kern/err.c kern/list.c kern/handler.c				\
 	kern/command.c kern/corecmd.c commands/extcmd.c	kern/file.c	\
 	kern/fs.c commands/boot.c kern/main.c kern/misc.c kern/parser.c	\
-	kern/partition.c kern/reader.c kern/term.c			\
+	kern/partition.c kern/term.c					\
 	kern/rescue_reader.c kern/rescue_parser.c			\
 	normal/autofs.c normal/handler.c normal/main.c			\
+	normal/crypto.c normal/term.c					\
 	menu/normal/cmdline.c menu/normal/color.c menu/normal/main.c	\
 	menu/normal/menu.c menu/normal/menu_entry.c			\
+	menu/normal/menu_text.c 					\
 	lib/arg.c lib/auth.c lib/autolist.c lib/completion.c lib/crc.c	\
 	lib/datetime.c lib/envblk.c lib/getline.c lib/hexdump.c		\
-	lib/history.c lib/md5_password.c lib/menu_entry.c 		\
-	lib/menu_viewer.c lib/misc.c lib/tree.c lib/uitree.c		\
+	lib/history.c lib/print_ucs4.c lib/menu_entry.c lib/misc.c	\
+	lib/tree.c lib/uitree.c	lib/crypto.c lib/charset.c		\
 	script/main.c script/execute.c script/function.c		\
 	script/lexer.c script/script.c grub_script.tab.c		\
 	partmap/amiga.c	partmap/apple.c partmap/msdos.c partmap/sun.c	\
@@ -58,7 +61,11 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	disk/raid.c disk/raid5_recover.c disk/raid6_recover.c		\
 	disk/mdraid_linux.c disk/dmraid_nvidia.c disk/lvm.c		\
 	commands/parttool.c parttool/msdospart.c			\
+	lib/libgcrypt-grub/cipher/md5.c \
+	lib/libgcrypt-grub/cipher/sha512.c lib/pbkdf2.c \
 	grub_emu_init.c gnulib/progname.c
+grub_emu_CFLAGS += -Wno-missing-field-initializers -Wno-error -I$(srcdir)/lib/libgcrypt_wrap
+
 
 ifeq ($(host_cpu), i386)
 grub_emu_SOURCES += commands/i386/cpuid.c

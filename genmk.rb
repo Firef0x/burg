@@ -139,12 +139,6 @@ MODFILES += #{@name}
       src = sources[i]
       fake_obj = File.basename(src).suffix('o')
       extra_target = obj.sub(/\.[^\.]*$/, '') + '-extra'
-      command = 'cmd-' + obj.suffix('lst')
-      fs = 'fs-' + obj.suffix('lst')
-      partmap = 'partmap-' + obj.suffix('lst')
-      handler = 'handler-' + obj.suffix('lst')
-      parttool = 'parttool-' + obj.suffix('lst')
-      video = 'video-' + obj.suffix('lst')
       dep = deps[i]
       flag = if /\.c$/ =~ src then 'CFLAGS' else 'ASFLAGS' end
       dir = File.dirname(src)
@@ -283,8 +277,7 @@ class Script
     "CLEANFILES += #{@name}
 
 #{@name}: #{src} $(#{src}_DEPENDENCIES) config.status
-	./config.status --file=#{name}:#{src}
-	sed -i -e 's,@pkglib_DATA@,$(pkglib_DATA),g' $@
+	./config.status --file=-:#{src} | sed -e 's,@pkglib_DATA@,$(pkglib_DATA),g' > $@
 	chmod +x $@
 
 "

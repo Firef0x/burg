@@ -176,6 +176,8 @@ ifeq ($(platform), emu)
 include $(srcdir)/conf/any-emu.mk
 else
 include $(srcdir)/conf/$(target_cpu)-$(platform).mk
+# For tests.
+include $(srcdir)/conf/tests.mk
 # For external modules.
 -include $(wildcard $(GRUB_CONTRIB)/*/conf/common.mk)
 endif
@@ -186,13 +188,16 @@ ifeq ($(platform), emu)
 LISTFILES =
 else
 LISTFILES = modsym.lst moddep.lst command.lst fs.lst partmap.lst \
-            parttool.lst handler.lst video.lst
+            parttool.lst handler.lst video.lst terminal.lst
 
 $(LISTFILES): $(MODFILES) grub-symdb
 	$(call quiet-command,$(builddir)/grub-symdb -d . update $?,"  SYMDB")
 endif
 CLEANFILES += $(pkglib_DATA) $(pkgdata_DATA) $(LISTFILES) po/*.mo
-pkglib_DATA += $(LISTFILES)
+pkglib_DATA += $(LISTFILES) crypto.lst
+
+crypto.lst: lib/libgcrypt-grub/cipher/crypto.lst
+	$(call quiet-command,cp $^ $@,"  CP    $@")
 
 ifneq (true, $(MAKEINFO))
 info_INFOS += docs/grub.info
@@ -451,7 +456,26 @@ distcheck: dist
 	@echo "$(distdir).tar.gz is ready for distribution" | \
 	  sed 'h;s/./=/g;p;x;p;x'
 
-check:
+check: all $(UNIT_TESTS) $(FUNCTIONAL_TESTS) $(SCRIPTED_TESTS)
+	@list="$(UNIT_TESTS)"; \
+	for file in $$list; do \
+	  $(builddir)/$$file; \
+	done
+	@list="$(FUNCTIONAL_TESTS)"; \
+	for file in $$list; do \
+	  mod=`basename $$file .mod`; \
+	  echo "insmod functional_test; insmod $$mod; functional_test" \
+	    | $(builddir)/grub-shell; \
+	done
+	@list="$(SCRIPTED_TESTS)"; \
+	for file in $$list; do \
+	  echo "$$file:"; \
+	  if $(builddir)/$$file; then \
+	    echo "$$file: PASS"; \
+	  else \
+	    echo "$$file: FAIL"; \
+	  fi; \
+	done
 
 .SUFFIX:
 .SUFFIX: .c .o .S .d

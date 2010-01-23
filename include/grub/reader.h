@@ -20,14 +20,10 @@
 #ifndef GRUB_READER_HEADER
 #define GRUB_READER_HEADER	1
 
-#include <grub/types.h>
 #include <grub/err.h>
-#include <grub/handler.h>
 
 typedef grub_err_t (*grub_reader_getline_t) (char **, int, void *);
 
-grub_err_t grub_reader_loop (grub_reader_getline_t getline, void *closure);
-
-void grub_rescue_reader (void);
+void grub_rescue_run (void);
 
 #endif /* ! GRUB_READER_HEADER */

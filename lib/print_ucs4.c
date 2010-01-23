@@ -1,6 +1,6 @@
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2009  Free Software Foundation, Inc.
+ *  Copyright (C) 2010  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,11 +16,18 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <grub/menu_viewer.h>
+#include <grub/lib.h>
 
-GRUB_EXPORT (grub_menu_viewer_class);
+GRUB_EXPORT(grub_print_ucs4);
 
-struct grub_handler_class grub_menu_viewer_class =
-  {
-    .name = "menu_viewer"
-  };
+void
+grub_print_ucs4 (const grub_uint32_t * str,
+		 const grub_uint32_t * last_position,
+		 struct grub_term_output *term)
+{
+  while (str < last_position)
+    {
+      grub_putcode (*str, term);
+      str++;
+    }
+}

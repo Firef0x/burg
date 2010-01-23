@@ -24,7 +24,6 @@
 #include <grub/time.h>
 
 GRUB_EXPORT(grub_auth_authenticate);
-GRUB_EXPORT(grub_auth_strcmp);
 GRUB_EXPORT(grub_auth_register_authentication);
 GRUB_EXPORT(grub_auth_check_password);
 
@@ -38,76 +37,6 @@ struct grub_auth_user
 };
 
 struct grub_auth_user *users = NULL;
-
-#if 0
-int
-grub_auth_strcmp (const char *user_input, const char *template)
-{
-  int ok = 1;
-  const char *ptr1, *ptr2;
-  for (ptr1 = user_input, ptr2 = template; *ptr1; ptr1++)
-    if (*ptr1 == (ptr2 ? *ptr2 : ptr1[1]) && ok && ptr2 != NULL)
-      ptr2++;
-    else
-      ok = 0;
-
-  return !ok;
-}
-#endif
-
-int
-grub_auth_strcmp (const char *user_input, const char *template)
-{
-  char result = 0;
-
-  while (1)
-    {
-      result |= (*user_input ^ *template);
-      if (*user_input == 0)
-	break;
-
-      user_input++;
-      template++;
-    }
-
-  return (result != 0);
-}
-
-static int
-grub_iswordseparator (int c)
-{
-  return (grub_isspace (c) || c == ',' || c == ';' || c == '|' || c == '&');
-}
-
-int
-grub_auth_strword (const char *haystack, const char *needle)
-{
-  const char *n_pos = needle;
-  int found = 0;
-
-  while (grub_iswordseparator (*haystack))
-    haystack++;
-
-  while (*haystack)
-    {
-      int ok = 1;
-      /* Crawl both the needle and the haystack word we're on.  */
-      while(*haystack && !grub_iswordseparator (*haystack))
-	{
-	  if (*haystack == *n_pos && ok)
-	    n_pos++;
-	  else
-	    ok = 0;
-
-	  haystack++;
-	}
-
-      if (ok)
-	found = 1;
-    }
-
-  return found;
-}
 
 grub_err_t
 grub_auth_register_authentication (const char *user,
@@ -217,8 +146,8 @@ is_authenticated_hook (grub_list_t item, void *closure)
     return 0;
   name = ((struct grub_auth_user *) item)->name;
 
-  return (c->userlist && grub_auth_strword (c->userlist, name))
-    || grub_auth_strword (c->superusers, name);
+  return (c->userlist && grub_strword (c->userlist, name))
+    || grub_strword (c->superusers, name);
 }
 
 static int
@@ -245,7 +174,7 @@ static int
 grub_auth_check_password_hook (grub_list_t item, void *closure)
 {
   struct grub_auth_check_password_closure *c = closure;
-  if (grub_auth_strcmp (c->login, ((struct grub_auth_user *) item)->name) == 0)
+  if (grub_strcmp (c->login, ((struct grub_auth_user *) item)->name) == 0)
     c->cur = (struct grub_auth_user *) item;
   return 0;
 }
@@ -270,11 +199,10 @@ grub_auth_check_password (const char *userlist, const char *login,
   c.login = login;
   c.cur = NULL;
   grub_list_iterate (GRUB_AS_LIST (users), grub_auth_check_password_hook, &c);
-  if ((c.cur) && (c.cur->callback (login, password, c.cur->arg)))
-    {
-      grub_auth_authenticate (login);
-      result = (is_authenticated (userlist));
-    }
+  if ((c.cur) && (! c.cur->callback (login, password, c.cur->arg)))
+    result = (is_authenticated (userlist));
+  else
+    grub_errno = 0;
 
   if (result)
     punishment_delay = 1;

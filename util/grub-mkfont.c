@@ -88,10 +88,12 @@ struct grub_font_info
   char* name;
   int style;
   int desc;
+  int asce;
   int size;
   int max_width;
   int max_height;
   int min_y;
+  int max_y;
   int flags;
   int num_range;
   int num_point;
@@ -108,6 +110,7 @@ static struct option options[] =
   {"range", required_argument, 0, 'r'},
   {"size", required_argument, 0, 's'},
   {"desc", required_argument, 0, 'd'},
+  {"asce", required_argument, 0, 'c'},
   {"bold", no_argument, 0, 'b'},
   {"no-bitmap", no_argument, 0, 0x100},
   {"no-hinting", no_argument, 0, 0x101},
@@ -127,7 +130,7 @@ static void
 usage (int status)
 {
   if (status)
-    fprintf (stderr, "Try ``%s --help'' for more information.\n", program_name);
+    fprintf (stderr, "Try `%s --help' for more information.\n", program_name);
   else
     printf ("\
 Usage: %s [OPTIONS] FONT_FILES\n\
@@ -138,6 +141,7 @@ Usage: %s [OPTIONS] FONT_FILES\n\
   -n, --name=S              set font family name\n\
   -s, --size=N              set font size\n\
   -d, --desc=N              set font descent\n\
+  -c, --asce=N              set font ascent\n\
   -b, --bold                convert to bold font\n\
   -a, --force-autohint      force autohint\n\
   --no-hinting              disable hinting\n\
@@ -230,8 +234,11 @@ add_char (struct grub_font_info *font_info, FT_Face face,
   if (height > font_info->max_height)
     font_info->max_height = height;
 
-  if (glyph_info->y_ofs < font_info->min_y)
+  if (glyph_info->y_ofs < font_info->min_y && glyph_info->y_ofs > -font_info->size)
     font_info->min_y = glyph_info->y_ofs;
+
+  if (glyph_info->y_ofs + height > font_info->max_y)
+    font_info->max_y = glyph_info->y_ofs + height;
 
   mask = 0;
   data = &glyph_info->bitmap[0] - 1;
@@ -325,8 +332,8 @@ print_glyphs (struct grub_font_info *font_info)
 	xmin = 0;
 
       ymax = glyph->y_ofs + glyph->height;
-      if (ymax < font_info->size - font_info->desc)
-	ymax = font_info->size - font_info->desc;
+      if (ymax < font_info->asce)
+	ymax = font_info->asce;
 
       ymin = glyph->y_ofs;
       if (ymin > - font_info->desc)
@@ -357,7 +364,7 @@ print_glyphs (struct grub_font_info *font_info)
 	      else if ((x >= 0) &&
 		       (x < glyph->device_width) &&
 		       (y >= - font_info->desc) &&
-		       (y < font_info->size - font_info->desc))
+		       (y < font_info->asce))
 		{
 		  line[line_pos++] = ((x == 0) || (y == 0)) ? '+' : '.';
 		}
@@ -381,7 +388,7 @@ write_font (struct grub_font_info *font_info, char *output_file)
 
   file = fopen (output_file, "wb");
   if (! file)
-    grub_util_error ("Can\'t write to file %s.", output_file);
+    grub_util_error ("can\'t write to file %s.", output_file);
 
   offset = 0;
 
@@ -433,8 +440,15 @@ write_font (struct grub_font_info *font_info, char *output_file)
 	font_info->desc = - font_info->min_y;
     }
 
-  write_be16_section ("ASCE", font_info->size - font_info->desc,
-		      &offset, file);
+  if (! font_info->asce)
+    {
+      if (font_info->max_y <= 0)
+	font_info->asce = 1;
+      else
+	font_info->asce = font_info->max_y;
+    }
+
+  write_be16_section ("ASCE", font_info->asce, &offset, file);
   write_be16_section ("DESC", font_info->desc, &offset, file);
 
   if (font_verbosity > 0)
@@ -442,7 +456,7 @@ write_font (struct grub_font_info *font_info, char *output_file)
       printf ("Font name: %s\n", font_name);
       printf ("Max width: %d\n", font_info->max_width);
       printf ("Max height: %d\n", font_info->max_height);
-      printf ("Font ascent: %d\n", font_info->size - font_info->desc);
+      printf ("Font ascent: %d\n", font_info->asce);
       printf ("Font descent: %d\n", font_info->desc);
     }
 
@@ -609,13 +623,13 @@ print_info (const char *filename)
 
   file = fopen (filename, "rb");
   if (! file)
-    grub_util_error ("Can\'t read from file %s.", filename);
+    grub_util_error ("can\'t read from file %s", filename);
 
   grub_util_read_at (buf, 12, 0, file);
   if ((memcmp (buf, "FILE", 4)) ||
       (grub_be_to_cpu32 (*((grub_uint32_t *) (buf + 4))) != 4) ||
       (memcmp (buf + 8, "PFF2", 4)))
-    grub_util_error ("Invalid format");
+    grub_util_error ("invalid format");
 
   if (font_verbosity > 0)
     printf ("%s:\n", filename);
@@ -732,7 +746,7 @@ main (int argc, char *argv[])
 		  if (*p)
 		    {
 		      if (*p != ',')
-			grub_util_error ("Invalid font range");
+			grub_util_error ("invalid font range");
 		      else
 			p++;
 		    }
@@ -752,6 +766,10 @@ main (int argc, char *argv[])
 
 	  case 'd':
 	    font_info.desc = strtoul (optarg, NULL, 0);
+	    break;
+
+	  case 'e':
+	    font_info.asce = strtoul (optarg, NULL, 0);
 	    break;
 
 	  case 'h':
@@ -781,7 +799,7 @@ main (int argc, char *argv[])
     }
 
   if (! output_file)
-    grub_util_error ("No output file is specified.");
+    grub_util_error ("no output file is specified");
 
   if (FT_Init_FreeType (&ft_lib))
     grub_util_error ("FT_Init_FreeType fails");
@@ -793,7 +811,7 @@ main (int argc, char *argv[])
 
       if (FT_New_Face (ft_lib, argv[optind], font_index, &ft_face))
 	{
-	  grub_util_info ("Can't open file %s, index %d\n", argv[optind],
+	  grub_util_info ("can't open file %s, index %d", argv[optind],
 			  font_index);
 	  continue;
 	}

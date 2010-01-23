@@ -1,6 +1,6 @@
 /*
  *  GRUB  --  GRand Unified Bootloader
- *  Copyright (C) 2008, 2009  Free Software Foundation, Inc.
+ *  Copyright (C) 2008,2009,2010  Free Software Foundation, Inc.
  *
  *  GRUB is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@
 #include <grub/command.h>
 #include <grub/extcmd.h>
 #include <grub/i18n.h>
-
+#include <grub/video.h>
 #ifdef GRUB_MACHINE_PCBIOS
 #include <grub/machine/biosnum.h>
 #endif
@@ -524,6 +524,8 @@ grub_freebsd_boot (void)
 
   bi.bi_kernend = kern_end;
 
+  grub_video_set_mode ("text", 0, 0);
+
   if (is_64bit)
     {
       grub_uint32_t *gdt;
@@ -635,6 +637,8 @@ grub_openbsd_boot (void)
   pa->ba_type = OPENBSD_BOOTARG_END;
   pa++;
 
+  grub_video_set_mode ("text", 0, 0);
+
   grub_unix_real_boot (entry, bootflags, openbsd_root, OPENBSD_BOOTARG_APIVER,
 		       0, (grub_uint32_t) (grub_mmap_get_upper () >> 10),
 		       (grub_uint32_t) (grub_mmap_get_lower () >> 10),
@@ -703,7 +707,7 @@ grub_netbsd_boot (void)
       + sizeof (struct grub_netbsd_btinfo_mmap_header)
       + count * sizeof (struct grub_netbsd_btinfo_mmap_entry)
       > grub_os_area_addr + grub_os_area_size)
-    return grub_error (GRUB_ERR_OUT_OF_MEMORY, "no memory for boot info");
+    return grub_error (GRUB_ERR_OUT_OF_MEMORY, "out of memory");
 
   curarg = mmap = (struct grub_netbsd_btinfo_mmap_header *) kern_end;
   pm = (struct grub_netbsd_btinfo_mmap_entry *) (mmap + 1);
@@ -735,6 +739,8 @@ grub_netbsd_boot (void)
       bootinfo->bi_count = 1;
       bootinfo->bi_data[0] = mmap;
     }
+
+  grub_video_set_mode ("text", 0, 0);
 
   grub_unix_real_boot (entry, bootflags, 0, bootinfo,
 		       0, (grub_uint32_t) (grub_mmap_get_upper () >> 10),
@@ -913,7 +919,7 @@ grub_bsd_load_elf (grub_elf_t elf)
       return grub_elf64_load (elf, grub_bsd_elf64_hook, 0, 0, 0);
     }
   else
-    return grub_error (GRUB_ERR_BAD_OS, "invalid elf");
+    return grub_error (GRUB_ERR_BAD_OS, "invalid ELF");
 }
 
 static grub_err_t
@@ -1106,7 +1112,7 @@ grub_cmd_freebsd_loadenv (grub_command_t cmd __attribute__ ((unused)),
 
   if (kernel_type != KERNEL_TYPE_FREEBSD)
     return grub_error (GRUB_ERR_BAD_ARGUMENT,
-		       "only FreeBSD support environment");
+		       "only FreeBSD supports environment");
 
   if (argc == 0)
     {
@@ -1200,11 +1206,11 @@ grub_cmd_freebsd_module (grub_command_t cmd __attribute__ ((unused)),
 
   if (kernel_type != KERNEL_TYPE_FREEBSD)
     return grub_error (GRUB_ERR_BAD_ARGUMENT,
-		       "only FreeBSD support module");
+		       "only FreeBSD supports module");
 
   if (!is_elf_kernel)
     return grub_error (GRUB_ERR_BAD_ARGUMENT,
-		       "only ELF kernel support module");
+		       "only ELF kernel supports module");
 
   /* List the current modules if no parameter.  */
   if (!argc)
@@ -1266,11 +1272,11 @@ grub_cmd_freebsd_module_elf (grub_command_t cmd __attribute__ ((unused)),
 
   if (kernel_type != KERNEL_TYPE_FREEBSD)
     return grub_error (GRUB_ERR_BAD_ARGUMENT,
-		       "only FreeBSD support module");
+		       "only FreeBSD supports module");
 
   if (! is_elf_kernel)
     return grub_error (GRUB_ERR_BAD_ARGUMENT,
-		       "only ELF kernel support module");
+		       "only ELF kernel supports module");
 
   /* List the current modules if no parameter.  */
   if (! argc)

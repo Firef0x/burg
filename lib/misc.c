@@ -30,6 +30,7 @@
 GRUB_EXPORT(grub_wait_after_message);
 GRUB_EXPORT(grub_print_device_info);
 
+
 /* Wait until the user pushes any key so that the user
    can see what happened.  */
 void

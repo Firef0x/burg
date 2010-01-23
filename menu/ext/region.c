@@ -33,6 +33,10 @@ GRUB_EXPORT(grub_menu_region_check_rect);
 GRUB_EXPORT(grub_menu_region_add_update);
 GRUB_EXPORT(grub_menu_region_apply_update);
 
+GRUB_EXPORT(grub_menu_region_text_term);
+
+grub_term_output_t grub_menu_region_text_term;
+
 grub_bitmap_cache_t cache_head;
 
 struct grub_handler_class grub_menu_region_class =

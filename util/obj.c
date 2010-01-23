@@ -904,6 +904,8 @@ grub_obj_map_symbol (const char *name)
     return "grub_memmove";
   if (! strcmp (name, "memset"))
     return "grub_memset";
+  if (! strcmp (name, "memcmp"))
+    return "grub_memcmp";
   else
     return name;
 }

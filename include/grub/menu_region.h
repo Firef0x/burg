@@ -25,6 +25,7 @@
 #include <grub/handler.h>
 #include <grub/bitmap.h>
 #include <grub/font.h>
+#include <grub/term.h>
 
 #define GRUB_MENU_REGION_TYPE_TEXT	0
 #define GRUB_MENU_REGION_TYPE_RECT	1
@@ -234,5 +235,7 @@ void grub_menu_region_add_update (grub_menu_region_update_list_t *head,
 				  int org_x, int org_y, int x, int y,
 				  int width, int height);
 void grub_menu_region_apply_update (grub_menu_region_update_list_t head);
+
+extern grub_term_output_t grub_menu_region_text_term;
 
 #endif

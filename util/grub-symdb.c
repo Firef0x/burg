@@ -531,6 +531,7 @@ update_deps (struct grub_update_list *u, char *path)
   insert_string (&u->mod_attr, "parttool");
   insert_string (&u->mod_attr, "command");
   insert_string (&u->mod_attr, "handler");
+  insert_string (&u->mod_attr, "terminal");
   insert_string (&u->mod_attr, "video");
 
   p = image + grub_target_to_host32 (seg->offset);
@@ -771,6 +772,7 @@ apply_update (char *dir)
   update_lists (dir, "parttool", 0, 1);
   update_lists (dir, "command", 0, 1);
   update_lists (dir, "handler", 0, 1);
+  update_lists (dir, "terminal", 0, 1);
   update_lists (dir, "video", 0, 0);
 }
 
