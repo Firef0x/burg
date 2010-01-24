@@ -1195,6 +1195,8 @@ save_default (void)
   if (! index)    
     return;
 
+  grub_env_set ("chosen", index);
+
   save = grub_dialog_get_parm (grub_widget_current_node, parm, "save");
   if (save)
     savedefault = (*save == '1');

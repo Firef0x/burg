@@ -577,7 +577,12 @@ show_menu (grub_menu_t menu, int nested)
 	  char *default_str;
 
 	  default_str = grub_env_get ("default");
-	  default_num = (default_str) ? grub_strtol (default_str, 0, 0) : -1;
+	  default_num = (default_str) ? grub_strtol (default_str, 0, 0) : 0;
+	  if (grub_errno == GRUB_ERR_BAD_NUMBER)
+	    {
+	      default_num = 0;
+	      grub_errno = 0;
+	    }
 	  index = add_user_menu (node, menu, default_num, 1);
 	  add_sys_menu (node, index, default_num);
 	}

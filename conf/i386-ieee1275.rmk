@@ -7,12 +7,6 @@ COMMON_LDFLAGS	= -nostdlib
 # Used by various components.  These rules need to precede them.
 script/lexer.c_DEPENDENCIES = grub_script.tab.h
 
-# Scripts.
-sbin_SCRIPTS = grub-install
-
-# For grub-install.
-grub_install_SOURCES = util/ieee1275/grub-install.in
-
 # Modules.
 pkglib_MODULES = kernel.mod halt.mod reboot.mod suspend.mod		\
 	aout.mod serial.mod linux.mod		\

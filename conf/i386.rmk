@@ -21,6 +21,12 @@ relocator_mod_CFLAGS = $(COMMON_CFLAGS)
 relocator_mod_ASFLAGS = $(COMMON_ASFLAGS)
 relocator_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
+pkglib_MODULES += relocator16.mod
+relocator16_mod_SOURCES = lib/i386/relocator16.c lib/i386/relocator16_asm.S
+relocator16_mod_CFLAGS = $(COMMON_CFLAGS)
+relocator16_mod_ASFLAGS = $(COMMON_ASFLAGS)
+relocator16_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
 pkglib_MODULES += ata.mod
 ata_mod_SOURCES = disk/ata.c
 ata_mod_CFLAGS = $(COMMON_CFLAGS)

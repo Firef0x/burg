@@ -386,12 +386,7 @@ setup (const char *dir,
     }
 
   if (alt_mode)
-    {
-      if (grub_disk_write (dest_dev->disk, c.embed_region.start, 0,
-			   core_size, core_img))
-	grub_util_error ("%s", grub_errmsg);
-      goto use_blocklist;
-    }
+    goto use_blocklist;
 
   grub_util_info ("the core image will be embedded at sector 0x%llx",
 		  c.embed_region.start);

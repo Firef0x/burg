@@ -82,7 +82,7 @@ pkglib_MODULES = kernel.mod biosdisk.mod chain.mod			\
 	aout.mod bsd.mod pxe.mod pxecmd.mod datetime.mod date.mod 	\
 	datehook.mod lsmmap.mod ata_pthru.mod hdparm.mod 		\
 	usb.mod uhci.mod ohci.mod usbtest.mod usbms.mod usb_keyboard.mod \
-	efiemu.mod mmap.mod acpi.mod drivemap.mod
+	efiemu.mod mmap.mod acpi.mod drivemap.mod loadbin.mod
 
 # For kernel.mod.
 kernel_mod_SOURCES = kern/i386/pc/startup.S \
@@ -304,6 +304,11 @@ ata_pthru_mod_LDFLAGS = $(COMMON_LDFLAGS)
 hdparm_mod_SOURCES = commands/hdparm.c
 hdparm_mod_CFLAGS = $(COMMON_CFLAGS)
 hdparm_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
+# For loadbin.mod.
+loadbin_mod_SOURCES = loader/i386/pc/loadbin.c
+loadbin_mod_CFLAGS = $(COMMON_CFLAGS)
+loadbin_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 ifeq ($(enable_efiemu), yes)
 

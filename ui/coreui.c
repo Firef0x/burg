@@ -26,6 +26,7 @@
 #include <grub/menu_data.h>
 #include <grub/parser.h>
 #include <grub/lib.h>
+#include <grub/charset.h>
 
 #define MARGIN_FINI	0
 #define MARGIN_WIDTH	1
@@ -1734,13 +1735,19 @@ term_onkey (grub_widget_t widget, int key)
       edit_handle_key (widget, GRUB_TERM_DOWN);
       if (*cmd)
 	{
-	  /*
-	  if (! data->hist_pos)
-	    grub_history_add (cmd);
-	  else
-	    grub_history_replace (data->hist_pos - 1, cmd);
-	  */
-	  data->hist_pos = 0;
+	  int len;
+	  grub_uint32_t *ustr, *last;
+
+	  len = grub_utf8_to_ucs4_alloc (cmd, &ustr, &last);
+	  if (len != -1)
+	    {
+	      if (! data->hist_pos)
+		grub_history_add (ustr, len);
+	      else
+		grub_history_replace (data->hist_pos - 1, ustr, len);
+	      data->hist_pos = 0;
+	      grub_free (ustr);
+	    }
 
 	  grub_parser_execute (cmd);
 	  if (data->edit.pos)
@@ -1773,19 +1780,37 @@ term_onkey (grub_widget_t widget, int key)
 	    return GRUB_WIDGET_RESULT_DONE;
 	}
 
-      //line = (data->hist_pos > 0) ?
-      // grub_history_get (data->hist_pos - 1) : "";
-      line = "";
+      if (data->hist_pos > 0)
+	{
+	  grub_uint32_t *ustr, *p;
+	  int len;
+
+	  ustr = grub_history_get (data->hist_pos - 1);
+	  len = 0;
+	  p = ustr;
+	  while (*p)
+	    {
+	      p++;
+	      len++;
+	    }
+	  line = grub_ucs4_to_utf8_alloc (ustr, len);
+	}
+      else
+	line = grub_strdup ("");
 
       data->edit.lines[data->edit.line] =
 	resize_text (data->edit.lines[data->edit.line],
 		     grub_strlen (line) + sizeof (GRUB_PROMPT) - 1);
 
       if (! data->edit.lines[data->edit.line])
-	return grub_errno;
+	{
+	  grub_free (line);
+	  return grub_errno;
+	}
 
       grub_strcpy (data->edit.lines[data->edit.line]->text
 		   + sizeof (GRUB_PROMPT) - 1, line);
+      grub_free (line);
       line = data->edit.lines[data->edit.line]->text;
       data->edit.pos = grub_strlen (line);
       text_width = data->edit.lines[data->edit.line]->common.width =

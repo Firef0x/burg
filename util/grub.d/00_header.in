@@ -126,7 +126,7 @@ EOF
     ;;
   esac
 
-  echo "menu_viewer.ext"
+  echo "controller.ext"
   GRUB_TERMINAL_OUTPUT=
 fi
 
