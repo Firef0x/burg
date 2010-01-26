@@ -98,6 +98,18 @@ set theme_dir=\${prefix}/themes/${theme_base_dir}
 EOF
 
   grub_theme_dir=${grub_prefix}/themes
+  
+  for i in ${grub_theme_dir}/conf.d/* ; do
+    case "$i" in
+      *~*) ;;
+      *)
+        if grub_file_is_not_garbage "$i" && test -r "$i" ; then
+	  echo "load_config \${prefix}/themes/conf.d/`echo $i | sed 's,.*/,,'`"
+        fi
+      ;;
+    esac
+  done
+
   if test -e ${grub_theme_dir}/${GRUB_THEME}/config.lst ; then
     for i in `cat ${grub_theme_dir}/${GRUB_THEME}/config.lst` ; do
       case "x$i" in

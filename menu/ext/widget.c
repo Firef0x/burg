@@ -1280,6 +1280,10 @@ grub_widget_input (grub_uitree_t root, int nested)
 	      if (nested)
 		return GRUB_ERR_MENU_ESCAPE;
 	    }
+	  else if (! grub_strcmp (cmd, "ui_quit"))
+	    {
+	      return grub_error (GRUB_ERR_MENU_ESCAPE, "quit");
+	    }
 	  else if ((! grub_strcmp (cmd, "ui_next_node")) ||
 		   (! grub_strcmp (cmd, "ui_prev_node")) ||
 		   (! grub_strcmp (cmd, "ui_next_anchor")) ||
