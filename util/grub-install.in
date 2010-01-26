@@ -33,17 +33,17 @@ host_os=@host_os@
 font=@datadir@/@PACKAGE_TARNAME@/ascii.pf2
 pkglibdir=${libdir}/`echo ${PACKAGE_TARNAME}/${target_cpu}-${platform} | sed ${transform}`
 
-grub_setup=${sbindir}/`echo grub-setup | sed ${transform}`
+grub_setup=${sbindir}/`echo burg-setup | sed ${transform}`
 if [ "${target_cpu}-${platform}" = "i386-pc" ] || [ "${target_cpu}-${platform}" = "sparc64-ieee1275" ] || [ "${target_cpu}-${platform}" = "mips-yeeloong" ] ; then
-    grub_mkimage=${bindir}/`echo grub-mkimage | sed ${transform}`
+    grub_mkimage=${bindir}/`echo burg-mkimage | sed ${transform}`
 else
-    grub_mkimage=${bindir}/`echo grub-mkelfimage | sed ${transform}`
+    grub_mkimage=${bindir}/`echo burg-mkelfimage | sed ${transform}`
 fi
-grub_mkdevicemap=${sbindir}/`echo grub-mkdevicemap | sed ${transform}`
-grub_probe=${sbindir}/`echo grub-probe | sed ${transform}`
-grub_editenv=${bindir}/`echo grub-editenv | sed ${transform}`
+grub_mkdevicemap=${sbindir}/`echo burg-mkdevicemap | sed ${transform}`
+grub_probe=${sbindir}/`echo burg-probe | sed ${transform}`
+grub_editenv=${bindir}/`echo burg-editenv | sed ${transform}`
 rootdir=
-grub_prefix=`echo /boot/grub | sed ${transform}`
+grub_prefix=`echo /boot/burg | sed ${transform}`
 modules=
 
 install_device=
@@ -64,7 +64,7 @@ fi
 # Print the usage.
 usage () {
     cat <<EOF
-Usage: grub-install [OPTION] install_device
+Usage: burg-install [OPTION] install_device
 Install GRUB on your drive.
 
   -h, --help              print this message and exit
@@ -72,10 +72,10 @@ Install GRUB on your drive.
   --modules=MODULES       pre-load specified modules MODULES
   --root-directory=DIR    install GRUB images under the directory DIR
                           instead of the root directory
-  --grub-setup=FILE       use FILE as grub-setup
-  --grub-mkimage=FILE     use FILE as grub-mkimage
-  --grub-mkdevicemap=FILE use FILE as grub-mkdevicemap
-  --grub-probe=FILE       use FILE as grub-probe
+  --burg-setup=FILE       use FILE as burg-setup
+  --burg-mkimage=FILE     use FILE as burg-mkimage
+  --burg-mkdevicemap=FILE use FILE as burg-mkdevicemap
+  --burg-probe=FILE       use FILE as burg-probe
   --no-floppy             do not probe any floppy drive
   --recheck               probe a device map even if it already exists
   --force                 install even if problems are detected
@@ -93,15 +93,15 @@ EOF
 fi
     cat <<EOF
 
-INSTALL_DEVICE can be a GRUB device name or a system device filename.
+INSTALL_DEVICE can be a BURG device name or a system device filename.
 
-grub-install copies GRUB images into /boot/grub (or /grub on NetBSD and
-OpenBSD), and uses grub-setup to install grub into the boot sector.
+burg-install copies BURG images into /boot/burg (or /burg on NetBSD and
+OpenBSD), and uses burg-setup to install grub into the boot sector.
 
-If the --root-directory option is used, then grub-install will copy
+If the --root-directory option is used, then burg-install will copy
 images into the operating system installation rooted at that directory.
 
-Report bugs to <bug-grub@gnu.org>.
+Report bugs to <bean123ch@gmail.com>.
 EOF
 }
 
@@ -112,7 +112,7 @@ for option in "$@"; do
 	usage
 	exit 0 ;;
     -v | --version)
-	echo "grub-install (GNU GRUB ${PACKAGE_VERSION})"
+	echo "burg-install (${PACKAGE_NAME} ${PACKAGE_VERSION})"
 	exit 0 ;;
     --modules=*)
 	modules=`echo "$option" | sed 's/--modules=//'` ;;
@@ -120,14 +120,14 @@ for option in "$@"; do
 	font=`echo "$option" | sed 's/--font=//'` ;;
     --root-directory=*)
 	rootdir=`echo "$option" | sed 's/--root-directory=//'` ;;
-    --grub-setup=*)
-	grub_setup=`echo "$option" | sed 's/--grub-setup=//'` ;;
-    --grub-mkimage=*)
-	grub_mkimage=`echo "$option" | sed 's/--grub-mkimage=//'` ;;
-    --grub-mkdevicemap=*)
-	grub_mkdevicemap=`echo "$option" | sed 's/--grub-mkdevicemap=//'` ;;
-    --grub-probe=*)
-	grub_probe=`echo "$option" | sed 's/--grub-probe=//'` ;;
+    --burg-setup=*)
+	grub_setup=`echo "$option" | sed 's/--burg-setup=//'` ;;
+    --burg-mkimage=*)
+	grub_mkimage=`echo "$option" | sed 's/--burg-mkimage=//'` ;;
+    --burg-mkdevicemap=*)
+	grub_mkdevicemap=`echo "$option" | sed 's/--burg-mkdevicemap=//'` ;;
+    --burg-probe=*)
+	grub_probe=`echo "$option" | sed 's/--burg-probe=//'` ;;
     --no-floppy)
 	no_floppy="--no-floppy" ;;
     --recheck)
@@ -159,7 +159,7 @@ for option in "$@"; do
 done
 
 # for make_system_path_relative_to_its_root()
-. ${libdir}/grub/grub-mkconfig_lib
+. ${libdir}/burg/burg-mkconfig_lib
 
 if test "x$install_device" = x && test "${target_cpu}-${platform}" != "mips-yeeloong"; then
     echo "install_device not specified." 1>&2
@@ -179,7 +179,7 @@ case "$host_os" in
 netbsd* | openbsd*)
     # Because /boot is used for the boot block in NetBSD and OpenBSD, use /grub
     # instead of /boot/grub.
-    grub_prefix=`echo /grub | sed ${transform}`
+    grub_prefix=`echo /burg | sed ${transform}`
     bootdir=${rootdir}
     ;;
 *)
@@ -188,7 +188,7 @@ netbsd* | openbsd*)
     ;;
 esac
 
-grubdir=${bootdir}/`echo grub | sed ${transform}`
+grubdir=${bootdir}/`echo burg | sed ${transform}`
 device_map=${grubdir}/device.map
 
 grub_probe="${grub_probe} --device-map=${device_map}"
@@ -275,8 +275,8 @@ done
 # Write device to a variable so we don't have to traverse /dev every time.
 grub_device=`$grub_probe --target=device ${grubdir}`
 
-if ! test -f ${grubdir}/grubenv; then
-    $grub_editenv ${grubdir}/grubenv create
+if ! test -f ${grubdir}/burgenv; then
+    $grub_editenv ${grubdir}/burgenv create
 fi
 
 # Create the core image. First, auto-detect the filesystem module.
@@ -353,7 +353,7 @@ if [ "${target_cpu}-${platform}" = "i386-pc" ] || [ "${target_cpu}-${platform}" 
     $grub_setup ${setup_verbose} ${setup_force} ${setup_alt} --directory=${grubdir} --device-map=${device_map} \
         ${install_device} || exit 1
 elif [ "${target_cpu}-${platform}" = "mips-yeeloong" ] ; then
-    $grub_mkimage ${config_opt} -f ${font} -d ${pkglibdir} -O elf --output=/boot/grub.elf --prefix=${prefix_drive}${relative_grubdir} $modules || exit 1
+    $grub_mkimage ${config_opt} -f ${font} -d ${pkglibdir} -O elf --output=/boot/burg.elf --prefix=${prefix_drive}${relative_grubdir} $modules || exit 1
 else
     $grub_mkimage ${config_opt} -d ${pkglibdir} --output=/boot/multiboot.img --prefix=${prefix_drive}${relative_grubdir} $modules || exit 1
 fi

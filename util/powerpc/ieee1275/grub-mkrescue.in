@@ -30,13 +30,13 @@ target_cpu=@target_cpu@
 platform=@platform@
 pkglibdir=${libdir}/`echo ${PACKAGE_TARNAME}/${target_cpu}-${platform} | sed ${transform}`
 
-grub_mkimage=${bindir}/`echo grub-mkelfimage | sed ${transform}`
+grub_mkimage=${bindir}/`echo burg-mkelfimage | sed ${transform}`
 
 # Usage: usage
 # Print the usage.
 usage () {
     cat <<EOF
-Usage: grub-mkrescue [OPTION] output_image
+Usage: burg-mkrescue [OPTION] output_image
 Make GRUB rescue image.
 
   -h, --help              print this message and exit
@@ -44,9 +44,9 @@ Make GRUB rescue image.
   --modules=MODULES       pre-load specified modules MODULES
   --pkglibdir=DIR         use images from directory DIR
                           default: ${pkglibdir}
-  --grub-mkimage=FILE     use FILE as grub-mkimage
+  --burg-mkimage=FILE     use FILE as burg-mkimage
 
-grub-mkimage generates a bootable rescue CD image for PowerMac and CHRP.
+burg-mkimage generates a bootable rescue CD image for PowerMac and CHRP.
 
 Report bugs to <bug-grub@gnu.org>.
 EOF
@@ -61,14 +61,14 @@ for option in "$@"; do
 	usage
 	exit 0 ;;
     -v | --version)
-	echo "grub-mkrescue (GNU GRUB ${PACKAGE_VERSION})"
+	echo "burg-mkrescue (${PACKAGE_NAME} ${PACKAGE_VERSION})"
 	exit 0 ;;
     --modules=*)
 	modules=`echo "$option" | sed 's/--modules=//'` ;;
     --pkglibdir=*)
 	input_dir=`echo "$option" | sed 's/--pkglibdir=//'` ;;
-    --grub-mkimage=*)
-	grub_mkimage=`echo "$option" | sed 's/--grub-mkimage=//'` ;;
+    --burg-mkimage=*)
+	grub_mkimage=`echo "$option" | sed 's/--burg-mkimage=//'` ;;
     -*)
 	echo "Unrecognized option \`$option'" 1>&2
 	usage
@@ -100,10 +100,10 @@ grub.img        Raw     'UNIX'    'tbxi'   "bootstrap"
 EOF
 
 iso_dir=`mktemp -d`
-boot_dir=${iso_dir}/boot/grub
+boot_dir=${iso_dir}/boot/burg
 mkdir ${iso_dir}/boot
 mkdir ${boot_dir}
-core_img=${boot_dir}/grub.img
+core_img=${boot_dir}/burg.img
 ${grub_mkimage} -n -d ${input_dir}/ -o ${core_img} ${modules}
 genisoimage -hfs -part -no-desktop -r -J -o ${output_image} \
  -map ${map_file} -hfs-bless ${boot_dir} -chrp-boot -sysid PPC \

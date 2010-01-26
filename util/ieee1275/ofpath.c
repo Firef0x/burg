@@ -406,7 +406,7 @@ int main(int argc, char **argv)
 
   if (argc != 2)
     {
-      printf("Usage: grub-ofpathname DEVICE\n");
+      printf("Usage: %s DEVICE\n", argv[0]);
       return 1;
     }
 

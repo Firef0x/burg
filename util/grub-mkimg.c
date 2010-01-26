@@ -50,10 +50,10 @@ static void
 usage (int status)
 {
   if (status)
-    fprintf (stderr, "Try ``grub-mkrawimage --help'' for more information.\n");
+    fprintf (stderr, _("Try `%s --help' for more information.\n"), program_name);
   else
-    printf ("\
-Usage: grub-mkimg [OPTIONS] [OBJECT_FILES].\n\
+    printf (_("\
+Usage: %s [OPTIONS] [OBJECT_FILES].\n\
 \n\
 Tool to generate img file from object files.\n\
 \nOptions:\n\
@@ -63,7 +63,7 @@ Tool to generate img file from object files.\n\
   -o, --output=FILE       output a generated image to FILE [default=stdout]\n\
   -b, --base=ADDR         set base address\n\
 \n\
-Report bugs to <%s>.\n", PACKAGE_BUGREPORT);
+Report bugs to <%s>.\n"), program_name, PACKAGE_BUGREPORT);
 
   exit (status);
 }
@@ -121,9 +121,8 @@ main (int argc, char *argv[])
   grub_uint32_t base = 0;
 
   set_program_name (argv[0]);
-  setlocale (LC_ALL, "");
-  bindtextdomain (PACKAGE, LOCALEDIR);
-  textdomain (PACKAGE);
+
+  grub_util_init_nls ();
 
   /* Check for options.  */
   while (1)
@@ -140,7 +139,7 @@ main (int argc, char *argv[])
 	    break;
 
 	  case 'V':
-	    printf ("grub-mkrawimage (%s) %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	    printf ("%s (%s) %s\n", program_name, PACKAGE_NAME, PACKAGE_VERSION);
 	    return 0;
 
 	  case 'v':

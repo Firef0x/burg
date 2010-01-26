@@ -539,10 +539,10 @@ static void
 usage (int status)
 {
   if (status)
-    fprintf (stderr, "Try ``grub-mkimage --help'' for more information.\n");
+    fprintf (stderr, _("Try `%s --help' for more information.\n"), program_name);
   else
-    printf ("\
-Usage: grub-mkimage -o FILE [OPTION]... [MODULES]\n\
+    printf (_("\
+Usage: %s -o FILE [OPTION]... [MODULES]\n\
 \n\
 Make a bootable image of GRUB.\n\
 \n\
@@ -556,7 +556,7 @@ Make a bootable image of GRUB.\n\
   -v, --verbose           print verbose messages\n\
 \n\
 Report bugs to <%s>.\n\
-", GRUB_LIBDIR, DEFAULT_DIRECTORY, PACKAGE_BUGREPORT);
+"), program_name, GRUB_LIBDIR, DEFAULT_DIRECTORY, PACKAGE_BUGREPORT);
 
   exit (status);
 }
@@ -611,7 +611,7 @@ main (int argc, char *argv[])
 	    if (prefix)
 	      free (prefix);
 
-	    prefix = xstrdup ("(memdisk)/boot/grub");
+	    prefix = xstrdup ("(memdisk)/boot/burg");
 	    break;
 
 	  case 'c':
@@ -622,7 +622,7 @@ main (int argc, char *argv[])
 	    break;
 
 	  case 'V':
-	    printf ("grub-mkimage (%s) %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	    printf ("%s (%s) %s\n", program_name, PACKAGE_NAME, PACKAGE_VERSION);
 	    return 0;
 	  case 'v':
 	    verbosity++;

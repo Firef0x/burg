@@ -279,8 +279,8 @@ setup (const char *dir,
 	grub_util_error (_("%s appears to contain a %s filesystem which isn't known to "
 			   "reserve space for DOS-style boot.  Installing GRUB there could "
 			   "result in FILESYSTEM DESTRUCTION if valuable data is overwritten "
-			   "by grub-setup (--skip-fs-probe disables this "
-			   "check, use at your own risk)"), dest_dev->disk->name, fs->name);
+			   "by %s (--skip-fs-probe disables this "
+			   "check, use at your own risk)"), program_name, dest_dev->disk->name, fs->name);
     }
 
   /* Copy the possible DOS BPB.  */
@@ -722,7 +722,7 @@ main (int argc, char *argv[])
 	    break;
 
 	  case 'V':
-	    printf ("grub-setup (%s) %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	    printf ("%s (%s) %s\n", program_name, PACKAGE_NAME, PACKAGE_VERSION);
 	    return 0;
 
 	  case 'v':

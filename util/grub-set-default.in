@@ -23,7 +23,7 @@ prefix=@prefix@
 exec_prefix=@exec_prefix@
 bindir=@bindir@
 
-grub_editenv=${bindir}/`echo grub-editenv | sed ${transform}`
+grub_editenv=${bindir}/`echo burg-editenv | sed ${transform}`
 rootdir=
 
 # Usage: usage
@@ -51,7 +51,7 @@ for option in "$@"; do
 	usage
 	exit 0 ;;
     -v | --version)
-	echo "grub-set-default (GNU GRUB ${PACKAGE_VERSION})"
+	echo "burg-set-default (${PACKAGE_NAME} ${PACKAGE_VERSION})"
 	exit 0 ;;
     --root-directory=*)
 	rootdir=`echo "$option" | sed 's/--root-directory=//'` ;;
@@ -81,7 +81,7 @@ case "$host_os" in
 netbsd* | openbsd*)
     # Because /boot is used for the boot block in NetBSD and OpenBSD, use /grub
     # instead of /boot/grub.
-    grub_prefix=`echo /grub | sed ${transform}`
+    grub_prefix=`echo /burg | sed ${transform}`
     bootdir=${rootdir}
     ;;
 *)
@@ -90,10 +90,10 @@ netbsd* | openbsd*)
     ;;
 esac
 
-grubdir=${bootdir}/`echo grub | sed ${transform}`
+grubdir=${bootdir}/`echo burg | sed ${transform}`
 
-$grub_editenv ${grubdir}/grubenv unset prev_saved_entry
-$grub_editenv ${grubdir}/grubenv set saved_entry="$entry"
+$grub_editenv ${grubdir}/burgenv unset prev_saved_entry
+$grub_editenv ${grubdir}/burgenv set saved_entry="$entry"
 
 # Bye.
 exit 0

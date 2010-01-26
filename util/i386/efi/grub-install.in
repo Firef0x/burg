@@ -32,12 +32,12 @@ platform=@platform@
 host_os=@host_os@
 pkglibdir=${libdir}/`echo ${PACKAGE_TARNAME}/${target_cpu}-${platform} | sed ${transform}`
 
-grub_mkimage=${bindir}/`echo grub-mkimage | sed ${transform}`
-grub_mkdevicemap=${sbindir}/`echo grub-mkdevicemap | sed ${transform}`
-grub_probe=${sbindir}/`echo grub-probe | sed ${transform}`
-grub_editenv=${bindir}/`echo grub-editenv | sed ${transform}`
+grub_mkimage=${bindir}/`echo burg-mkimage | sed ${transform}`
+grub_mkdevicemap=${sbindir}/`echo burg-mkdevicemap | sed ${transform}`
+grub_probe=${sbindir}/`echo burg-probe | sed ${transform}`
+grub_editenv=${bindir}/`echo burg-editenv | sed ${transform}`
 rootdir=
-grub_prefix=`echo /boot/grub | sed ${transform}`
+grub_prefix=`echo /boot/burg | sed ${transform}`
 modules=
 
 no_floppy=
@@ -49,7 +49,7 @@ debug=no
 # Print the usage.
 usage () {
     cat <<EOF
-Usage: grub-install [OPTION]
+Usage: burg-install [OPTION]
 Install GRUB on your EFI partition.
 
   -h, --help              print this message and exit
@@ -57,13 +57,13 @@ Install GRUB on your EFI partition.
   --modules=MODULES       pre-load specified modules MODULES
   --root-directory=DIR    install GRUB images under the directory DIR
                           instead of the root directory
-  --grub-mkimage=FILE     use FILE as grub-mkimage
-  --grub-mkdevicemap=FILE use FILE as grub-mkdevicemap
-  --grub-probe=FILE       use FILE as grub-probe
+  --burg-mkimage=FILE     use FILE as burg-mkimage
+  --burg-mkdevicemap=FILE use FILE as burg-mkdevicemap
+  --burg-probe=FILE       use FILE as burg-probe
   --no-floppy             do not probe any floppy drive
   --recheck               probe a device map even if it already exists
 
-grub-install copies GRUB images into the DIR/boot directory specified by
+burg-install copies GRUB images into the DIR/boot directory specified by
 --root-directory.
 
 Report bugs to <bug-grub@gnu.org>.
@@ -77,18 +77,18 @@ for option in "$@"; do
 	usage
 	exit 0 ;;
     -v | --version)
-	echo "grub-install (GNU GRUB ${PACKAGE_VERSION})"
+	echo "burg-install (${PACKAGE_NAME} ${PACKAGE_VERSION})"
 	exit 0 ;;
     --modules=*)
 	modules=`echo "$option" | sed 's/--modules=//'` ;;
     --root-directory=*)
 	rootdir=`echo "$option" | sed 's/--root-directory=//'` ;;
-    --grub-mkimage=*)
-	grub_mkimage=`echo "$option" | sed 's/--grub-mkimage=//'` ;;
-    --grub-mkdevicemap=*)
-	grub_mkdevicemap=`echo "$option" | sed 's/--grub-mkdevicemap=//'` ;;
-    --grub-probe=*)
-	grub_probe=`echo "$option" | sed 's/--grub-probe=//'` ;;
+    --burg-mkimage=*)
+	grub_mkimage=`echo "$option" | sed 's/--burg-mkimage=//'` ;;
+    --burg-mkdevicemap=*)
+	grub_mkdevicemap=`echo "$option" | sed 's/--burg-mkdevicemap=//'` ;;
+    --burg-probe=*)
+	grub_probe=`echo "$option" | sed 's/--burg-probe=//'` ;;
     --no-floppy)
 	no_floppy="--no-floppy" ;;
     --recheck)
@@ -114,7 +114,7 @@ case "$host_os" in
 netbsd* | openbsd*)
     # Because /boot is used for the boot block in NetBSD and OpenBSD, use /grub
     # instead of /boot/grub.
-    grub_prefix=`echo /grub | sed ${transform}`
+    grub_prefix=`echo /burg | sed ${transform}`
     bootdir=${rootdir}
     ;;
 *)
@@ -123,7 +123,7 @@ netbsd* | openbsd*)
     ;;
 esac
 
-grubdir=${bootdir}/`echo grub | sed ${transform}`
+grubdir=${bootdir}/`echo burg | sed ${transform}`
 device_map=${grubdir}/device.map
 
 # Check if GRUB is installed.
@@ -180,8 +180,8 @@ for file in ${pkglibdir}/*.mod ${pkglibdir}/*.lst; do
     cp -f $file ${grubdir} || exit 1
 done
 
-if ! test -f ${grubdir}/grubenv; then
-    $grub_editenv ${grubdir}/grubenv create
+if ! test -f ${grubdir}/burgenv; then
+    $grub_editenv ${grubdir}/burgenv create
 fi
 
 # Create the core image. First, auto-detect the filesystem module.
@@ -202,13 +202,13 @@ devabstraction_module=`$grub_probe --target=abstraction --device-map=${device_ma
 # The order in this list is critical.  Be careful when modifying it.
 modules="$modules $fs_module $partmap_module $devabstraction_module"
 
-$grub_mkimage --output=${grubdir}/grub.efi $modules || exit 1
+$grub_mkimage --output=${grubdir}/burg.efi $modules || exit 1
 
 # Prompt the user to check if the device map is correct.
 echo "Installation finished. No error reported."
 echo "This is the contents of the device map $device_map."
 echo "Check if this is correct or not. If any of the lines is incorrect,"
-echo "fix it and re-run the script \`grub-install'."
+echo "fix it and re-run the script \`burg-install'."
 echo
 
 cat $device_map

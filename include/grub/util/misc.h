@@ -31,9 +31,9 @@
 
 #ifdef __NetBSD__
 /* NetBSD uses /boot for its boot block.  */
-# define DEFAULT_DIRECTORY	"/grub"
+# define DEFAULT_DIRECTORY	"/burg"
 #else
-# define DEFAULT_DIRECTORY	"/boot/grub"
+# define DEFAULT_DIRECTORY	"/boot/burg"
 #endif
 
 #define DEFAULT_DEVICE_MAP	DEFAULT_DIRECTORY "/device.map"

@@ -279,59 +279,59 @@ install-local: all
 	@list='$(PKGLIB)'; \
 	for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,'`"; \
 	  $(INSTALL_DATA) $$dir$$file $(DESTDIR)$(pkglibdir)/$$dest; \
 	done
 	$(SHELL) $(mkinstalldirs) $(DESTDIR)$(pkgdatadir)
 	@list='$(PKGDATA)'; \
 	for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,'`"; \
 	  $(INSTALL_DATA) $$dir$$file $(DESTDIR)$(pkgdatadir)/$$dest; \
 	done
 	$(SHELL) $(mkinstalldirs) $(DESTDIR)$(bindir) $(DESTDIR)$(mandir)/man1
 	@list='$(bin_UTILITIES)'; for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,' | sed '$(transform)'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,' | sed '$(transform)'`"; \
 	  $(INSTALL_PROGRAM) $$dir$$file $(DESTDIR)$(bindir)/$$dest; \
 	  $(HELP2MAN) --section=1 -o $(DESTDIR)$(mandir)/man1/$$dest.1 $(builddir)/$$file; \
 	done
 	$(SHELL) $(mkinstalldirs) $(DESTDIR)$(sbindir) $(DESTDIR)$(mandir)/man8
 	@list='$(sbin_UTILITIES)'; for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,' | sed '$(transform)'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,' | sed '$(transform)'`"; \
 	  $(INSTALL_PROGRAM) $$dir$$file $(DESTDIR)$(sbindir)/$$dest; \
 	  $(HELP2MAN) --section=8 -o $(DESTDIR)$(mandir)/man8/$$dest.8 $(builddir)/$$file; \
 	done
 	@list='$(bin_SCRIPTS)'; for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,' | sed '$(transform)'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,' | sed '$(transform)'`"; \
 	  $(INSTALL_SCRIPT) $$dir$$file $(DESTDIR)$(bindir)/$$dest; \
 	  $(HELP2MAN) --section=1 -o $(DESTDIR)$(mandir)/man1/$$dest.1 $(builddir)/$$file; \
 	done
 	@list='$(sbin_SCRIPTS)'; for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,' | sed '$(transform)'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,' | sed '$(transform)'`"; \
 	  $(INSTALL_SCRIPT) $$dir$$file $(DESTDIR)$(sbindir)/$$dest; \
 	  $(HELP2MAN) --section=8 -o $(DESTDIR)$(mandir)/man8/$$dest.8 $(builddir)/$$file; \
 	done
-	$(SHELL) $(mkinstalldirs) $(DESTDIR)$(sysconfdir)/grub.d
+	$(SHELL) $(mkinstalldirs) $(DESTDIR)$(sysconfdir)/$(PACKAGE_TARNAME).d
 	@list='$(grub-mkconfig_SCRIPTS)'; for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,' | sed '$(transform)'`"; \
-	  $(INSTALL_SCRIPT) $$dir$$file $(DESTDIR)$(sysconfdir)/grub.d/$$dest; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,' | sed '$(transform)'`"; \
+	  $(INSTALL_SCRIPT) $$dir$$file $(DESTDIR)$(sysconfdir)/$(PACKAGE_TARNAME).d/$$dest; \
 	done
 	@list='$(grub-mkconfig_DATA)'; for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,' | sed '$(transform)'`"; \
-	  $(INSTALL_DATA) $$dir$$file $(DESTDIR)$(sysconfdir)/grub.d/$$dest; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,' | sed '$(transform)'`"; \
+	  $(INSTALL_DATA) $$dir$$file $(DESTDIR)$(sysconfdir)/$(PACKAGE_TARNAME).d/$$dest; \
 	done
-	$(SHELL) $(mkinstalldirs) $(DESTDIR)$(libdir)/grub
+	$(SHELL) $(mkinstalldirs) $(DESTDIR)$(libdir)/$(PACKAGE_TARNAME)
 	@list='$(lib_SCRIPTS)'; \
 	for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,'`"; \
-	  $(INSTALL_DATA) $$dir$$file $(DESTDIR)$(libdir)/grub/$$dest; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,'`"; \
+	  $(INSTALL_DATA) $$dir$$file $(DESTDIR)$(libdir)/$(PACKAGE_TARNAME)/$$dest; \
 	done
 	@langs='$(LINGUAS)'; \
 	for lang in $$langs; do \
@@ -344,8 +344,8 @@ install-local: all
 	@list='$(info_INFOS)'; \
 	for file in $$list; do \
 	  if test -f "$$file"; then dir=; else dir="$(srcdir)/"; fi; \
-	  dest="`echo $$file | sed 's,.*/,,'`"; \
-	  $(INSTALL_DATA) $$dir$$file $(DESTDIR)$(infodir); \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,'`"; \
+	  $(INSTALL_DATA) $$dir$$file $(DESTDIR)$(infodir)/$$dest; \
 	  if (install-info --version && \
 	       install-info --version 2>&1 | sed 1q | grep -i -v debian) >/dev/null 2>&1; then \
 	    install-info --info-dir="$(DESTDIR)$(infodir)" "$(DESTDIR)$(infodir)/$$dest" || :; \
@@ -358,37 +358,37 @@ install-strip:
 uninstall:
 	@list='$(PKGLIB)'; \
 	for file in $$list; do \
-	  dest="`echo $$file | sed 's,.*/,,'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,'`"; \
 	  rm -f $(DESTDIR)$(pkglibdir)/$$dest; \
 	done
 	@list='$(PKGDATA)'; \
 	for file in $$list; do \
-	  dest="`echo $$file | sed 's,.*/,,'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,'`"; \
 	  rm -f $(DESTDIR)$(pkgdatadir)/$$dest; \
 	done
 	@list='$(bin_UTILITIES) $(bin_SCRIPTS)'; for file in $$list; do \
-	  dest="`echo $$file | sed 's,.*/,,' | sed '$(transform)'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,' | sed '$(transform)'`"; \
 	  rm -f $(DESTDIR)$(bindir)/$$dest; \
 	  rm -f $(DESTDIR)$(mandir)/man1/$$dest.1; \
 	done
 	@list='$(sbin_UTILITIES) $(sbin_SCRIPTS)'; for file in $$list; do \
-	  dest="`echo $$file | sed 's,.*/,,' | sed '$(transform)'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,' | sed '$(transform)'`"; \
 	  rm -f $(DESTDIR)$(sbindir)/$$dest; \
 	  rm -f $(DESTDIR)$(mandir)/man8/$$dest.8; \
 	done
 	@list='$(grub-mkconfig_SCRIPTS) $(grub-mkconfig_DATA)'; for file in $$list; do \
-	  dest="`echo $$file | sed 's,.*/,,' | sed '$(transform)'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,' | sed '$(transform)'`"; \
 	  rm -f $(DESTDIR)$(sysconfdir)/grub.d/$$dest; \
 	done
 	@list='$(lib_SCRIPTS)'; \
 	for file in $$list; do \
-	  dest="`echo $$file | sed 's,.*/,,'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,'`"; \
 	  echo rm -f $(DESTDIR)$(libdir)/$$dest; \
 	  rm -f $(DESTDIR)$(libdir)/grub/$$dest; \
 	done
 	@list='$(info_INFOS)'; \
 	for file in $$list; do \
-	  dest="`echo $$file | sed 's,.*/,,'`"; \
+	  dest="`echo $$file | sed 's,.*/,,;s,grub,burg,'`"; \
 	  if (install-info --version && \
 	       install-info --version 2>&1 | sed 1q | grep -i -v debian) >/dev/null 2>&1; then \
 	    if install-info --info-dir="$(DESTDIR)$(infodir)" --remove "$(DESTDIR)$(infodir)/$$dest"; then \
@@ -520,10 +520,10 @@ $(srcdir)/po/$(PACKAGE).pot: $(srcdir)/po/POTFILES $(srcdir)/po/POTFILES-shell
 	$(XGETTEXT) --from-code=utf-8 -o $@ -D $(srcdir) -f $< --keyword=_ --keyword=N_
 	$(XGETTEXT) --from-code=utf-8 -o $@ -D $(srcdir) -f $(srcdir)/po/POTFILES-shell -j --language=Shell
 
-$(foreach lang, $(LINGUAS), $(srcdir)/po/$(lang).po): $(srcdir)/po/$(PACKAGE).pot
+$(foreach lang, $(LINGUAS), $(srcdir)/po/$(lang).po): po/$(PACKAGE).pot
 	$(MSGMERGE) --backup=none -U $@ $^
 
-po/%.mo: $(srcdir)/po/%.po
+po/%.mo: po/%.po
 	$(MKDIR_P) $$(dirname $@)
 	$(MSGFMT) -c --statistics -o $@ $^
 

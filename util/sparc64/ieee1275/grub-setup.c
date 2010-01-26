@@ -415,9 +415,9 @@ static void
 usage (int status)
 {
   if (status)
-    fprintf (stderr, "Try `%s --help' for more information.\n", program_name);
+    fprintf (stderr, _("Try `%s --help' for more information.\n"), program_name);
   else
-    printf ("\
+    printf (_("\
 Usage: %s [OPTION]... DEVICE\n\
 \n\
 Set up images to boot from DEVICE.\n\
@@ -433,7 +433,7 @@ DEVICE must be a GRUB device (e.g. `(hd0,1)').\n\
   -v, --verbose           print verbose messages\n\
 \n\
 Report bugs to <%s>.\n\
-", program_name,
+"), program_name,
 	    DEFAULT_BOOT_FILE, DEFAULT_CORE_FILE, DEFAULT_DIRECTORY,
 	    DEFAULT_DEVICE_MAP, PACKAGE_BUGREPORT);
 
@@ -515,7 +515,7 @@ parse_options (struct grub_setup_info *gp, int argc, char *argv[])
 	    break;
 
 	  case 'V':
-	    printf ("grub-setup (%s) %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	    printf ("%s (%s) %s\n", program_name, PACKAGE_NAME, PACKAGE_VERSION);
 	    return 0;
 
 	  case 'v':

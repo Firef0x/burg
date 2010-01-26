@@ -41,14 +41,14 @@ grub_normal_init_page (struct grub_term_output *term)
 {
   int msg_len;
   int posx;
-  const char *msg = _("GNU GRUB  version %s");
+  const char *msg = _("%s  version %s");
   char *msg_formatted;
   grub_uint32_t *unicode_msg;
   grub_uint32_t *last_position;
 
   grub_term_cls (term);
 
-  msg_formatted = grub_xasprintf (msg, PACKAGE_VERSION);
+  msg_formatted = grub_xasprintf (msg, PACKAGE_NAME, PACKAGE_VERSION);
   if (!msg_formatted)
     return;
 

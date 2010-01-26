@@ -21,11 +21,11 @@ transform="@program_transform_name@"
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 libdir=@libdir@
-grub_prefix=`echo /boot/grub | sed ${transform}`
-locale_dir=`echo /boot/grub/locale | sed ${transform}`
+grub_prefix=`echo /boot/burg | sed ${transform}`
+locale_dir=`echo /boot/burg/locale | sed ${transform}`
 grub_lang=`echo $LANG | cut -d _ -f 1`
 
-. ${libdir}/grub/grub-mkconfig_lib
+. ${libdir}/burg/burg-mkconfig_lib
 
 # Do this as early as possible, since other commands might depend on it.
 # (e.g. the `loadfont' command might need lvm or raid modules)
@@ -39,7 +39,7 @@ if [ "x${GRUB_TIMEOUT}" = "x" ] ; then GRUB_TIMEOUT=5 ; fi
 if [ "x${GRUB_GFXMODE}" = "x" ] ; then GRUB_GFXMODE=640x480 ; fi
 
 cat << EOF
-if [ -s \$prefix/grubenv ]; then
+if [ -s \$prefix/burgenv ]; then
   load_env
 fi
 set default="${GRUB_DEFAULT}"

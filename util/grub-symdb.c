@@ -356,7 +356,7 @@ update_mods (char *mods[], const char *dir)
       mod_name = grub_util_get_module_name (mods[0]);
       mod_path = grub_util_get_module_path (dir, mod_name);
 
-      if (! strcmp (mod_name, "grub-symdb"))
+      if (strstr (mod_name, "-symdb"))
 	{
 	  free (mod_name);
 	  free (mod_path);
@@ -790,10 +790,10 @@ static void
 usage (int status)
 {
   if (status)
-    fprintf (stderr, "Try ``grub-symdb --help'' for more information.\n");
+    fprintf (stderr, _("Try `%s --help' for more information.\n"), program_name);
   else
-    printf ("\
-Usage: grub-symdb [OPTION]... COMMAND\n\
+    printf (_("\
+Usage: %s [OPTION]... COMMAND\n\
 \n\
 Manage the symbol database of GRUB.\n\
 \nCommands:\n\
@@ -808,7 +808,7 @@ Manage the symbol database of GRUB.\n\
   -v, --verbose           print verbose messages\n\
 \n\
 Report bugs to <%s>.\n\
-", GRUB_LIBDIR, PACKAGE_BUGREPORT);
+"), program_name, GRUB_LIBDIR, PACKAGE_BUGREPORT);
 
   exit (status);
 }
@@ -821,9 +821,8 @@ main (int argc, char *argv[])
   int test_mode = 0;
 
   set_program_name (argv[0]);
-  setlocale (LC_ALL, "");
-  bindtextdomain (PACKAGE, LOCALEDIR);
-  textdomain (PACKAGE);
+
+  grub_util_init_nls ();
 
   while (1)
     {
@@ -850,7 +849,7 @@ main (int argc, char *argv[])
 	    break;
 
 	  case 'V':
-	    printf ("grub-symdb (%s) %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+	    printf ("%s (%s) %s\n", program_name, PACKAGE_NAME, PACKAGE_VERSION);
 	    return 0;
 
 	  case 'v':

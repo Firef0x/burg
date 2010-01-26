@@ -59,7 +59,7 @@ for option in "$@"; do
 	usage
 	exit 0 ;;
     -v | --version)
-	echo "$0 (GNU GRUB ${PACKAGE_VERSION})"
+	echo "$0 (${PACKAGE_NAME} ${PACKAGE_VERSION})"
 	exit 0 ;;
     --modules=*)
 	ms=`echo "$option" | sed -e 's/--modules=//'`

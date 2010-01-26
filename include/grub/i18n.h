@@ -26,7 +26,7 @@ const char *EXPORT_FUNC(grub_gettext_dummy) (const char *s);
 extern const char *(*EXPORT_VAR(grub_gettext)) (const char *s);
 
 /* NLS can be disabled through the configure --disable-nls option.  */
-#if ENABLE_NLS
+#if defined(ENABLE_NLS) && ENABLE_NLS
 
 # ifdef GRUB_UTIL
 

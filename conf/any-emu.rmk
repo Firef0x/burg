@@ -117,7 +117,7 @@ grub_mkfont_LDFLAGS = $(freetype_libs)
 endif
 
 grub_script.tab.c grub_script.tab.h: script/parser.y
-	$(YACC) -d -p grub_script_yy -b grub_script $(srcdir)/script/parser.y
+	$(call quiet-command,$(YACC) -d -p grub_script_yy -b grub_script $(srcdir)/script/parser.y,"  YACC  $@")
 DISTCLEANFILES += grub_script.tab.c grub_script.tab.h
 
 bin_UTILITIES += grub-bin2h

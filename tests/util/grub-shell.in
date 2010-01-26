@@ -60,7 +60,7 @@ for option in "$@"; do
 	usage
 	exit 0 ;;
     -v | --version)
-	echo "$0 (GNU GRUB ${PACKAGE_VERSION})"
+	echo "$0 (${PACKAGE_NAME} ${PACKAGE_VERSION})"
 	exit 0 ;;
     --modules=*)
 	ms=`echo "$option" | sed -e 's/--modules=//' -e 's/,/ /g'`
@@ -119,13 +119,13 @@ do
 done
 
 cat <<EOF >>${cfgfile}
-source /boot/grub/testcase.cfg
+source /boot/burg/testcase.cfg
 halt
 EOF
 
 isofile=`mktemp`
-grub-mkrescue --output=${isofile} --override-directory=${builddir} \
-  /boot/grub/grub.cfg=${cfgfile} /boot/grub/testcase.cfg=${source} \
+burg-mkrescue --output=${isofile} --override-directory=${builddir} \
+  /boot/burg/burg.cfg=${cfgfile} /boot/burg/testcase.cfg=${source} \
   >/dev/null 2>&1
 
 hdafile=`mktemp`

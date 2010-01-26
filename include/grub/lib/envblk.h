@@ -19,8 +19,8 @@
 #ifndef GRUB_ENVBLK_HEADER
 #define GRUB_ENVBLK_HEADER	1
 
-#define GRUB_ENVBLK_SIGNATURE	"# GRUB Environment Block\n"
-#define GRUB_ENVBLK_DEFCFG	"grubenv"
+#define GRUB_ENVBLK_SIGNATURE	"# BURG Environment Block\n"
+#define GRUB_ENVBLK_DEFCFG	"burgenv"
 
 #ifndef ASM_FILE
 

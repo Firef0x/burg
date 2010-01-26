@@ -31,7 +31,7 @@ dnl (such as TARGET_CC, TARGET_CFLAGS, etc.) are used for the target
 dnl type.
 
 
-AC_INIT([GRUB],[1.97],[bug-grub@gnu.org])
+AC_INIT([BURG],[1.98],[bean123ch@gmail.com])
 AC_PREREQ(2.60)
 AC_CONFIG_SRCDIR([include/grub/dl.h])
 AC_CONFIG_HEADER([config.h])
@@ -688,7 +688,7 @@ AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_OUTPUT
 [
 echo "*******************************************************"
-echo GRUB2 will be compiled with following components:
+echo BURG will be compiled with following components:
 echo Platform: "$target_cpu"-"$platform"
 if [ x"$platform" = xemu ]; then
 if [ x"$grub_emu_usb_excuse" = x ]; then

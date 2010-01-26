@@ -78,7 +78,7 @@ grub_cmd_normal (struct grub_command *cmd __attribute__ ((unused)),
       prefix = grub_env_get ("prefix");
       if (prefix)
 	{
-	  config = grub_xasprintf ("%s/grub.cfg", prefix);
+	  config = grub_xasprintf ("%s/burg.cfg", prefix);
 	  if (! config)
 	    goto quit;
 
