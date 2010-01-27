@@ -26,12 +26,14 @@
 #include <grub/video.h>
 #include <grub/i386/relocator16.h>
 #include <grub/machine/biosnum.h>
+#include <grub/disk.h>
+#include <grub/partition.h>
 
 static grub_dl_t my_mod;
 
 static char *relocator;
 static grub_uint32_t dest;
-static struct grub_relocator32_state state;
+static struct grub_relocator32_state rstate;
 
 static int ibuf_pos, obuf_max;
 static char *ibuf_ptr, *obuf_ptr, *obuf;
@@ -248,7 +250,7 @@ static grub_err_t
 grub_loadbin_boot (void)
 {
   grub_video_set_mode ("text", 0, 0);
-  return grub_relocator16_boot (relocator, dest, state);
+  return grub_relocator16_boot (relocator, dest, rstate);
 }
 
 static int
@@ -268,6 +270,25 @@ get_drive_number (void)
     }
 
   return drive | ((part & 0xff) << 8);
+}
+
+static void
+read_bpb (void)
+{
+  grub_device_t dev;
+
+  dev = grub_device_open (0);
+  if (dev && dev->disk)
+    {
+      char *p = (char *) 0x7c00;
+
+      grub_disk_read (dev->disk, 0, 0, 512, p);
+      *((grub_uint32_t *) (p + 0x1c)) = (dev->disk->partition) ?
+	grub_partition_get_start (dev->disk->partition) : 0;
+    }
+
+  if (dev)
+    grub_device_close (dev);
 }
 
 static grub_err_t
@@ -313,17 +334,18 @@ grub_cmd_loadbin (grub_command_t cmd, int argc, char *argv[])
 
   if (cmd->name[0] == 'n')
     {
+      read_bpb ();
       dest = 0x20000;
-      state.esp = 0x7000;
-      state.eip = 0x20000000;
-      state.edx = get_drive_number ();
+      rstate.esp = 0x7000;
+      rstate.eip = 0x20000000;
+      rstate.edx = get_drive_number ();
     }
   else if (cmd->name[0] == 'f')
     {
       dest = 0x600;
-      state.esp = 0x400;
-      state.eip = 0x600000;
-      state.ebx = get_drive_number ();
+      rstate.esp = 0x400;
+      rstate.eip = 0x600000;
+      rstate.ebx = get_drive_number ();
     }
   else if (cmd->name[0] == 'm')
     {
@@ -343,9 +365,9 @@ grub_cmd_loadbin (grub_command_t cmd, int argc, char *argv[])
 	  grub_memcpy (relocator, obuf, ns);
 	}
       dest = 0x700;
-      state.esp = 0x400;
-      state.eip = 0x700000;
-      state.edx = get_drive_number ();
+      rstate.esp = 0x400;
+      rstate.eip = 0x700000;
+      rstate.edx = get_drive_number ();
     }
 
   if (grub_errno == GRUB_ERR_NONE)
