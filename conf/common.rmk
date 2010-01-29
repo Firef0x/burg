@@ -259,6 +259,20 @@ grub-reboot: util/grub-reboot.in config.status
 sbin_SCRIPTS += grub-reboot
 CLEANFILES += grub-reboot
 
+# For grub-adduser.
+grub-adduser: util/grub-adduser.in config.status
+	./config.status --file=$@:$<
+	chmod +x $@
+sbin_SCRIPTS += grub-adduser
+CLEANFILES += grub-adduser
+
+# For grub-deluser.
+grub-deluser: util/grub-deluser.in config.status
+	./config.status --file=$@:$<
+	chmod +x $@
+sbin_SCRIPTS += grub-deluser
+CLEANFILES += grub-deluser
+
 # Filing systems.
 pkglib_MODULES += fshelp.mod fat.mod ufs1.mod ufs2.mod ext2.mod ntfs.mod \
 	ntfscomp.mod minix.mod hfs.mod jfs.mod iso9660.mod xfs.mod	\

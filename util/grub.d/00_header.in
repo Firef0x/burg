@@ -24,6 +24,8 @@ libdir=@libdir@
 grub_prefix=`echo /boot/burg | sed ${transform}`
 locale_dir=`echo /boot/burg/locale | sed ${transform}`
 grub_lang=`echo $LANG | cut -d _ -f 1`
+sysconfdir=@sysconfdir@
+pass_file=${sysconfdir}/default/burg-passwd
 
 . ${libdir}/burg/burg-mkconfig_lib
 
@@ -37,6 +39,14 @@ if [ "x${GRUB_DEFAULT}" = "x" ] ; then GRUB_DEFAULT=0 ; fi
 if [ "x${GRUB_DEFAULT}" = "xsaved" ] ; then GRUB_DEFAULT='${saved_entry}' ; fi
 if [ "x${GRUB_TIMEOUT}" = "x" ] ; then GRUB_TIMEOUT=5 ; fi
 if [ "x${GRUB_GFXMODE}" = "x" ] ; then GRUB_GFXMODE=640x480 ; fi
+
+if test "x${GRUB_USERS}" != "x" ; then
+  if test ! -r $pass_file ; then
+    echo "Password file not found" >&2 ; exit 1
+  fi
+
+  awk -F: 'BEGIN {super=""} {print "password_" $3,$1,$4; if ($2=="s") super=super $1 ",";} END {if (super=="") exit 1; else print "set superusers=" super;}' $pass_file || { echo "No superuser is found" >&2 ; exit 1; }
+fi
 
 cat << EOF
 if [ -s \$prefix/burgenv ]; then

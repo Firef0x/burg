@@ -188,3 +188,29 @@ version_find_latest ()
   done
   echo "$a"
 }
+
+get_fold_option ()
+{
+  if [ -n "${GRUB_FOLD}" ]; then
+    if [ -z "${FOLD_OPTION}" ]; then
+      FOLD_OPTION="--submenu menu_$1 "
+    else
+      FOLD_OPTION="--menu menu_$1 "
+    fi
+  fi
+}
+
+get_auth_option ()
+{
+  local a=
+  AUTH_OPTION=
+  if [ -n "${GRUB_USERS}" ]; then
+    a=`echo :${GRUB_USERS}: | sed "s,.*:$1=\([^:]*\):.*,\1,"`
+    if [ "x$a" = "x:${GRUB_USERS}:" ]; then
+      a=${GRUB_USERS_ALL}
+    fi
+    if [ -n "${a}" ]; then
+      AUTH_OPTION="--users \"${a}\" "
+    fi
+  fi
+}

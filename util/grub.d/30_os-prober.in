@@ -88,6 +88,9 @@ EOF
 EOF
 }
 
+export AUTH_OPTION
+export FOLD_OPTION
+
 for OS in ${OSPROBED} ; do
   DEVICE="`echo ${OS} | cut -d ':' -f 1`"
   LONGNAME="`echo ${OS} | cut -d ':' -f 2 | tr '^' ' '`"
@@ -98,6 +101,7 @@ for OS in ${OSPROBED} ; do
   if [ -z "${OSLABEL}" ] ; then
     OSLABEL="Unknown";
   fi
+  get_auth_option ${OSLABEL}
 
   if [ -z "${LONGNAME}" ] ; then
     LONGNAME="${LABEL}"
@@ -151,16 +155,9 @@ EOF
 	  LINITRD="${LINITRD#/boot}"
 	fi
 
-        if [ -n "${GRUB_FOLD}" ]; then
-          if [ -z "${FOLD_OPTION}" ]; then
-            FOLD_OPTION="--submenu menu_${OSLABEL} "
-          else
-            FOLD_OPTION="--menu menu_${OSLABEL} "
-          fi
-        fi
-
+	get_fold_option ${OSLABEL}
         cat << EOF
-menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} ${FOLD_OPTION}{
+menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} ${AUTH_OPTION}${FOLD_OPTION}{
 EOF
 	save_default_entry | sed -e "s/^/\t/"
 	if [ -z "${prepare_boot_cache}" ]; then

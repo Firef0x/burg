@@ -27,8 +27,18 @@
 #include <string.h>
 #include <getopt.h>
 #include <getline.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "progname.h"
+
+#ifndef O_BINARY
+#define O_BINARY	0
+#endif
+
+#ifndef O_NONBLOCK
+#define O_NONBLOCK	0
+#endif
 
 /* Few functions to make crypto happy.  */
 void *
@@ -66,6 +76,7 @@ static struct option options[] =
     {"iteration_count", required_argument, 0, 'c'},
     {"buflen", required_argument, 0, 'l'},
     {"saltlen", required_argument, 0, 's'},
+    {"output", required_argument, 0, 'o'},
     {"help", no_argument, 0, 'h'},
     {"version", no_argument, 0, 'V'},
   };
@@ -79,6 +90,7 @@ usage (int status)
     printf ("\
 Usage: %s [OPTIONS]\n\
 \nOptions:\n\
+     -o FILE, --output=FILE               File to store the password\n\
      -c number, --iteration-count=number  Number of PBKDF2 iterations\n\
      -l number, --buflen=number           Length of generated hash\n\
      -s number, --salt=number             Length of salt\n\
@@ -278,6 +290,7 @@ main (int argc, char *argv[])
   char *bufhex, *salthex;
   gcry_err_code_t gcry_err;
   grub_uint8_t *buf, *salt;
+  char *output = NULL;
 
   set_program_name (argv[0]);
 
@@ -286,7 +299,7 @@ main (int argc, char *argv[])
   /* Check for options.  */
   while (1)
     {
-      int c = getopt_long (argc, argv, "c:l:s:hvV", options, 0);
+      int c = getopt_long (argc, argv, "c:l:s:o:hvV", options, 0);
 
       if (c == -1)
 	break;
@@ -304,6 +317,13 @@ main (int argc, char *argv[])
 	case 's':
 	  saltlen = strtoul (optarg, NULL, 0);
 	  break;
+
+	case 'o':
+	    if (output)
+	      free (output);
+
+	    output = xstrdup (optarg);
+	    break;
 
 	case 'h':
 	  usage (0);
@@ -360,13 +380,15 @@ main (int argc, char *argv[])
 #else
 #if ! defined (__linux__) && ! defined (__FreeBSD__)
   printf ("WARNING: your random generator isn't known to be secure\n");
+#else
 #endif
 
   {
-    FILE *f;
-    size_t rd;
-    f = fopen ("/dev/random", "rb");
-    if (!f)
+    int fd, rd, len, first;
+    grub_uint8_t *ptr;
+
+    fd = open ("/dev/random", O_RDONLY | O_BINARY | O_NONBLOCK);
+    if (fd < 0)
       {
 	memset (pass1, 0, strlen (pass1));
 	free (pass1);
@@ -374,23 +396,48 @@ main (int argc, char *argv[])
 	free (bufhex);
 	free (salthex);
 	free (salt);
-	fclose (f);
 	grub_util_error ("couldn't retrieve random data for salt");
       }
-    rd = fread (salt, 1, saltlen, f);
-    if (rd != saltlen)
+
+    ptr = salt;
+    len = saltlen;
+    first = 1;
+    while (len > 0)
       {
-	fclose (f);
-	memset (pass1, 0, strlen (pass1));
-	free (pass1);
-	free (buf);
-	free (bufhex);
-	free (salthex);
-	free (salt);
-	fclose (f);
-	grub_util_error ("couldn't retrieve random data for salt");
+	rd = read (fd, ptr, len);
+	if ((rd < 0) && (errno != EAGAIN))
+	  {
+	    close (fd);
+	    memset (pass1, 0, strlen (pass1));
+	    free (pass1);
+	    free (buf);
+	    free (bufhex);
+	    free (salthex);
+	    free (salt);
+	    grub_util_error ("couldn't retrieve random data for salt");
+	  }
+
+	if (rd == len)
+	  break;
+	else if (first)
+	  {
+	    int flags;
+
+	    printf ("Please do some other work (type on keyboard, move mouse, etc)"
+		    "\nto give the OS a chance to collect more entropy.\n");
+	    first = 0;
+	    flags = fcntl (fd, F_GETFL);
+	    flags &= ~O_NONBLOCK;
+	    fcntl (fd, F_SETFL, flags);
+	  }
+
+	if (rd > 0)
+	  {
+	    ptr += rd;
+	    len -= rd;
+	  }
       }
-    fclose (f);
+    close (fd);
   }
 #endif
 
@@ -417,7 +464,31 @@ main (int argc, char *argv[])
   hexify (bufhex, buf, buflen);
   hexify (salthex, salt, saltlen);
 
-  printf ("Your PBKDF2 is grub.pbkdf2.sha512.%d.%s.%s\n", c, salthex, bufhex);
+  if (output)
+    {
+      FILE *fp;
+      fp = fopen (output, "wb");
+      if (! fp)
+	{
+	  memset (buf, 0, buflen);
+	  memset (bufhex, 0, 2 * buflen);
+	  free (buf);
+	  free (bufhex);
+	  memset (salt, 0, saltlen);
+	  memset (salthex, 0, 2 * saltlen);
+	  free (salt);
+	  free (salthex);
+	  grub_util_error ("cannot open %s", output);
+	}
+      else
+	{
+	  fprintf (fp, "grub.pbkdf2.sha512.%d.%s.%s", c, salthex, bufhex);
+	  fclose (fp);
+	}
+      free  (output);
+    }
+  else
+    printf ("Your PBKDF2 is grub.pbkdf2.sha512.%d.%s.%s\n", c, salthex, bufhex);
   memset (buf, 0, buflen);
   memset (bufhex, 0, 2 * buflen);
   free (buf);
