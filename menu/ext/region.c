@@ -20,7 +20,6 @@
 #include <grub/misc.h>
 #include <grub/tree.h>
 #include <grub/menu_region.h>
-#include <grub/parser.h>
 
 GRUB_EXPORT(grub_menu_region_class);
 GRUB_EXPORT(grub_menu_region_create_text);
@@ -96,8 +95,6 @@ grub_menu_region_create_bitmap (const char *name, int scale,
   grub_menu_region_bitmap_t region = 0;
   struct grub_video_bitmap *bitmap;
   grub_bitmap_cache_t cache = 0;
-  char **argv = 0;
-  int argc;
 
   if (! grub_cur_menu_region->get_bitmap)
     return 0;
@@ -106,13 +103,7 @@ grub_menu_region_create_bitmap (const char *name, int scale,
   if (! region)
     return 0;
 
-  if (grub_parser_split_cmdline (name, 0, 0, &argc, &argv))
-    return 0;
-
-  if (argv[0] == 0)
-    goto quit;
-
-  cache = grub_named_list_find (GRUB_AS_NAMED_LIST (cache_head), argv[0]);
+  cache = grub_named_list_find (GRUB_AS_NAMED_LIST (cache_head), name);
   if (cache)
     bitmap = cache->bitmap;
   else
@@ -121,16 +112,16 @@ grub_menu_region_create_bitmap (const char *name, int scale,
       if (! cache)
 	goto quit;
 
-      bitmap = grub_cur_menu_region->get_bitmap (argv[0]);
+      bitmap = grub_cur_menu_region->get_bitmap (name);
+
       if (! bitmap)
 	goto quit;
 
       cache->bitmap = bitmap;
-      cache->name = grub_strdup (argv[0]);
+      cache->name = grub_strdup (name);
       grub_list_push (GRUB_AS_LIST_P (&cache_head), GRUB_AS_LIST (cache));
     }
 
-  grub_free (argv);
   cache->count++;
   region->common.type = GRUB_MENU_REGION_TYPE_BITMAP;
   region->common.width = bitmap->mode_info.width;
@@ -142,7 +133,6 @@ grub_menu_region_create_bitmap (const char *name, int scale,
   return region;
 
  quit:
-  grub_free (argv);
   grub_free (region);
   grub_free (cache);
   return 0;

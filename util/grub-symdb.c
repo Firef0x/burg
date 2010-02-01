@@ -657,11 +657,21 @@ update_lists (char *dir, char *name, int is_moddep, int has_value)
   struct stat st;
   char *path, *image;
   struct grub_update_list *u;
-  char buf[strlen(name) + 5];
+  char buf[strlen(name) + 5];  
 
   sprintf (buf, "%s.lst", name);
   path = grub_util_get_path (dir, buf);
-  image = (stat (path, &st) == 0) ? grub_util_read_image (path) : 0;
+  if (stat (path, &st) == 0)
+    {
+      int size;
+
+      size = grub_util_get_image_size (path);
+      image = xmalloc (size + 1);
+      grub_util_load_image (path, image);
+      image[size] = 0;
+    }
+  else
+    image = 0;
 
   fp = fopen (path, "w");
   if (! fp)

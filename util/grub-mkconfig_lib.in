@@ -189,17 +189,6 @@ version_find_latest ()
   echo "$a"
 }
 
-get_fold_option ()
-{
-  if [ -n "${GRUB_FOLD}" ]; then
-    if [ -z "${FOLD_OPTION}" ]; then
-      FOLD_OPTION="--submenu menu_$1 "
-    else
-      FOLD_OPTION="--menu menu_$1 "
-    fi
-  fi
-}
-
 get_auth_option ()
 {
   local a=

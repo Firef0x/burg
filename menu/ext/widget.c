@@ -241,11 +241,13 @@ get_direction (grub_uitree_t node, int *horizontal, int *reverse)
     }
 }
 
+static int screen_width, screen_height;
+
 static void
 adjust_layout (grub_widget_t widget, int calc_mode)
 {
   grub_uitree_t node;
-  int space, extra, count, width, height;
+  int space, extra, count, width, height, max_items, index, max_width, max_height;
   int horizontal, reverse;
   char *p;
 
@@ -254,11 +256,17 @@ adjust_layout (grub_widget_t widget, int calc_mode)
   p = grub_widget_get_prop (node, "space");
   space = (p) ? grub_menu_parse_size (p, 0, 1) : 0;
 
+  p = grub_widget_get_prop (node, "max_items");
+  max_items = (p) ? grub_strtoul (p, 0, 0) : 0;
+
   get_direction (node, &horizontal, &reverse);
 
   width = 0;
   height = 0;
   count = 0;
+  index = 0;
+  max_width = screen_width;
+  max_height = screen_height;
   for (node = node->child; node; node = node->next)
     {
       grub_widget_t child;
@@ -298,6 +306,21 @@ adjust_layout (grub_widget_t widget, int calc_mode)
 	  node->flags |= GRUB_WIDGET_FLAG_EXTEND;
 	  count++;
 	}
+
+      index++;
+      if (index == max_items)
+	{
+	  if (horizontal)
+	    {
+	      if (width - space < max_width)
+		max_width = width - space;
+	    }
+	  else
+	    {
+	      if (height - space < max_height)
+		max_height = height - space;
+	    }
+	}
     }
 
   if (horizontal)
@@ -315,7 +338,7 @@ adjust_layout (grub_widget_t widget, int calc_mode)
   if (calc_mode)
     {
       init_size (widget, 1);
-      
+
       if (! (node->flags & GRUB_WIDGET_FLAG_FIXED_WIDTH))
 	{
 	  p = grub_widget_get_prop (node, "max_width");
@@ -327,6 +350,9 @@ adjust_layout (grub_widget_t widget, int calc_mode)
 	      if (width > w)
 		width = w;
 	    }
+
+	  if (width > max_width)
+	    width = max_width;
 
 	  p = grub_widget_get_prop (node, "min_width");
 	  if (p)
@@ -352,6 +378,9 @@ adjust_layout (grub_widget_t widget, int calc_mode)
 	      if (height > h)
 		height = h;
 	    }
+
+	  if (height > max_height)
+	    height = max_height;
 
 	  p = grub_widget_get_prop (node, "min_height");
 	  if (p)
@@ -515,22 +544,23 @@ grub_widget_init (grub_uitree_t node)
 {
   grub_uitree_t child;
 
+  grub_menu_region_get_screen_size (&screen_width, &screen_height);
+
   init_widget (node);
 
   init_size (node->data, 0);
   child = node;
   while (child)
     {
-      grub_widget_t parent;
       grub_widget_t widget;
 
       widget = child->data;
       widget->inner_width = widget->width;
       widget->inner_height = widget->height;
 
-      parent = child->parent->data;
-      if (parent)
+      if (child->parent)
 	{
+	  grub_widget_t parent = child->parent->data;
 	  widget->org_x = parent->org_x + parent->inner_x + widget->x;
 	  widget->org_y = parent->org_y + parent->inner_y + widget->y;
 	}
@@ -753,7 +783,7 @@ grub_widget_scroll (grub_uitree_t node)
       int dx;
       int dy;
 
-      if ((! node->parent) || (! node->parent->data))
+      if (! node->parent)
 	break;
 
       parent = node->parent->data;
@@ -958,7 +988,7 @@ change_node (grub_uitree_t prev, grub_uitree_t node)
   grub_uitree_t dyn_prev, dyn_node;
 
   child = node;
-  while (child->data)
+  while (child)
     {
       child->flags |= GRUB_WIDGET_FLAG_MARKED;
       child = child->parent;
@@ -975,7 +1005,7 @@ change_node (grub_uitree_t prev, grub_uitree_t node)
     }
 
   child = node;
-  while (child->data)
+  while (child)
     {
       child->flags &= ~GRUB_WIDGET_FLAG_MARKED;
       child = child->parent;
@@ -1056,11 +1086,11 @@ find_prev_node (grub_uitree_t anchor, grub_uitree_t node)
 }
 
 static grub_uitree_t
-run_dir_cmd (char *name)
+run_dir_cmd (char *name, grub_uitree_t current_node)
 {
   grub_uitree_t root, next, node, anchor, save;
 
-  root = grub_widget_current_node;
+  root = current_node;
   anchor = 0;
   while (root)
     {
@@ -1083,7 +1113,7 @@ run_dir_cmd (char *name)
   else
     {
       save = 0;
-      node = grub_widget_current_node;
+      node = current_node;
     }
 
   next = (name[3] == 'n') ? find_next_node (anchor, node) :
@@ -1181,37 +1211,6 @@ check_timeout (grub_uitree_t root, int *key)
   return 1;
 }
 
-static void
-save_default (void)
-{
-  char *p, *parm, *index, *save;
-  int savedefault;
-
-  p = grub_env_get ("savedefault");
-  savedefault = ((p) && (*p == '1'));
-
-  parm = grub_uitree_get_prop (grub_widget_current_node, "parameters");
-  index = grub_dialog_get_parm (grub_widget_current_node, parm, "index");
-  if (! index)    
-    return;
-
-  grub_env_set ("chosen", index);
-
-  save = grub_dialog_get_parm (grub_widget_current_node, parm, "save");
-  if (save)
-    savedefault = (*save == '1');
-
-  if (savedefault)
-    {
-      char *args[1];
-
-      args[0] = "default";
-      grub_env_set ("default", index);
-      grub_command_execute ("save_env", 1, args);
-      grub_errno = 0;
-    }
-}
-
 int
 grub_widget_input (grub_uitree_t root, int nested)
 {
@@ -1291,7 +1290,7 @@ grub_widget_input (grub_uitree_t root, int nested)
 	    {
 	      grub_uitree_t next;
 
-	      next = run_dir_cmd (cmd);
+	      next = run_dir_cmd (cmd, grub_widget_current_node);
 	      if (next)
 		{
 		  grub_widget_select_node (grub_widget_current_node, 0);
@@ -1302,14 +1301,69 @@ grub_widget_input (grub_uitree_t root, int nested)
 		  grub_widget_current_node = next;
 		}
 	    }
+	  else if (! grub_memcmp (cmd, "ui_next_class", 13))
+	    {
+	      char *class = cmd + 13;
+
+	      while (*class == ' ')
+		class++;
+
+	      if (! *class)
+		{
+		  char *parm;
+		  parm = grub_uitree_get_prop (grub_widget_current_node,
+					       "parameters");
+		  class = grub_dialog_get_parm (grub_widget_current_node,
+						parm, "class");
+		}
+	      if (class)
+		{
+		  grub_uitree_t cur, next;
+
+		  cur = grub_widget_current_node;
+		  while (1)
+		    {
+		      char *parm, *ncls;
+
+		      next = run_dir_cmd ("ui_next_node", cur);
+		      if ((! next) || (next == grub_widget_current_node))
+			break;
+
+		      parm = grub_uitree_get_prop (next, "parameters");
+		      ncls = grub_dialog_get_parm (next, parm, "class");
+		      if ((ncls) && (! grub_strcmp (class, ncls)))
+			{
+			  grub_widget_select_node (grub_widget_current_node,
+						   0);
+			  grub_widget_select_node (next, 1);
+
+			  if (init)
+			    change_node (grub_widget_current_node, next);
+			  grub_widget_current_node = next;
+			  break;
+			}
+		      cur = next;
+		    }
+		}
+	    }
 	  else
 	    {
 	      int r;
 
 	      if ((! c) && (! nested))
-		save_default ();
+		{
+		  char *index;
+
+		  index = grub_uitree_get_prop (grub_widget_current_node,
+						"index");
+		  if (index)
+		    grub_env_set ("chosen", index);
+		}
 
 	      r = grub_parser_execute (cmd);
+
+	      if (grub_errno == GRUB_ERR_MENU_REFRESH)
+		return grub_errno;
 
 	      if (grub_errno == GRUB_ERR_NONE && grub_loader_is_loaded ())
 		grub_command_execute ("boot", 0, 0);
@@ -1341,6 +1395,9 @@ grub_widget_input (grub_uitree_t root, int nested)
 	      int r;
 
 	      r = widget->class->onkey (widget, c);
+	      if (r == GRUB_ERR_MENU_REFRESH)
+		return r;
+
 	      if ((r >= 0) && (nested))
 		return r;
 	      else if (r == GRUB_WIDGET_RESULT_SKIP)

@@ -89,7 +89,6 @@ EOF
 }
 
 export AUTH_OPTION
-export FOLD_OPTION
 
 for OS in ${OSPROBED} ; do
   DEVICE="`echo ${OS} | cut -d ':' -f 1`"
@@ -136,7 +135,6 @@ EOF
     linux)
       LINUXPROBED="`linux-boot-prober ${DEVICE} 2> /dev/null | tr ' ' '^' | paste -s -d ' '`"
       prepare_boot_cache=
-      FOLD_OPTION=
 
       for LINUX in ${LINUXPROBED} ; do
         LROOT="`echo ${LINUX} | cut -d ':' -f 1`"
@@ -155,9 +153,8 @@ EOF
 	  LINITRD="${LINITRD#/boot}"
 	fi
 
-	get_fold_option ${OSLABEL}
         cat << EOF
-menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} ${AUTH_OPTION}${FOLD_OPTION}{
+menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} --group group_${DEVICE} ${AUTH_OPTION}{
 EOF
 	save_default_entry | sed -e "s/^/\t/"
 	if [ -z "${prepare_boot_cache}" ]; then

@@ -17,17 +17,19 @@
  */
 
 #include <grub/mm.h>
+#include <grub/env.h>
 #include <grub/misc.h>
 #include <grub/file.h>
 #include <grub/uitree.h>
+#include <grub/parser.h>
 
 GRUB_EXPORT (grub_uitree_dump);
 GRUB_EXPORT (grub_uitree_find);
 GRUB_EXPORT (grub_uitree_find_id);
 GRUB_EXPORT (grub_uitree_create_node);
-GRUB_EXPORT (grub_uitree_load);
 GRUB_EXPORT (grub_uitree_load_string);
 GRUB_EXPORT (grub_uitree_load_file);
+GRUB_EXPORT (grub_uitree_clone);
 GRUB_EXPORT (grub_uitree_free);
 GRUB_EXPORT (grub_uitree_root);
 GRUB_EXPORT (grub_uitree_set_prop);
@@ -44,13 +46,15 @@ struct grub_uitree grub_uitree_root;
 #define TOKEN_TYPE_RBRACKET	4
 
 static int
-read_token (char *buf, char *pre, int size, int *count)
+read_token (char *buf, char *pre, int size, int *count, int *subst)
 {
   int escape = 0;
   int string = 0;
   int comment = 0;
+  int prefix = 0;
   int pos = 0, ofs = 0;
 
+  *subst = 0;
   *count = 0;
   if (*pre)
     {
@@ -111,6 +115,18 @@ read_token (char *buf, char *pre, int size, int *count)
 		  continue;
 		}
 	    }
+
+	  if (c == '$')
+	    {
+	      prefix++;
+	      if (prefix == 2)
+		{
+		  (*subst)++;
+		  prefix = 0;
+		}
+	    }
+	  else
+	    prefix = 0;
 	}
       else
 	{
@@ -243,218 +259,11 @@ grub_uitree_create_node (const char *name)
   return n;
 }
 
-grub_uitree_t
-grub_uitree_load (char *buf, int size, int *ret)
-{
-  int type, count;
-  char pre, *save;
-  grub_uitree_t node;
-
-  save = buf;
-  node = 0;
-  pre = 0;
-  while ((type = read_token (buf, &pre, size, &count)) != TOKEN_TYPE_ERROR)
-    {
-      if (type == TOKEN_TYPE_STRING)
-	{
-	  char *str;
-
-	  str = buf;
-	  buf += count;
-	  size -= count;
-	  type = read_token (buf, &pre, size, &count);
-	  buf += count;
-	  size -= count;
-	  if (type == TOKEN_TYPE_EQUAL)
-	    {
-	      if (! node)
-		break;
-
-	      if (read_token (buf, &pre, size, &count) != TOKEN_TYPE_STRING)
-		break;
-
-	      if (grub_uitree_set_prop (node, str, buf))
-		break;
-
-	      buf += count;
-	      size -= count;
-	    }
-	  else if (type == TOKEN_TYPE_LBRACKET)
-	    {
-	      grub_uitree_t n;
-
-	      n = grub_uitree_create_node (str);
-	      if (! n)
-		break;
-
-	      if (node)
-		{
-		  grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (n),
-				       -1);
-		  node = n;
-		}
-	      else
-		node = n;
-	    }
-	  else
-	    break;
-	}
-      else if (type == TOKEN_TYPE_RBRACKET)
-	{
-	  buf += count;
-	  size -= count;
-	  if (! node->parent)
-	    {
-	      *ret = buf - save;
-	      return node;
-	    }
-
-	  node = node->parent;
-	}
-      else
-	break;
-    }
-
-  grub_uitree_free (node);
-  return 0;
-}
-
-grub_uitree_t
-grub_uitree_load_string (grub_uitree_t root, char *buf, int method)
-{
-  grub_uitree_t first = 0;
-  int size;
-
-  size = grub_strlen (buf);
-  while (1)
-    {
-      grub_uitree_t node;
-      int count;
-
-      node = grub_uitree_load (buf, size, &count);
-      if (! node)
-	break;
-
-      buf += count;
-      size -= count;
-
-      if (method <= GRUB_UITREE_LOAD_METHOD_APPEND)
-	{
-	  if (! first)
-	    first = node;
-	}
-      else
-	{
-	  grub_uitree_t pre;
-
-	  pre = grub_uitree_find (root, node->name);
-	  if (pre)
-	    {
-	      if (pre->data)
-		{
-		  grub_uitree_free (node);
-		  continue;
-		}
-
-	      if (method == GRUB_UITREE_LOAD_METHOD_MERGE)
-		{
-		  grub_uitree_t child, last;
-		  grub_uiprop_t prop;
-
-		  prop = node->prop;
-		  while (prop)
-		    {
-		      grub_uiprop_t *ptr, cur, next;
-
-		      next = 0;
-		      ptr = &pre->prop;
-		      while (*ptr)
-			{
-			  if (! grub_strcmp ((*ptr)->name, prop->name))
-			    {
-			      next = (*ptr)->next;
-			      grub_free (*ptr);
-			      break;
-			    }
-			  ptr = &((*ptr)->next);
-			}
-
-		      cur = prop;
-		      prop = prop->next;
-		      cur->next = next;
-		      *ptr = cur;
-		    }
-
-		  last = 0;
-		  child = node->child;
-		  while (child)
-		    {
-		      grub_uitree_t c;
-
-		      c = child;
-		      child = child->next;
-		      if (last)
-			grub_tree_add_sibling (GRUB_AS_TREE (last),
-					       GRUB_AS_TREE (c));
-		      else
-			grub_tree_add_child (GRUB_AS_TREE (pre),
-					     GRUB_AS_TREE (c), -1);
-		      last = c;
-		    }
-
-		  grub_free (node);
-		  continue;
-		}
-	      grub_tree_remove_node (GRUB_AS_TREE (pre));
-	      grub_uitree_free (pre);
-	    }
-	}
-      grub_tree_add_child (GRUB_AS_TREE (root), GRUB_AS_TREE (node), -1);
-      if (method == GRUB_UITREE_LOAD_METHOD_SINGLE)
-	break;
-    }
-
-  return first;
-}
-
-grub_uitree_t
-grub_uitree_load_file (grub_uitree_t root, const char *name, int method)
-{
-  grub_uitree_t result = 0;
-  grub_file_t file;
-  int size;
-
-  file = grub_file_open (name);
-  if (! file)
-    return 0;
-
-  size = file->size;
-  if (size)
-    {
-      char *buf;
-
-      buf = grub_malloc (size + 1);
-      if (buf)
-	{
-	  grub_file_read (file, buf, size);
-	  buf[size] = 0;
-	  result = grub_uitree_load_string (root, buf, method);
-	}
-      grub_free (buf);
-    }
-  grub_file_close (file);
-
-  return result;
-}
-
-void
-grub_uitree_free (grub_uitree_t node)
+static void
+grub_uitree_reset_node (grub_uitree_t node)
 {
   grub_uitree_t child;
   grub_uiprop_t p;
-
-  if (! node)
-    return;
 
   child = node->child;
   while (child)
@@ -465,6 +274,7 @@ grub_uitree_free (grub_uitree_t node)
       child = child->next;
       grub_uitree_free (c);
     }
+  node->child = 0;
 
   p = node->prop;
   while (p)
@@ -475,8 +285,310 @@ grub_uitree_free (grub_uitree_t node)
       p = p->next;
       grub_free (c);
     }
+  node->prop = 0;
+}
 
-  grub_free (node);
+grub_uitree_t
+grub_uitree_clone (grub_uitree_t node)
+{
+  grub_uitree_t n, child;
+  grub_uiprop_t *ptr, prop;
+
+  n = grub_uitree_create_node (node->name);
+  if (! n)
+    return 0;
+
+  ptr = &n->prop;
+  prop = node->prop;
+  while (prop)
+    {
+      grub_uiprop_t p;
+      int len;
+
+      len = (prop->value - (char *) prop) + grub_strlen (prop->value) + 1;
+      p = grub_malloc (len);
+      if (! p)
+	{
+	  grub_uitree_free (n);
+	  return 0;
+	}
+      grub_memcpy (p, prop, len);
+      *ptr = p;
+      ptr = &(p->next);
+      prop = prop->next;
+    }
+
+  child = node->child;
+  while (child)
+    {
+      grub_uitree_t c;
+
+      c = grub_uitree_clone (child);
+      if (! c)
+	{
+	  grub_uitree_free (n);
+	  return 0;
+	}
+      grub_tree_add_child (GRUB_AS_TREE (n), GRUB_AS_TREE (c), -1);
+      child = child->next;
+    }
+
+  return n;
+}
+
+#define METHOD_APPEND	0
+#define METHOD_MERGE	1
+#define METHOD_REPLACE	2
+
+static grub_uitree_t
+grub_uitree_load_buf (const char *prefix, int prefix_len, grub_uitree_t root,
+		      char *buf, int size, int flags)
+{
+  int type, count, sub;
+  char pre, *save;
+  grub_uitree_t node;
+  
+  node = root;
+  save = buf;
+  pre = 0;
+  while ((type = read_token (buf, &pre, size, &count, &sub))
+	 != TOKEN_TYPE_ERROR)
+    {
+      if (type == TOKEN_TYPE_STRING)
+	{
+	  char *str, *str2;
+
+	  str = buf;
+	  buf += count;
+	  size -= count;
+	  type = read_token (buf, &pre, size, &count, &sub);
+	  str2 = buf;
+	  buf += count;
+	  size -= count;
+	  if (type == TOKEN_TYPE_EQUAL)
+	    {
+	      char *p;
+
+	      if (read_token (buf, &pre, size, &count, &sub)
+		  != TOKEN_TYPE_STRING)
+		break;
+
+	      if (sub)
+		{
+		  char *p1, *p2;
+		  
+		  p = grub_malloc (grub_strlen (buf) + (prefix_len - 2) * sub
+				   + 1);
+		  if (! p)
+		    break;
+
+		  p1 = buf;
+		  p2 = p;
+		  while (1)
+		    {
+		      char *t;
+
+		      t = grub_strstr (p1, "$$");
+		      if (t)
+			{
+			  grub_memcpy (p2, p1, t - p1);
+			  p2 += (t - p1);
+			  grub_memcpy (p2, prefix, prefix_len);
+			  p2 += prefix_len;
+			  p1 = t + 2;
+			}
+		      else
+			{
+			  grub_strcpy (p2, p1);
+			  break;
+			}
+		    }
+		}
+	      else
+		p = buf;		
+		
+	      if (grub_uitree_set_prop (node, str, p))
+		break;
+
+	      if (sub)
+		grub_free (p);
+
+	      buf += count;
+	      size -= count;
+	    }
+	  else if (type == TOKEN_TYPE_LBRACKET)
+	    {
+	      grub_uitree_t p;
+	      int method;
+
+	      if ((flags & GRUB_UITREE_LOAD_FLAG_ROOT) && (node == root))
+		method = METHOD_REPLACE;
+	      else
+		method = METHOD_APPEND;
+
+	      if (*str == '+')
+		{
+		  method = METHOD_MERGE;
+		  str++;
+		}
+	      else if (*str == '-')
+		{
+		  method = METHOD_REPLACE;
+		  str++;
+		}
+
+	      if (! *str)
+		break;
+
+	      if (flags & GRUB_UITREE_LOAD_FLAG_SINGLE)
+		method = METHOD_APPEND;
+
+	      p = (method == METHOD_APPEND) ? 0 : grub_uitree_find (node, str);
+	      if (p)
+		{
+		  if (method == METHOD_REPLACE)
+		    grub_uitree_reset_node (p);
+		  node = p;
+		}
+	      else
+		{
+		  grub_uitree_t n;
+
+		  n = grub_uitree_create_node (str);
+		  if (! n)
+		    break;
+
+		  grub_tree_add_child (GRUB_AS_TREE (node), GRUB_AS_TREE (n),
+				       -1);
+		  node = n;
+		}
+	    }
+	  else if ((type == TOKEN_TYPE_STRING) &&
+		   (! grub_strcmp (str, "include")))
+	    {
+	      grub_uitree_t n;
+	      int b;
+	      int pos;
+	      char *p;
+
+	      pos = prefix_len;
+	      while  ((str2[0] == '.') && (str2[1] == '.'))
+		{
+		  str2 += 2;
+		  if (*str2 == '/')
+		    str2++;
+
+		  while ((pos > 0) && (prefix[pos - 1] != '/'))
+		    pos--;
+		  if (pos > 0)
+		    pos--;
+		}
+		
+	      p = grub_malloc (pos + grub_strlen (str2) + 2);
+	      if (! p)
+		break;
+
+	      grub_memcpy (p, prefix, pos);
+	      p[pos++] = '/';
+	      grub_strcpy (p + pos, str2);
+
+	      b = (node == root) ? flags : 0;
+	      n = grub_uitree_load_file (node, p, b);
+	      grub_free (p);
+	      if (grub_errno)
+		break;
+
+	      if ((b & GRUB_UITREE_LOAD_FLAG_SINGLE) && (n != NULL))
+		return n;
+	    }
+	  else
+	    break;
+	}
+      else if (type == TOKEN_TYPE_RBRACKET)
+	{
+	  buf += count;
+	  size -= count;
+	  if (node == root)
+	    break;
+
+	  if ((flags & GRUB_UITREE_LOAD_FLAG_SINGLE) && (node->parent == root))
+	    return node;
+
+	  node = node->parent;
+	}
+      else
+	break;
+    }
+
+  return 0;
+}
+
+grub_uitree_t
+grub_uitree_load_string (grub_uitree_t root, char *buf, int flags)
+{
+  char *prefix;
+
+  prefix = grub_env_get ("prefix");
+  if (! prefix)
+    prefix = "";
+  return grub_uitree_load_buf (prefix, grub_strlen (prefix),
+			       root, buf, grub_strlen (buf), flags);
+}
+
+grub_uitree_t
+grub_uitree_load_file (grub_uitree_t root, const char *name, int flags)
+{
+  grub_uitree_t result = 0;
+  grub_file_t file;
+  int size;
+  const char *prefix;
+
+  file = grub_file_open (name);
+  if (! file)
+    return 0;
+
+  if (name[0] == '(')
+    {
+      name = grub_strchr (name, ')');
+      if (! name)
+	goto quit;
+      else
+	name++;
+    }
+  
+  prefix = grub_strrchr (name, '/');
+  if (! prefix)
+    prefix = name;
+
+  size = file->size;
+  if (size)
+    {
+      char *buf;
+
+      buf = grub_malloc (size);
+      if (buf)
+	{
+	  grub_file_read (file, buf, size);
+	  result = grub_uitree_load_buf (name, prefix - name, root,
+					 buf, size, flags);
+	}
+      grub_free (buf);
+    }
+
+ quit:
+  grub_file_close (file);
+
+  return result;
+}
+
+void
+grub_uitree_free (grub_uitree_t node)
+{
+  if (node)
+    {
+      grub_uitree_reset_node (node);
+      grub_free (node);
+    }
 }
 
 grub_err_t

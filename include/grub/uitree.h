@@ -44,20 +44,18 @@ typedef struct grub_uitree *grub_uitree_t;
 
 extern struct grub_uitree grub_uitree_root;
 
-#define GRUB_UITREE_LOAD_METHOD_SINGLE	0
-#define GRUB_UITREE_LOAD_METHOD_APPEND	1
-#define GRUB_UITREE_LOAD_METHOD_REPLACE	2
-#define GRUB_UITREE_LOAD_METHOD_MERGE	3
+#define GRUB_UITREE_LOAD_FLAG_SINGLE	1
+#define GRUB_UITREE_LOAD_FLAG_ROOT	2
 
 void grub_uitree_dump (grub_uitree_t node);
 grub_uitree_t grub_uitree_find (grub_uitree_t node, const char *name);
 grub_uitree_t grub_uitree_find_id (grub_uitree_t node, const char *name);
 grub_uitree_t grub_uitree_create_node (const char *name);
-grub_uitree_t grub_uitree_load (char *buf, int size, int *ret);
 grub_uitree_t grub_uitree_load_string (grub_uitree_t root, char *buf,
-				       int method);
+				       int flags);
 grub_uitree_t grub_uitree_load_file (grub_uitree_t root, const char *name,
-				     int method);
+				     int flags);
+grub_uitree_t grub_uitree_clone (grub_uitree_t node);
 void grub_uitree_free (grub_uitree_t node);
 grub_err_t grub_uitree_set_prop (grub_uitree_t node, const char *name,
 				 const char *value);

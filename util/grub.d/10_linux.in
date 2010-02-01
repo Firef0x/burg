@@ -35,9 +35,6 @@ else
 fi
 
 export AUTH_OPTION
-export FOLD_OPTION
-get_auth_option ${OSLABEL}
-FOLD_OPTION=
 
 # loop-AES arranges things so that /dev/loop/X can be our root device, but
 # the initrds that Linux uses don't like that.
@@ -65,8 +62,7 @@ linux_entry ()
   else
     title="$(gettext "%s, with Linux %s")"
   fi
-  get_fold_option ${OSLABEL}
-  printf "menuentry \"${title}\" --class ${OSLABEL} ${AUTH_OPTION}${FOLD_OPTION}{\n" "${os}" "${version}"
+  printf "menuentry \"${title}\" --class ${OSLABEL} --group group_main ${AUTH_OPTION}{\n" "${os}" "${version}"
   save_default_entry | sed -e "s/^/\t/"
 
   # Use ELILO's generic "efifb" when it's known to be available.

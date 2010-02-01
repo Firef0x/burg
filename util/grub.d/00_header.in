@@ -48,6 +48,10 @@ if test "x${GRUB_USERS}" != "x" ; then
   awk -F: 'BEGIN {super=""} {print "password_" $3,$1,$4; if ($2=="s") super=super $1 ",";} END {if (super=="") exit 1; else print "set superusers=" super;}' $pass_file || { echo "No superuser is found" >&2 ; exit 1; }
 fi
 
+if test "x${GRUB_THEME}" = "xsaved"; then
+  echo "set theme_name=ubuntu"
+fi
+
 cat << EOF
 if [ -s \$prefix/burgenv ]; then
   load_env
@@ -99,56 +103,80 @@ EOF
 esac
 
 if test "x${GRUB_THEME}" != "x" ; then
-  theme_base_dir=`echo ${GRUB_THEME} | sed s,/.*,,`
+  cat << EOF
+function select_menu {
+  if menu_popup -t template_popup theme_menu ; then
+    free_config template_popup template_subitem menu
+    load_config \${prefix}/themes/\${theme_name}/theme
+EOF
+  
+  if test "x${GRUB_THEME}" = "xsaved"; then
+    echo "    save_env theme_name\n    menu_refresh\n  fi\n}"
+  else
+    echo "    menu_refresh\n  fi\n}\nset theme_name=${GRUB_THEME}"
+  fi
 
   cat << EOF
-insmod coreui
-menu_region.text
-set theme_dir=\${prefix}/themes/${theme_base_dir}
+function toogle_fold {
+  if test -z \$theme_fold ; then
+    set theme_fold=1
+  else
+    set theme_fold=
+  fi
+EOF
+  
+  if test "x${GRUB_FOLD}" = "xsaved"; then
+    echo "  save_env theme_fold\n  menu_refresh\n}"
+  else
+    echo "  menu_refresh\n}"
+    if test "x${GRUB_FOLD}" = "xyes"; then
+      echo "set theme_fold=1"
+    else
+      echo "set theme_fold="
+    fi
+  fi
+  
+  echo "if test -f \${prefix}/themes/\${theme_name}/theme ; then"
+
+  cat << EOF
+  insmod coreui
+  menu_region.text
 EOF
 
-  grub_theme_dir=${grub_prefix}/themes
-  
-  for i in ${grub_theme_dir}/conf.d/* ; do
+  for i in ${grub_prefix}/themes/* ; do
+    if test -r "$i/theme"; then
+      theme_name=`echo $i | sed 's,.*/,,'`
+      echo "  load_string '+theme_menu { -${theme_name} { command=\"set theme_name=${theme_name}\" }}'"
+    fi
+  done  
+
+  for i in ${grub_prefix}/themes/conf.d/* ; do
     case "$i" in
       *~*) ;;
       *)
         if grub_file_is_not_garbage "$i" && test -r "$i" ; then
-	  echo "load_config \${prefix}/themes/conf.d/`echo $i | sed 's,.*/,,'`"
+	  echo "  load_config \${prefix}/themes/conf.d/`echo $i | sed 's,.*/,,'`"
         fi
       ;;
     esac
   done
 
-  if test -e ${grub_theme_dir}/${GRUB_THEME}/config.lst ; then
-    for i in `cat ${grub_theme_dir}/${GRUB_THEME}/config.lst` ; do
-      case "x$i" in
-        x+*)
-          echo "merge_config \${theme_dir}/`echo $i | sed s,+,,`"
-	  ;;
-	x*)
-	  echo "load_config \${theme_dir}/$i"
-	  ;;
-      esac
-    done
-  else
-    echo "Theme file not found." >&2 ; exit 1
-  fi
-
+  echo "  load_config \${prefix}/themes/\${theme_name}/theme"
+  
   case x${GRUB_TERMINAL_OUTPUT} in
     xgfxterm)
       cat << EOF
-insmod ${GRUB_VIDEO_BACKEND}
-insmod png
-insmod jpeg
-set gfxmode=${GRUB_GFXMODE}
-set gfxfont="Unifont Regular 16"
-menu_region.gfx
+  insmod ${GRUB_VIDEO_BACKEND}
+  insmod png
+  insmod jpeg
+  set gfxmode=${GRUB_GFXMODE}
+  set gfxfont="Unifont Regular 16"
+  menu_region.gfx
 EOF
     ;;
   esac
 
-  echo "controller.ext"
+  echo "  controller.ext\nfi"
   GRUB_TERMINAL_OUTPUT=
 fi
 

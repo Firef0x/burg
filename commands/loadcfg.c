@@ -40,14 +40,19 @@ grub_cmd_dump (grub_command_t cmd __attribute__ ((unused)),
 }
 
 static grub_err_t
-grub_cmd_loadcfg (grub_command_t cmd, int argc, char **args)
+grub_cmd_free (grub_command_t cmd __attribute__ ((unused)),
+	       int argc, char **args)
 {
-  int method = (cmd->name[0] == 'l') ? GRUB_UITREE_LOAD_METHOD_REPLACE :
-    GRUB_UITREE_LOAD_METHOD_MERGE;
-
   while (argc)
     {
-      grub_uitree_load_file (&grub_uitree_root, *args, method);
+      grub_uitree_t node;
+
+      node = grub_uitree_find (&grub_uitree_root, args[0]);
+      if (node)
+	{
+	  grub_tree_remove_node (GRUB_AS_TREE (node));
+	  grub_uitree_free (node);
+	}
       argc--;
       args++;
     }
@@ -55,24 +60,46 @@ grub_cmd_loadcfg (grub_command_t cmd, int argc, char **args)
   return grub_errno;
 }
 
-static grub_command_t cmd_dump, cmd_load, cmd_merge;
+static grub_err_t
+grub_cmd_loadcfg (grub_command_t cmd, int argc, char **args)
+{
+  while (argc)
+    {
+      if (cmd->name[5] == 's')
+	grub_uitree_load_string (&grub_uitree_root, *args,
+			       GRUB_UITREE_LOAD_FLAG_ROOT);
+      else
+	grub_uitree_load_file (&grub_uitree_root, *args,
+			       GRUB_UITREE_LOAD_FLAG_ROOT);
+      argc--;
+      args++;
+    }
+
+  return grub_errno;
+}
+
+static grub_command_t cmd_dump, cmd_load, cmd_str, cmd_free;
 
 GRUB_MOD_INIT(loadcfg)
 {
   cmd_dump =
     grub_register_command ("dump_config", grub_cmd_dump,
-			   "dump_config [NAME]", "Dump config section.");
+			   "dump_config [NAMES]", "Dump config section.");
+  cmd_free =
+    grub_register_command ("free_config", grub_cmd_free,
+			   "free_config [NAMES]", "Free config section.");  
   cmd_load =
     grub_register_command ("load_config", grub_cmd_loadcfg,
 			   "load_config [FILES]", "Load config file.");
-  cmd_merge =
-    grub_register_command ("merge_config", grub_cmd_loadcfg,
-			   "merge_config [FILES]", "Merge config file.");
+  cmd_str =
+    grub_register_command ("load_string", grub_cmd_loadcfg,
+			   "load_string [STRINGS]", "Load config string.");  
 }
 
 GRUB_MOD_FINI(loadcfg)
 {
   grub_unregister_command (cmd_dump);
+  grub_unregister_command (cmd_free);
   grub_unregister_command (cmd_load);
-  grub_unregister_command (cmd_merge);
+  grub_unregister_command (cmd_str);
 }

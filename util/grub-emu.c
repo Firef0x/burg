@@ -125,6 +125,7 @@ static struct option options[] =
     {"device-map", required_argument, 0, 'm'},
     {"directory", required_argument, 0, 'd'},
     {"hold", optional_argument, 0, 'H'},
+    {"disk", optional_argument, 0, 'D'},
     {"help", no_argument, 0, 'h'},
     {"version", no_argument, 0, 'V'},
     {"verbose", no_argument, 0, 'v'},
@@ -148,6 +149,7 @@ usage (int status)
       "  -d, --directory=DIR       use GRUB files in the directory DIR [default=%s]\n"
       "  -v, --verbose             print verbose messages\n"
       "  -H, --hold[=SECONDS]      wait until a debugger will attach\n"
+      "  -D, --disk                access physical disk\n"
       "  -h, --help                display this message and exit\n"
       "  -V, --version             print version information and exit\n"
       "\n"
@@ -164,12 +166,13 @@ main (int argc, char *argv[])
   char *dev_map = DEFAULT_DEVICE_MAP;
   volatile int hold = 0;
   int opt;
+  int disk = 0;
 
   set_program_name (argv[0]);
 
   grub_util_init_nls ();
 
-  while ((opt = getopt_long (argc, argv, "r:d:m:vH:hV", options, 0)) != -1)
+  while ((opt = getopt_long (argc, argv, "r:d:m:vH:DhV", options, 0)) != -1)
     switch (opt)
       {
       case 'r':
@@ -187,6 +190,9 @@ main (int argc, char *argv[])
       case 'H':
         hold = (optarg ? atoi (optarg) : -1);
         break;
+      case 'D':
+	disk = 1;
+	break;
       case 'h':
         return usage (0);
       case 'V':
@@ -218,24 +224,30 @@ main (int argc, char *argv[])
   grub_console_init ();
 
   /* XXX: This is a bit unportable.  */
-  grub_util_biosdisk_init (dev_map);
+  if (disk)
+    grub_util_biosdisk_init (dev_map);
 
   grub_init_all ();
 
   /* Make sure that there is a root device.  */
   if (! root_dev)
     {
-      char *device_name = grub_guess_root_device (dir);
-      if (! device_name)
-        grub_util_error ("cannot find a device for %s", dir);
-
-      root_dev = grub_util_get_grub_dev (device_name);
-      if (! root_dev)
+      if (disk)
 	{
-	  grub_util_info ("guessing the root device failed, because of `%s'",
-			  grub_errmsg);
-	  grub_util_error ("cannot guess the root device. Specify the option `--root-device'");
+	  char *device_name = grub_guess_root_device (dir);
+	  if (! device_name)
+	    grub_util_error ("cannot find a device for %s", dir);
+
+	  root_dev = grub_util_get_grub_dev (device_name);
+	  if (! root_dev)
+	    {
+	      grub_util_info ("guessing the root device failed, because of `%s'",
+			      grub_errmsg);
+	      grub_util_error ("cannot guess the root device. Specify the option `--root-device'");
+	    }
 	}
+      else
+	root_dev = "host";
     }
 
   dir = grub_get_prefix (dir, ! strcmp (root_dev, "host"));

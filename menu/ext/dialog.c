@@ -31,53 +31,6 @@ GRUB_EXPORT(grub_dialog_free);
 GRUB_EXPORT(grub_dialog_message);
 GRUB_EXPORT(grub_dialog_password);
 
-static grub_uitree_t
-copy_node (grub_uitree_t node)
-{
-  grub_uitree_t n, child;
-  grub_uiprop_t *ptr, prop;
-
-  n = grub_uitree_create_node (node->name);
-  if (! n)
-    return 0;
-
-  ptr = &n->prop;
-  prop = node->prop;
-  while (prop)
-    {
-      grub_uiprop_t p;
-      int len;
-
-      len = (prop->value - (char *) prop) + grub_strlen (prop->value) + 1;
-      p = grub_malloc (len);
-      if (! p)
-	{
-	  grub_uitree_free (n);
-	  return 0;
-	}
-      grub_memcpy (p, prop, len);
-      *ptr = p;
-      ptr = &(p->next);
-      prop = prop->next;
-    }
-
-  child = node->child;
-  while (child)
-    {
-      grub_uitree_t c;
-
-      c = copy_node (child);
-      if (! c)
-	{
-	  grub_uitree_free (n);
-	  return 0;
-	}
-      grub_tree_add_child (GRUB_AS_TREE (n), GRUB_AS_TREE (c), -1);
-      child = child->next;
-    }
-
-  return n;
-}
 
 grub_uitree_t
 grub_dialog_create (const char *name, int copy, int index,
@@ -101,7 +54,7 @@ grub_dialog_create (const char *name, int copy, int index,
     return 0;
 
   if (copy)
-    node = copy_node (node);
+    node = grub_uitree_clone (node);
   else
     {
       *menu = parent;
@@ -238,7 +191,8 @@ grub_dialog_popup (grub_uitree_t node)
   save = grub_widget_current_node;
   r = grub_widget_input (node, 1);
   grub_widget_current_node = save;
-  update_screen (node);
+  if (r != GRUB_ERR_MENU_REFRESH)
+    update_screen (node);
   grub_widget_free (node);
 
   return r;
