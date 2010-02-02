@@ -53,7 +53,7 @@ grub_emu_SOURCES = commands/minicmd.c commands/cat.c commands/cmp.c	\
 	\
 	menu/ext/main.c menu/ext/widget.c menu/ext/dialog.c		\
 	menu/ext/region.c menu/ext/text_region.c menu/ext/gfx_region.c	\
-	menu/ext/data_type.c ui/coreui.c commands/loadcfg.c		\
+	menu/ext/data_type.c ui/coreui.c commands/loadcfg.c trigtables.c\
 	\
 	util/console.c util/hostfs.c util/grub-emu.c util/misc.c	\
 	util/hostdisk.c util/getroot.c					\
@@ -106,6 +106,13 @@ DISTCLEANFILES += grub_emu_init.c
 
 
 # FIXME: this could be shared with common.rmk
+
+trigtables.c: gentrigtables
+	./gentrigtables > $@
+DISTCLEANFILES += trigtables.c
+gentrigtables: gentrigtables.c
+	$(CC) -o $@ $^ $(CPPFLAGS) -lm
+DISTCLEANFILES += gentrigtables
 
 # For grub-mkfont.
 ifeq ($(enable_grub_mkfont), yes)

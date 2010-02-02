@@ -24,6 +24,8 @@
 #include <grub/bitmap.h>
 #include <grub/bitmap_scale.h>
 #include <grub/menu_region.h>
+#include <grub/fbutil.h>
+#include <grub/fbblit.h>
 
 #define DEFAULT_VIDEO_MODE "auto"
 
@@ -173,6 +175,34 @@ grub_gfx_region_scale_bitmap (struct grub_menu_region_bitmap *bitmap)
 				   bitmap->scale, bitmap->color);
 }
 
+static struct grub_video_bitmap *
+grub_gfx_region_new_bitmap (int width, int height)
+{
+  struct grub_video_bitmap *dst = 0;
+  
+  grub_video_bitmap_create (&dst, width, height,
+			    GRUB_VIDEO_BLIT_FORMAT_RGBA_8888);
+  return dst;
+}
+
+static void
+grub_gfx_region_blit_bitmap (struct grub_video_bitmap *dst,
+			     struct grub_video_bitmap *src,
+			     enum grub_video_blit_operators oper,
+			     int dst_x, int dst_y, int width, int height,
+			     int src_x, int src_y)
+{
+  struct grub_video_fbblit_info dst_info;
+  struct grub_video_fbblit_info src_info;
+
+  dst_info.mode_info = &dst->mode_info;
+  dst_info.data = dst->data;
+  src_info.mode_info = &src->mode_info;
+  src_info.data = src->data;
+  grub_video_fbblit (&dst_info, &src_info, oper,
+		     dst_x, dst_y, width, height, src_x, src_y);
+}
+
 static grub_video_color_t
 grub_gfx_region_map_color (int fg_color, int bg_color __attribute__ ((unused)))
 {
@@ -269,8 +299,10 @@ static struct grub_menu_region grub_gfx_region =
     .map_rgb = grub_gfx_region_map_rgb,
     .update_rect = grub_gfx_region_update_rect,
     .update_text = grub_gfx_region_update_text,
-    .update_bitmap = grub_gfx_region_update_bitmap,
-    .draw_cursor = grub_gfx_region_draw_cursor
+    .update_bitmap = grub_gfx_region_update_bitmap,    
+    .draw_cursor = grub_gfx_region_draw_cursor,
+    .new_bitmap = grub_gfx_region_new_bitmap,
+    .blit_bitmap = grub_gfx_region_blit_bitmap
   };
 
 GRUB_MOD_INIT(gfxmenu)

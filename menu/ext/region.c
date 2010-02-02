@@ -194,14 +194,46 @@ grub_menu_region_free (grub_menu_region_common_t region)
     {
       grub_menu_region_bitmap_t r = (grub_menu_region_bitmap_t) region;
 
-      if ((r->bitmap != r->cache->bitmap) &&
-	  (r->bitmap != r->cache->scaled_bitmap))
-	grub_cur_menu_region->free_bitmap (r->bitmap);
+      if (r->cache)
+	{
+	  if ((r->bitmap != r->cache->bitmap) &&
+	      (r->bitmap != r->cache->scaled_bitmap))
+	    grub_cur_menu_region->free_bitmap (r->bitmap);
 
-      grub_bitmap_cache_free (r->cache);
+	  grub_bitmap_cache_free (r->cache);
+	}
+      else
+	grub_cur_menu_region->free_bitmap (r->bitmap);	
     }
 
   grub_free (region);
+}
+
+grub_menu_region_bitmap_t
+grub_menu_region_new_bitmap (int width, int height)
+{
+  grub_menu_region_bitmap_t region = 0;
+  struct grub_video_bitmap *bm;  
+  
+  if (! grub_menu_region_get_current ()->new_bitmap)
+    return 0;
+
+  region = grub_zalloc (sizeof (*region));
+  if (! region)
+    return 0;
+
+  bm = grub_menu_region_get_current ()->new_bitmap (width, height);
+  if (! bm)
+    {
+      grub_free (region);
+      return 0;  
+    }
+
+  region->common.type = GRUB_MENU_REGION_TYPE_BITMAP;
+  region->common.width = width;
+  region->common.height = height;
+  region->bitmap = bm;
+  return region;
 }
 
 int

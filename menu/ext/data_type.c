@@ -177,7 +177,16 @@ parse_bitmap (char *name, grub_uint32_t def_fill)
   char *ps, *pc;
   grub_uint32_t fill;
 
-  ps = grub_menu_next_field (name, ',');
+  if (name[0] == '(')
+    {
+      ps = grub_strchr (name, ')');
+      if (! ps)
+	return 0;
+    }
+  else
+    ps = name;
+  
+  ps = grub_menu_next_field (ps, ',');
   if (ps)
     {
       pc = grub_menu_next_field (ps, ',');

@@ -100,6 +100,14 @@ for OS in ${OSPROBED} ; do
   if [ -z "${OSLABEL}" ] ; then
     OSLABEL="Unknown";
   fi
+  case $OSLABEL in
+    Ubuntu*)
+      OSLABEL=Ubuntu
+    ;;
+    Mandriva*)
+      OSLABEL=Mandrake
+    ;;
+  esac
   get_auth_option ${OSLABEL}
 
   if [ -z "${LONGNAME}" ] ; then

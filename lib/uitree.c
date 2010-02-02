@@ -546,15 +546,6 @@ grub_uitree_load_file (grub_uitree_t root, const char *name, int flags)
   file = grub_file_open (name);
   if (! file)
     return 0;
-
-  if (name[0] == '(')
-    {
-      name = grub_strchr (name, ')');
-      if (! name)
-	goto quit;
-      else
-	name++;
-    }
   
   prefix = grub_strrchr (name, '/');
   if (! prefix)
@@ -575,7 +566,6 @@ grub_uitree_load_file (grub_uitree_t root, const char *name, int flags)
       grub_free (buf);
     }
 
- quit:
   grub_file_close (file);
 
   return result;

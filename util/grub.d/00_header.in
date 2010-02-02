@@ -117,7 +117,7 @@ EOF
   fi
 
   cat << EOF
-function toogle_fold {
+function toggle_fold {
   if test -z \$theme_fold ; then
     set theme_fold=1
   else

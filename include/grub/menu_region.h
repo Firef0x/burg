@@ -90,6 +90,13 @@ struct grub_menu_region
   struct grub_video_bitmap * (*get_bitmap) (const char *name);
   void (*free_bitmap) (struct grub_video_bitmap *bitmap);
   void (*scale_bitmap) (struct grub_menu_region_bitmap *bitmap);
+  struct grub_video_bitmap * (*new_bitmap) (int width, int height);
+  void (*blit_bitmap) (struct grub_video_bitmap *dst,
+		       struct grub_video_bitmap *src,
+		       enum grub_video_blit_operators oper,
+		       int dst_x, int dst_y, int width, int height,
+		       int src_x, int src_y);
+  
   grub_video_color_t (*map_color) (int fg_color, int bg_color);
   grub_video_color_t (*map_rgb) (grub_uint8_t red, grub_uint8_t green,
 				 grub_uint8_t blue);
@@ -215,6 +222,22 @@ grub_menu_region_hide_cursor (void)
     grub_menu_region_get_current ()->hide_cursor ();
 }
 
+static inline void
+grub_menu_region_blit_bitmap (grub_menu_region_common_t dst,
+			      grub_menu_region_common_t src,
+			      enum grub_video_blit_operators oper,
+			      int dst_x, int dst_y, int width, int height,
+			      int src_x, int src_y)
+{
+  if ((grub_menu_region_get_current ()->blit_bitmap) &&
+      (dst->type == GRUB_MENU_REGION_TYPE_BITMAP) &&
+      (src->type == GRUB_MENU_REGION_TYPE_BITMAP))
+    grub_menu_region_get_current ()->blit_bitmap
+      (((grub_menu_region_bitmap_t) dst)->bitmap,
+       ((grub_menu_region_bitmap_t) src)->bitmap,
+       oper, dst_x, dst_y, width, height, src_x, src_y);
+}
+
 grub_menu_region_text_t
 grub_menu_region_create_text (grub_font_t font, grub_video_color_t color,
 			      const char *str);
@@ -224,6 +247,8 @@ grub_menu_region_create_rect (int width, int height, grub_video_color_t color,
 grub_menu_region_bitmap_t
 grub_menu_region_create_bitmap (const char *name, int scale,
 				grub_video_color_t color);
+grub_menu_region_bitmap_t
+grub_menu_region_new_bitmap (int width, int height);
 void grub_menu_region_scale (grub_menu_region_common_t region, int width,
 			     int height);
 void grub_menu_region_free (grub_menu_region_common_t region);

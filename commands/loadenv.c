@@ -46,29 +46,29 @@ open_envblk_file (char *filename)
       e = grub_env_get ("envfile");
       if (e)
 	return grub_file_open (e);
-      
+
       prefix = grub_env_get ("prefix");
       if (prefix)
-        {
-          int len;
+	{
+	  int len;
 
-          len = grub_strlen (prefix);
-          filename = grub_malloc (len + 1 + sizeof (GRUB_ENVBLK_DEFCFG));
-          if (! filename)
-            return 0;
+	  len = grub_strlen (prefix);
+	  filename = grub_malloc (len + 1 + sizeof (GRUB_ENVBLK_DEFCFG));
+	  if (! filename)
+	    return 0;
 
-          grub_strcpy (filename, prefix);
-          filename[len] = '/';
-          grub_strcpy (filename + len + 1, GRUB_ENVBLK_DEFCFG);
-          file = grub_file_open (filename);
-          grub_free (filename);
-          return file;
-        }
+	  grub_strcpy (filename, prefix);
+	  filename[len] = '/';
+	  grub_strcpy (filename + len + 1, GRUB_ENVBLK_DEFCFG);
+	  file = grub_file_open (filename);
+	  grub_free (filename);
+	  return file;
+	}
       else
-        {
-          grub_error (GRUB_ERR_FILE_NOT_FOUND, "prefix is not found");
-          return 0;
-        }
+	{
+	  grub_error (GRUB_ERR_FILE_NOT_FOUND, "prefix is not found");
+	  return 0;
+	}
     }
 
   return grub_file_open (filename);
@@ -92,12 +92,12 @@ read_envblk_file (grub_file_t file)
 
       ret = grub_file_read (file, buf + offset, size);
       if (ret <= 0)
-        {
-          if (grub_errno == GRUB_ERR_NONE)
-            grub_error (GRUB_ERR_FILE_READ_ERROR, "cannot read");
-          grub_free (buf);
-          return 0;
-        }
+	{
+	  if (grub_errno == GRUB_ERR_NONE)
+	    grub_error (GRUB_ERR_FILE_READ_ERROR, "cannot read");
+	  grub_free (buf);
+	  return 0;
+	}
 
       size -= ret;
       offset += ret;
@@ -202,7 +202,7 @@ free_blocklists (struct blocklist *p)
 
 static grub_err_t
 check_blocklists (grub_envblk_t envblk, struct blocklist *blocklists,
-                  grub_file_t file)
+		  grub_file_t file)
 {
   grub_size_t total_length;
   grub_size_t index;
@@ -217,15 +217,15 @@ check_blocklists (grub_envblk_t envblk, struct blocklist *blocklists,
     {
       struct blocklist *q;
       for (q = p->next; q; q = q->next)
-        {
-          /* Check if any pair of blocks overlap.  */
-          if (p->sector == q->sector)
-            {
-              /* This might be actually valid, but it is unbelievable that
-                 any filesystem makes such a silly allocation.  */
-              return grub_error (GRUB_ERR_BAD_FS, "malformed file");
-            }
-        }
+	{
+	  /* Check if any pair of blocks overlap.  */
+	  if (p->sector == q->sector)
+	    {
+	      /* This might be actually valid, but it is unbelievable that
+		 any filesystem makes such a silly allocation.  */
+	      return grub_error (GRUB_ERR_BAD_FS, "malformed file");
+	    }
+	}
 
       total_length += p->length;
     }
@@ -250,8 +250,8 @@ check_blocklists (grub_envblk_t envblk, struct blocklist *blocklists,
       char blockbuf[GRUB_DISK_SECTOR_SIZE];
 
       if (grub_disk_read (disk, p->sector - part_start,
-                          p->offset, p->length, blockbuf))
-        return grub_errno;
+			  p->offset, p->length, blockbuf))
+	return grub_errno;
 
       if (grub_memcmp (buf + index, blockbuf, p->length) != 0)
 	return grub_error (GRUB_ERR_FILE_READ_ERROR, "invalid blocklist");
@@ -262,7 +262,7 @@ check_blocklists (grub_envblk_t envblk, struct blocklist *blocklists,
 
 static int
 write_blocklists (grub_envblk_t envblk, struct blocklist *blocklists,
-                  grub_file_t file)
+		  grub_file_t file)
 {
   char *buf;
   grub_disk_t disk;
@@ -281,8 +281,8 @@ write_blocklists (grub_envblk_t envblk, struct blocklist *blocklists,
   for (p = blocklists; p; index += p->length, p = p->next)
     {
       if (grub_disk_write (disk, p->sector - part_start,
-                           p->offset, p->length, buf + index))
-        return 0;
+			   p->offset, p->length, buf + index))
+	return 0;
     }
 
   return 1;
@@ -323,6 +323,63 @@ read_hook (grub_disk_addr_t sector, unsigned offset, unsigned length,
     c->head = block;
 }
 
+#ifdef GRUB_UTIL
+
+#include <stdio.h>
+#include <unistd.h>
+#include <grub/util/misc.h>
+
+static char *
+check_host_file (char *filename)
+{
+  char *buf = 0;
+  
+  if (! filename)
+    {
+      filename = grub_env_get ("envfile");
+      if (! filename)
+	{
+	  char *prefix;
+
+	  prefix = grub_env_get ("prefix");
+	  if (! prefix)
+	    return 0;
+
+	  buf = grub_xasprintf ("%s/%s", prefix, GRUB_ENVBLK_DEFCFG);
+	  if (! buf)
+	    return 0;
+
+	  filename = buf;
+	}
+    }
+
+  if (filename[0] == '(')
+    {
+      if (grub_memcmp (filename, "(host)", 6))
+	goto fail;
+
+      filename += 6;
+    }
+  else
+    {
+      char *root;
+
+      root = grub_env_get ("root");
+      if ((! root) || (grub_strcmp (root, "host")))
+	goto fail;
+    }
+
+  filename = grub_strdup (filename);
+  grub_free (buf);
+  return filename;
+
+ fail:
+  grub_free (buf);
+  return 0;
+}
+
+#endif
+
 static grub_err_t
 grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
 {
@@ -330,6 +387,9 @@ grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
   grub_file_t file;
   grub_envblk_t envblk;
   struct grub_cmd_save_env_closure c;
+#ifdef GRUB_UTIL
+  char *host_file = check_host_file ((state[0].set) ? state[0].arg : 0);  
+#endif
 
   c.head = 0;
   c.tail = 0;
@@ -354,8 +414,13 @@ grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
   if (! envblk)
     goto fail;
 
-  if (check_blocklists (envblk, c.head, file))
+#ifdef GRUB_UTIL
+  if ((host_file == NULL) && (check_blocklists (envblk, c.head, file)))
     goto fail;
+#else
+  if (check_blocklists (envblk, c.head, file))
+    goto fail;  
+#endif
 
   while (argc)
     {
@@ -363,17 +428,41 @@ grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
 
       value = grub_env_get (args[0]);
       if (value)
-        {
-          if (! grub_envblk_set (envblk, args[0], value))
-            {
-              grub_error (GRUB_ERR_BAD_ARGUMENT, "environment block too small");
-              goto fail;
-            }
-        }
+	{
+	  if (! grub_envblk_set (envblk, args[0], value))
+	    {
+	      grub_error (GRUB_ERR_BAD_ARGUMENT, "environment block too small");
+	      goto fail;
+	    }
+	}
 
       argc--;
       args++;
     }
+
+#ifdef GRUB_UTIL
+  if (host_file)
+    {
+      FILE *fp;
+      
+      grub_file_close (file);
+
+      fp = fopen (host_file, "wb");
+      if (! fp)
+	grub_util_error ("cannot open the file %s", host_file);
+
+      if (fwrite (grub_envblk_buffer (envblk), 1,
+		  grub_envblk_size (envblk), fp) != grub_envblk_size (envblk))
+	grub_util_error ("cannot write to the file %s", host_file);
+
+      fsync (fileno (fp));
+      fclose (fp);
+
+      if (envblk)
+	grub_envblk_close (envblk);      
+      return grub_errno;
+    }
+#endif
 
   write_blocklists (envblk, c.head, file);
 
