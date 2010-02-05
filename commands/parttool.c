@@ -32,7 +32,7 @@
 #include <grub/command.h>
 #include <grub/i18n.h>
 
-GRUB_EXPORT(grub_parttool_register);
+GRUB_EXPORT(grub_parttool_reg);
 GRUB_EXPORT(grub_parttool_unregister);
 
 static struct grub_parttool *parts = 0;
@@ -44,9 +44,9 @@ static char helpmsg[] =
   "of available commands.";
 
 int
-grub_parttool_register(const char *part_name,
-		       const grub_parttool_function_t func,
-		       const struct grub_parttool_argdesc *args)
+grub_parttool_reg (const char *part_name,
+		   const grub_parttool_function_t func,
+		   const struct grub_parttool_argdesc *args)
 {
   struct grub_parttool *cur;
   int nargs = 0;

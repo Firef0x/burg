@@ -111,9 +111,9 @@ function select_menu {
 EOF
   
   if test "x${GRUB_THEME}" = "xsaved"; then
-    echo "    save_env theme_name\n    menu_refresh\n  fi\n}"
+    echo -e "    save_env theme_name\n    menu_refresh\n  fi\n}"
   else
-    echo "    menu_refresh\n  fi\n}\nset theme_name=${GRUB_THEME}"
+    echo -e "    menu_refresh\n  fi\n}\nset theme_name=${GRUB_THEME}"
   fi
 
   cat << EOF
@@ -126,9 +126,9 @@ function toggle_fold {
 EOF
   
   if test "x${GRUB_FOLD}" = "xsaved"; then
-    echo "  save_env theme_fold\n  menu_refresh\n}"
+    echo -e "  save_env theme_fold\n  menu_refresh\n}"
   else
-    echo "  menu_refresh\n}"
+    echo -e "  menu_refresh\n}"
     if test "x${GRUB_FOLD}" = "xyes"; then
       echo "set theme_fold=1"
     else
@@ -176,7 +176,7 @@ EOF
     ;;
   esac
 
-  echo "  controller.ext\nfi"
+  echo -e "  controller.ext\nfi"
   GRUB_TERMINAL_OUTPUT=
 fi
 

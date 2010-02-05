@@ -450,6 +450,7 @@ grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
       fp = fopen (host_file, "wb");
       if (! fp)
 	grub_util_error ("cannot open the file %s", host_file);
+      grub_free (host_file);
 
       if (fwrite (grub_envblk_buffer (envblk), 1,
 		  grub_envblk_size (envblk), fp) != grub_envblk_size (envblk))
