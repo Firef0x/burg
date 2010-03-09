@@ -250,7 +250,8 @@ grub_cmd_refresh (grub_command_t cmd __attribute__ ((unused)),
 		  int argc __attribute__ ((unused)),
 		  char **args __attribute__ ((unused)))
 {
-  return grub_error (GRUB_ERR_MENU_REFRESH, "refresh menu");
+  grub_widget_refresh = 1;
+  return 0;
 }
 
 static grub_err_t
@@ -647,10 +648,11 @@ show_menu (grub_menu_t menu, int nested)
 	      r = grub_widget_input (root, 0);
 	    }
 	  grub_widget_free (root);
-	  if (r == GRUB_ERR_MENU_REFRESH)
+	  if (grub_widget_refresh)
 	    {
 	      grub_menu_entry_t entry;
-	      
+
+	      grub_widget_refresh = 0;
 	      grub_errno = 0;
 	      if ((node) && (menu))
 		for (entry = menu->entry_list; entry; entry = entry->next)

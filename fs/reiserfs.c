@@ -1191,7 +1191,8 @@ grub_reiserfs_read (grub_file_t file, char *buf, grub_size_t len)
 		(unsigned long long) (current_position - initial_position),
 		(unsigned long) len);
   return current_position - initial_position;
-/*
+
+#if 0
   switch (found.type)
     {
       case GRUB_REISERFS_DIRECT:
@@ -1234,7 +1235,8 @@ grub_reiserfs_read (grub_file_t file, char *buf, grub_size_t len)
         goto fail;
     }
 
-  return read_length;*/
+  return read_length;
+#endif
 
  fail:
   grub_free (indirect_block_ptr);

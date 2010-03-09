@@ -309,7 +309,6 @@ print_module (grub_dl_t mod)
       grub_printf ("%s", dep->mod->name);
     }
   grub_putchar ('\n');
-  grub_refresh ();
 
   return 0;
 }

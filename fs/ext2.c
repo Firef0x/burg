@@ -440,7 +440,8 @@ grub_ext2_read_block (grub_fshelp_node_t node, grub_disk_addr_t fileblock)
 	return grub_errno;
 
       if (grub_disk_read (data->disk,
-			  grub_le_to_cpu32 (inode->blocks.indir_block)
+			  ((grub_disk_addr_t)
+			   grub_le_to_cpu32 (inode->blocks.indir_block))
 			  << log2_blksz,
 			  0, blksz, indir))
 	return grub_errno;
@@ -461,13 +462,15 @@ grub_ext2_read_block (grub_fshelp_node_t node, grub_disk_addr_t fileblock)
 	return grub_errno;
 
       if (grub_disk_read (data->disk,
-			  grub_le_to_cpu32 (inode->blocks.double_indir_block)
+			  ((grub_disk_addr_t)
+			   grub_le_to_cpu32 (inode->blocks.double_indir_block))
 			  << log2_blksz,
 			  0, blksz, indir))
 	return grub_errno;
 
       if (grub_disk_read (data->disk,
-			  grub_le_to_cpu32 (indir[rblock / perblock])
+			  ((grub_disk_addr_t)
+			   grub_le_to_cpu32 (indir[rblock / perblock]))
 			  << log2_blksz,
 			  0, blksz, indir))
 	return grub_errno;

@@ -160,24 +160,28 @@ grub_cmd_terminal_input (grub_command_t cmd __attribute__ ((unused)),
 	}
     }
 
-  FOR_ACTIVE_TERM_INPUTS(term)
-  {
-    for (i = 0; i < argc; i++)
-      if (grub_strcmp (args[i], term->name) == 0)
-	break;
-    if (i == argc)
-      {
-	if (!term->next && term == grub_term_inputs)
-	  return grub_error (GRUB_ERR_BAD_ARGUMENT,
-			     "can't remove the last terminal");
-	grub_list_remove (GRUB_AS_LIST_P (&(grub_term_inputs)),
+  for (term = grub_term_inputs; term; )
+    {
+      grub_term_input_t next = term->next;
+
+      for (i = 0; i < argc; i++)
+	if (grub_strcmp (args[i], term->name) == 0)
+	  break;
+      if (i == argc)
+	{
+	  if (!term->next && term == grub_term_inputs)
+	    return grub_error (GRUB_ERR_BAD_ARGUMENT,
+			       "can't remove the last terminal");
+	  grub_list_remove (GRUB_AS_LIST_P (&(grub_term_inputs)),
+			    GRUB_AS_LIST (term));
+	  if (term->fini)
+	    term->fini ();
+	  grub_list_push (GRUB_AS_LIST_P (&grub_term_inputs_disabled),
 			  GRUB_AS_LIST (term));
-	if (term->fini)
-	  term->fini ();
-	grub_list_push (GRUB_AS_LIST_P (&grub_term_inputs_disabled),
-			GRUB_AS_LIST (term));
-      }
-  }
+	}
+
+      term = next;
+    }
 
   return GRUB_ERR_NONE;
 }
@@ -320,24 +324,28 @@ grub_cmd_terminal_output (grub_command_t cmd __attribute__ ((unused)),
 	}
     }
 
-  FOR_ACTIVE_TERM_OUTPUTS(term)
-  {
-    for (i = 0; i < argc; i++)
-      if (grub_strcmp (args[i], term->name) == 0)
-	break;
-    if (i == argc)
-      {
-	if (!term->next && term == grub_term_outputs)
-	  return grub_error (GRUB_ERR_BAD_ARGUMENT,
-			     "can't remove the last terminal");
-	grub_list_remove (GRUB_AS_LIST_P (&(grub_term_outputs)),
+  for (term = grub_term_outputs; term; )
+    {
+      grub_term_output_t next = term->next;
+
+      for (i = 0; i < argc; i++)
+	if (grub_strcmp (args[i], term->name) == 0)
+	  break;
+      if (i == argc)
+	{
+	  if (!term->next && term == grub_term_outputs)
+	    return grub_error (GRUB_ERR_BAD_ARGUMENT,
+			       "can't remove the last terminal");
+	  grub_list_remove (GRUB_AS_LIST_P (&(grub_term_outputs)),
+			    GRUB_AS_LIST (term));
+	  if (term->fini)
+	    term->fini ();
+	  grub_list_push (GRUB_AS_LIST_P (&grub_term_outputs_disabled),
 			  GRUB_AS_LIST (term));
-	if (term->fini)
-	  term->fini ();
-	grub_list_push (GRUB_AS_LIST_P (&grub_term_outputs_disabled),
-			GRUB_AS_LIST (term));
-      }
-  }
+	}
+
+      term = next;
+    }
 
   return GRUB_ERR_NONE;
 }

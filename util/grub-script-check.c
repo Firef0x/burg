@@ -83,16 +83,8 @@ grub_script_execute_cmdif (struct grub_script_cmd *cmd __attribute__ ((unused)))
 }
 
 grub_err_t
-grub_script_execute_menuentry (struct grub_script_cmd *cmd)
+grub_script_execute_menuentry (struct grub_script_cmd *cmd __attribute__ ((unused)))
 {
-  struct grub_script_cmd_menuentry *menu;
-  menu = (struct grub_script_cmd_menuentry *)cmd;
-
-  if (menu->sourcecode)
-    {
-      grub_free ((char *) menu->sourcecode);
-      menu->sourcecode = 0;
-    }
   return 0;
 }
 
@@ -145,6 +137,7 @@ static grub_err_t
 get_config_line (char **line, int cont __attribute__ ((unused)), void *closure)
 {
   struct main_closure *c = closure;
+  int i;
   char *cmdline = 0;
   size_t len = 0;
   ssize_t read;
@@ -162,6 +155,17 @@ get_config_line (char **line, int cont __attribute__ ((unused)), void *closure)
 
   if (c->verbose)
     grub_printf("%s", cmdline);
+
+  for (i = 0; cmdline[i] != '\0'; i++)
+    {
+      /* Replace tabs and carriage returns with spaces.  */
+      if (cmdline[i] == '\t' || cmdline[i] == '\r')
+	cmdline[i] = ' ';
+
+      /* Replace '\n' with '\0'.  */
+      if (cmdline[i] == '\n')
+	cmdline[i] = '\0';
+      }
 
   *line = grub_strdup (cmdline);
 

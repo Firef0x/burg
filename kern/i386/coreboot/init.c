@@ -71,12 +71,6 @@ grub_exit (void)
     grub_cpu_idle ();
 }
 
-void
-grub_arch_sync_caches (void *address __attribute__ ((unused)),
-		       grub_size_t len __attribute__ ((unused)))
-{
-}
-
 static int
 heap_init (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
 	   void *closure __attribute__((unused)))

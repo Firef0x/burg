@@ -47,7 +47,8 @@ grub_gfx_region_init (void)
   modevar = grub_env_get ("gfxmode");
   if (! modevar || *modevar == 0)
     err = grub_video_set_mode (DEFAULT_VIDEO_MODE,
-			       GRUB_VIDEO_MODE_TYPE_PURE_TEXT, 0);
+			       GRUB_VIDEO_MODE_TYPE_PURE_TEXT |
+			       GRUB_VIDEO_MODE_TYPE_DOUBLE_BUFFERED, 0);
   else
     {
       char *tmp;
@@ -55,7 +56,8 @@ grub_gfx_region_init (void)
       if (!tmp)
 	return grub_errno;
       err = grub_video_set_mode (tmp,
-				 GRUB_VIDEO_MODE_TYPE_PURE_TEXT, 0);
+				 GRUB_VIDEO_MODE_TYPE_PURE_TEXT |
+				 GRUB_VIDEO_MODE_TYPE_DOUBLE_BUFFERED, 0);
       grub_free (tmp);
     }
 
@@ -305,12 +307,12 @@ static struct grub_menu_region grub_gfx_region =
     .blit_bitmap = grub_gfx_region_blit_bitmap
   };
 
-GRUB_MOD_INIT(gfxmenu)
+GRUB_MOD_INIT(gfxrgn)
 {
   grub_menu_region_register ("gfx", &grub_gfx_region);
 }
 
-GRUB_MOD_FINI(gfxmenu)
+GRUB_MOD_FINI(gfxrgn)
 {
   grub_menu_region_unregister (&grub_gfx_region);
 }

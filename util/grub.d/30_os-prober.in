@@ -39,7 +39,7 @@ fi
 
 osx_entry() {
         cat << EOF
-menuentry "${LONGNAME} (${2}-bit) (on ${DEVICE})" --class ${OSLABEL} {
+menuentry "${LONGNAME} (${2}-bit) (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_OPTION}{
 EOF
 	save_default_entry | sed -e "s/^/\t/"
 	prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"
@@ -96,16 +96,16 @@ for OS in ${OSPROBED} ; do
   LABEL="`echo ${OS} | cut -d ':' -f 3 | tr '^' ' '`"
   BOOT="`echo ${OS} | cut -d ':' -f 4`"
 
-  OSLABEL=${LABEL}
+  OSLABEL="$(echo ${LABEL} | tr '[A-Z]' '[a-z]')" 
   if [ -z "${OSLABEL}" ] ; then
-    OSLABEL="Unknown";
+    OSLABEL="unknown";
   fi
   case $OSLABEL in
-    Ubuntu*)
-      OSLABEL=Ubuntu
+    ubuntu*)
+      OSLABEL=ubuntu
     ;;
-    Mandriva*)
-      OSLABEL=Mandrake
+    mandriva*)
+      OSLABEL=mandrake
     ;;
   esac
   get_auth_option ${OSLABEL}
@@ -120,7 +120,7 @@ for OS in ${OSPROBED} ; do
     chain)
 
       cat << EOF
-menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} {
+menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_OPTION}{
 EOF
       save_default_entry | sed -e "s/^/\t/"
       prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"
@@ -162,7 +162,7 @@ EOF
 	fi
 
         cat << EOF
-menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} --group group_${DEVICE} ${AUTH_OPTION}{
+menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} --class os --group group_${DEVICE} ${AUTH_OPTION}{
 EOF
 	save_default_entry | sed -e "s/^/\t/"
 	if [ -z "${prepare_boot_cache}" ]; then
@@ -189,7 +189,7 @@ EOF
     ;;
     hurd)
       cat << EOF
-menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} {
+menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_OPTION}{
 EOF
       save_default_entry | sed -e "s/^/\t/"
       prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"

@@ -39,9 +39,11 @@ GRUB_EXPORT(grub_widget_select_node);
 GRUB_EXPORT(grub_widget_input);
 GRUB_EXPORT(grub_widget_get_prop);
 GRUB_EXPORT(grub_widget_current_node);
+GRUB_EXPORT(grub_widget_refresh);
 
 grub_widget_class_t grub_widget_class_list;
 grub_uitree_t grub_widget_current_node;
+int grub_widget_refresh;
 
 grub_err_t
 grub_widget_create (grub_uitree_t node)
@@ -1362,7 +1364,7 @@ grub_widget_input (grub_uitree_t root, int nested)
 
 	      r = grub_parser_execute (cmd);
 
-	      if (grub_errno == GRUB_ERR_MENU_REFRESH)
+	      if (grub_widget_refresh)
 		return grub_errno;
 
 	      if (grub_errno == GRUB_ERR_NONE && grub_loader_is_loaded ())
@@ -1395,7 +1397,7 @@ grub_widget_input (grub_uitree_t root, int nested)
 	      int r;
 
 	      r = widget->class->onkey (widget, c);
-	      if (r == GRUB_ERR_MENU_REFRESH)
+	      if (grub_widget_refresh)
 		return r;
 
 	      if ((r >= 0) && (nested))

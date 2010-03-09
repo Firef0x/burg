@@ -54,6 +54,7 @@ grub_normal_init_page (struct grub_term_output *term)
 
   msg_len = grub_utf8_to_ucs4_alloc (msg_formatted,
   				     &unicode_msg, &last_position);
+  grub_free (msg_formatted);
 
   if (msg_len < 0)
     {
@@ -188,10 +189,13 @@ grub_normal_read_line_real (char **line, int cont, int nested)
       if (cont || nested)
 	{
 	  grub_free (*line);
+	  grub_free (prompt);
 	  *line = 0;
 	  return grub_errno;
 	}
     }
+
+  grub_free (prompt);
 
   return 0;
 }

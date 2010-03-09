@@ -1890,8 +1890,8 @@ term_onkey (grub_widget_t widget, int key)
 	    }
 
 	  grub_parser_execute (cmd);
-	  if (grub_errno == GRUB_ERR_MENU_REFRESH)
-	    return GRUB_ERR_MENU_REFRESH;
+	  if (grub_widget_refresh)
+	    return GRUB_WIDGET_RESULT_DONE;
 
 	  if (data->edit.pos)
 	    edit_handle_key (widget, GRUB_TERM_DOWN);

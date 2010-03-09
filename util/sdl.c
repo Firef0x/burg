@@ -181,20 +181,20 @@ grub_sdl_getkey (void)
 
       key = saved_char;
       saved_char = -1;
-      return key;	
+      return key;
     }
 
   while (1)
     {
       int c;
-      
+
       c = grub_sdl_checkkey ();
       if (c != -1)
 	{
 	  saved_char = -1;
 	  return c;
 	}
-    } 
+    }
 }
 
 static struct grub_term_input grub_sdl_term_input =
@@ -258,6 +258,10 @@ grub_video_sdl_setup (unsigned int width, unsigned int height,
       width = 800;
       height = 600;
     }
+
+  if ((mode_type & GRUB_VIDEO_MODE_TYPE_DOUBLE_BUFFERED)
+      || !(mode_mask & GRUB_VIDEO_MODE_TYPE_DOUBLE_BUFFERED))
+    flags |= SDL_DOUBLEBUF;
 
   window = SDL_SetVideoMode (width, height, depth, flags | SDL_HWSURFACE);
   if (! window)

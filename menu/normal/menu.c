@@ -36,6 +36,9 @@ GRUB_EXPORT(grub_menu_get_timeout);
 GRUB_EXPORT(grub_menu_set_timeout);
 GRUB_EXPORT(grub_menu_execute_entry);
 GRUB_EXPORT(grub_menu_execute_with_fallback);
+GRUB_EXPORT(grub_menu_register_viewer);
+GRUB_EXPORT(grub_gfxmenu_try_hook);
+GRUB_EXPORT(grub_menu_get_entry);
 
 /* Time to delay after displaying an error message about a default/fallback
    entry failing to boot.  */
@@ -358,6 +361,8 @@ run_menu (grub_menu_t menu, int nested, int *auto_boot)
 
   if (timeout > 0)
     menu_print_timeout (timeout);
+  else
+    clear_timeout ();
 
   while (1)
     {
@@ -553,14 +558,14 @@ show_menu (grub_menu_t menu, int nested)
         }
       else
         {
+	  int lines_before = grub_normal_get_line_counter ();
           grub_errno = GRUB_ERR_NONE;
           grub_menu_execute_entry (e);
-          if (grub_errno != GRUB_ERR_NONE)
-            {
-              grub_print_error ();
-              grub_errno = GRUB_ERR_NONE;
-              grub_wait_after_message ();
-            }
+	  grub_print_error ();
+	  grub_errno = GRUB_ERR_NONE;
+
+          if (lines_before != grub_normal_get_line_counter ())
+	    grub_wait_after_message ();
         }
     }
 

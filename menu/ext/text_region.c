@@ -133,12 +133,12 @@ static struct grub_menu_region grub_text_region =
     .draw_cursor = grub_text_region_draw_cursor,
   };
 
-GRUB_MOD_INIT(textmenu)
+GRUB_MOD_INIT(txtrgn)
 {
   grub_menu_region_register ("text", &grub_text_region);
 }
 
-GRUB_MOD_FINI(textmenu)
+GRUB_MOD_FINI(txtrgn)
 {
   grub_menu_region_unregister (&grub_text_region);
 }

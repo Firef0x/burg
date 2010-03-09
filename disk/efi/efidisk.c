@@ -801,7 +801,7 @@ find_disk (const char *name, void *closure)
   if (! disk)
     return 1;
 
-  if (disk->id == GRUB_DISK_DEVICE_EFIDISK_ID)
+  if (disk->dev->id == GRUB_DISK_DEVICE_EFIDISK_ID)
     {
       struct grub_efidisk_data *d;
 

@@ -44,6 +44,7 @@
 
 #include <grub_emu_init.h>
 
+#define ENABLE_RELOCATABLE 0
 #include "progname.h"
 
 /* Used for going back to the main function.  */

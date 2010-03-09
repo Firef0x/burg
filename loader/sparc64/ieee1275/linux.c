@@ -173,12 +173,6 @@ grub_linux_unload (void)
 
 #define FOUR_MB	(4 * 1024 * 1024)
 
-static grub_addr_t
-align_addr(grub_addr_t val, grub_addr_t align)
-{
-  return (val + (align - 1)) & ~(align - 1);
-}
-
 struct alloc_phys_closure
 {
   grub_addr_t size;
@@ -196,21 +190,21 @@ choose (grub_uint64_t addr, grub_uint64_t len __attribute__ ((unused)),
   if (type != 1)
     return 0;
 
-  addr = align_addr (addr, FOUR_MB);
-  if (addr >= end)
+  addr = ALIGN_UP (addr, FOUR_MB);
+  if (addr + c->size >= end)
     return 0;
 
   if (addr >= grub_phys_start && addr < grub_phys_end)
     {
-      addr = align_addr (grub_phys_end, FOUR_MB);
-      if (addr >= end)
+      addr = ALIGN_UP (grub_phys_end, FOUR_MB);
+      if (addr + c->size >= end)
 	return 0;
     }
   if ((addr + c->size) >= grub_phys_start
       && (addr + c->size) < grub_phys_end)
     {
-      addr = align_addr (grub_phys_end, FOUR_MB);
-      if (addr >= end)
+      addr = ALIGN_UP (grub_phys_end, FOUR_MB);
+      if (addr + c->size >= end)
 	return 0;
     }
 
@@ -221,14 +215,14 @@ choose (grub_uint64_t addr, grub_uint64_t len __attribute__ ((unused)),
       if (addr >= linux_paddr && addr < linux_end)
 	{
 	  addr = linux_end;
-	  if (addr >= end)
+	  if (addr + c->size >= end)
 	    return 0;
 	}
       if ((addr + c->size) >= linux_paddr
 	  && (addr + c->size) < linux_end)
 	{
 	  addr = linux_end;
-	  if (addr >= end)
+	  if (addr + c->size >= end)
 	    return 0;
 	}
     }
@@ -293,8 +287,8 @@ grub_linux_load64 (grub_elf_t elf)
   if (paddr == (grub_addr_t) -1)
     return grub_error (GRUB_ERR_OUT_OF_MEMORY,
 		       "couldn't allocate physical memory");
-  ret = grub_ieee1275_map_physical (paddr, linux_addr - c.off,
-				    linux_size + c.off, IEEE1275_MAP_DEFAULT);
+  ret = grub_ieee1275_map (paddr, linux_addr - c.off,
+			   linux_size + c.off, IEEE1275_MAP_DEFAULT);
   if (ret)
     return grub_error (GRUB_ERR_OUT_OF_MEMORY,
 		       "couldn't map physical memory");
@@ -428,7 +422,7 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
 		  "couldn't allocate physical memory");
       goto fail;
     }
-  ret = grub_ieee1275_map_physical (paddr, addr, size, IEEE1275_MAP_DEFAULT);
+  ret = grub_ieee1275_map (paddr, addr, size, IEEE1275_MAP_DEFAULT);
   if (ret)
     {
       grub_error (GRUB_ERR_OUT_OF_MEMORY,

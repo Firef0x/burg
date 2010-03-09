@@ -31,7 +31,6 @@
 #include <grub/parser.h>
 #include <grub/controller.h>
 
-GRUB_EXPORT(grub_arch_sync_caches);
 GRUB_EXPORT(grub_module_iterate);
 GRUB_EXPORT(grub_machine_fini);
 GRUB_EXPORT(grub_controller_class);

@@ -109,8 +109,8 @@ struct grub_font_glyph *grub_font_get_glyph_with_fallback (grub_font_t font,
                                                            grub_uint32_t code);
 
 grub_err_t grub_font_draw_glyph (struct grub_font_glyph *glyph,
-                                        grub_video_color_t color,
-                                        int left_x, int baseline_y);
+				 grub_video_color_t color,
+				 int left_x, int baseline_y);
 
 grub_err_t grub_font_draw_string (const char *str, grub_font_t font,
                                   grub_video_color_t color,
