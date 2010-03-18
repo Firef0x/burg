@@ -94,7 +94,7 @@ map_color (struct grub_video_mode_info *mode_info, grub_video_color_t color)
 {
   grub_uint8_t red, green, blue, alpha;
 
-  red = green = blue = alpha = 0;  
+  red = green = blue = alpha = 0;
   grub_video_unmap_color (color, &red, &green, &blue, &alpha);
   return grub_video_fbblit_map_rgba (mode_info, red, green, blue, alpha);
 }

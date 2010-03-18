@@ -108,20 +108,6 @@ int grub_partition_iterate (struct grub_disk *disk,
 			    void *closure);
 char *grub_partition_get_name (const grub_partition_t partition);
 
-#ifdef GRUB_UTIL
-void grub_msdos_partition_map_init (void);
-void grub_msdos_partition_map_fini (void);
-void grub_amiga_partition_map_init (void);
-void grub_amiga_partition_map_fini (void);
-void grub_apple_partition_map_init (void);
-void grub_apple_partition_map_fini (void);
-void grub_sun_partition_map_init (void);
-void grub_sun_partition_map_fini (void);
-void grub_gpt_partition_map_init (void);
-void grub_gpt_partition_map_fini (void);
-void grub_apple_partition_map_init (void);
-void grub_apple_partition_map_fini (void);
-#endif
 
 static inline grub_disk_addr_t
 grub_partition_get_start (const grub_partition_t p)

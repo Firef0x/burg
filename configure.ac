@@ -51,6 +51,7 @@ fi
 
 case "$target_cpu" in
   i[[3456]]86)	target_cpu=i386 ;;
+  amd64)	target_cpu=x86_64 ;;
   sparc)	target_cpu=sparc64 ;;
   mipsel|mips64el)
                 target_cpu=mips;    
@@ -226,7 +227,7 @@ AC_HEADER_MAJOR
 AC_HEADER_DIRENT
 AC_CHECK_FUNCS(memmove sbrk strdup lstat getuid getgid)
 AC_CHECK_HEADERS(sys/mkdev.h sys/sysmacros.h malloc.h termios.h sys/types.h)
-AC_CHECK_HEADERS(unistd.h string.h strings.h sys/stat.h sys/fcntl.h)
+AC_CHECK_HEADERS(unistd.h string.h strings.h sys/stat.h sys/fcntl.h limits.h)
 
 AC_SEARCH_LIBS(nanosleep, rt posix4)
 AC_SEARCH_LIBS(getopt_long, iberty)
@@ -425,9 +426,6 @@ AC_SUBST(TARGET_ASFLAGS)
 AC_SUBST(TARGET_CPPFLAGS)
 AC_SUBST(TARGET_LDFLAGS)
 
-# Check for libgcc symbols (must be performed before we add -nostdlib to LDFLAGS)
-AC_CHECK_FUNCS(__bswapsi2 __bswapdi2 __ashldi3 __ashrdi3 __lshrdi3 __trampoline_setup __ucmpdi2 _restgpr_14_x)
-
 # Set them to their new values for the tests below.
 CC="$TARGET_CC"
 grub_PROG_LD_DEFSYM
@@ -436,8 +434,7 @@ CFLAGS="$TARGET_CFLAGS -nostdlib -Wl,--defsym,___main=0x8100"
 else
 CFLAGS="$TARGET_CFLAGS -nostdlib"
 fi
-CPPFLAGS="$TARGET_CPPFLAGS"
-LDFLAGS="$TARGET_LDFLAGS"
+LIBS=""
 
 # Defined in aclocal.m4.
 grub_PROG_TARGET_CC
@@ -489,6 +486,19 @@ enable_efiemu=no
 fi
 AC_SUBST([enable_efiemu])
 
+AC_CACHE_CHECK([whether -nostdinc -isystem works], [grub_cv_cc_isystem], [
+  SAVED_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$TARGET_CPPFLAGS -nostdinc -isystem `$TARGET_CC -print-file-name=include`"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <stdarg.h>
+int va_arg_func (int fixed, va_list args);]], [[]])],
+      [grub_cv_cc_isystem=yes],
+      [grub_cv_cc_isystem=no])
+  CPPFLAGS="$SAVED_CPPFLAGS"
+])
+
+if test x"$grub_cv_cc_isystem" = xyes ; then
+  TARGET_CPPFLAGS="$TARGET_CPPFLAGS -nostdinc -isystem `$TARGET_CC -print-file-name=include`"
+fi
 
 # Restore the flags.
 CC="$tmp_CC"
@@ -616,6 +626,7 @@ fi
 if test x"$grub_emu_pci_excuse" = x ; then
 enable_grub_emu_pci=yes
 else
+
 enable_grub_emu_pci=no
 fi
 
@@ -653,6 +664,16 @@ if test x"$grub_mkfont_excuse" = x ; then
   freetype_cflags=`freetype-config --cflags`
   freetype_libs=`freetype-config --libs`
 fi
+
+if test x"$grub_mkfont_excuse" = x ; then
+  # Check for freetype libraries.
+  SAVED_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $freetype_cflags"
+  AC_CHECK_HEADERS([ft2build.h], [],
+  	[grub_mkfont_excuse=["need freetype2 headers"]])
+  CPPFLAGS="$SAVED_CPPFLAGS"
+fi
+
 if test x"$enable_grub_mkfont" = xyes && test x"$grub_mkfont_excuse" != x ; then
   AC_MSG_ERROR([grub-mkfont was explicitly requested but can't be compiled])
 fi

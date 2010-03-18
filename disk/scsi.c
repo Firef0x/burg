@@ -211,16 +211,15 @@ scsi_iterate (const char *name, int luns, void *closure)
   for (i = 0; i < luns; i++)
     {
       char *sname;
+      int ret;
 
       sname = grub_xasprintf ("%s%c", name, 'a' + i);
       if (!sname)
 	return 1;
-      if (c->hook (sname, c->closure))
-	{
-	  grub_free (sname);
-	  return 1;
-	}
+      ret = c->hook (sname, c->closure);
       grub_free (sname);
+      if (ret)
+	return 1;
     }
   return 0;
 }

@@ -191,7 +191,7 @@ grub_dialog_popup (grub_uitree_t node)
   save = grub_widget_current_node;
   r = grub_widget_input (node, 1);
   grub_widget_current_node = save;
-  if (r != GRUB_ERR_MENU_REFRESH)
+  if (! grub_widget_refresh)
     update_screen (node);
   grub_widget_free (node);
 

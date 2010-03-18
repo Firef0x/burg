@@ -310,9 +310,7 @@ grub_ieee1275_read (grub_ieee1275_ihandle_t ihandle, void *buffer,
 }
 
 int
-grub_ieee1275_seek (grub_ieee1275_ihandle_t ihandle,
-		    grub_ieee1275_cell_t pos_hi,
-		    grub_ieee1275_cell_t pos_lo,
+grub_ieee1275_seek (grub_ieee1275_ihandle_t ihandle, grub_disk_addr_t pos,
 		    grub_ssize_t *result)
 {
   struct write_args
@@ -327,8 +325,15 @@ grub_ieee1275_seek (grub_ieee1275_ihandle_t ihandle,
 
   INIT_IEEE1275_COMMON (&args.common, "seek", 3, 1);
   args.ihandle = ihandle;
-  args.pos_hi = pos_hi;
-  args.pos_lo = pos_lo;
+  /* To prevent stupid gcc warning.  */
+#if GRUB_IEEE1275_CELL_SIZEOF >= 8
+  args.pos_hi = 0;
+  args.pos_lo = pos;
+#else
+  args.pos_hi = (grub_ieee1275_cell_t) (pos >> (8 * GRUB_IEEE1275_CELL_SIZEOF));
+  args.pos_lo = (grub_ieee1275_cell_t)
+    (pos & ((1ULL << (8 * GRUB_IEEE1275_CELL_SIZEOF)) - 1));
+#endif
 
   if (IEEE1275_CALL_ENTRY_FN (&args) == -1)
     return -1;

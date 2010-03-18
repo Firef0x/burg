@@ -132,7 +132,7 @@ grub_ofdisk_iterate (int (*hook) (const char *name, void *closure), void *closur
 static char *
 compute_dev_path (const char *name)
 {
-  char *devpath = grub_malloc (grub_strlen (name) + 2);
+  char *devpath = grub_malloc (grub_strlen (name) + 3);
   char *p, c;
 
   if (!devpath)
@@ -203,16 +203,6 @@ grub_ofdisk_open (const char *name, grub_disk_t disk)
 
   grub_dprintf ("disk", "Opening `%s'.\n", op->devpath);
 
-  grub_ieee1275_open (op->devpath, &dev_ihandle);
-  if (! dev_ihandle)
-    {
-      grub_error (GRUB_ERR_UNKNOWN_DEVICE, "can't open device");
-      goto fail;
-    }
-
-  grub_dprintf ("disk", "Opened `%s' as handle 0x%lx.\n", op->devpath,
-		(unsigned long) dev_ihandle);
-
   if (grub_ieee1275_finddevice (op->devpath, &dev))
     {
       grub_error (GRUB_ERR_UNKNOWN_DEVICE, "can't read device properties");
@@ -231,6 +221,16 @@ grub_ofdisk_open (const char *name, grub_disk_t disk)
       grub_error (GRUB_ERR_BAD_DEVICE, "not a block device");
       goto fail;
     }
+
+  grub_ieee1275_open (op->devpath, &dev_ihandle);
+  if (! dev_ihandle)
+    {
+      grub_error (GRUB_ERR_UNKNOWN_DEVICE, "can't open device");
+      goto fail;
+    }
+
+  grub_dprintf ("disk", "Opened `%s' as handle %p.\n", op->devpath,
+		(void *) (unsigned long) dev_ihandle);
 
   op->dev_ihandle = dev_ihandle;
   op->refs++;
@@ -275,21 +275,9 @@ grub_ofdisk_read (grub_disk_t disk, grub_disk_addr_t sector,
   unsigned long long pos;
   struct ofdisk_hash_ent *data = disk->data;
 
-  grub_dprintf ("disk",
-		"Reading handle %p: sector 0x%llx, size 0x%lx, buf %p.\n",
-		data, (long long) sector, (long) size, buf);
-
   pos = sector * 512UL;
 
-#if GRUB_TARGET_SIZEOF_LONG == 4
-  grub_ieee1275_seek (data->dev_ihandle,
-		      (grub_ieee1275_cell_t) (pos >> 32),
-		      (grub_ieee1275_cell_t) (pos & 0xFFFFFFFFUL),
-		      &status);
-#else
-  grub_ieee1275_seek (data->dev_ihandle, 0, pos, &status);
-#endif
-
+  grub_ieee1275_seek (data->dev_ihandle, pos, &status);
   if (status < 0)
     return grub_error (GRUB_ERR_READ_ERROR,
 		       "seek error, can't seek block %llu",
@@ -297,7 +285,7 @@ grub_ofdisk_read (grub_disk_t disk, grub_disk_addr_t sector,
   size <<= 9;
   grub_ieee1275_read (data->dev_ihandle, buf, size, &actual);
   if (actual != (int) size)
-    return grub_error (GRUB_ERR_READ_ERROR, "Read error on block: %llu",
+    return grub_error (GRUB_ERR_READ_ERROR, "read error on block: %llu",
 		       (long long) sector);
 
   return 0;

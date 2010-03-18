@@ -61,7 +61,6 @@ GRUB_EXPORT(grub_abort);
 GRUB_EXPORT(grub_utf8_to_ucs4);
 GRUB_EXPORT(grub_divmod64);
 GRUB_EXPORT(grub_gettext);
-GRUB_EXPORT(grub_gettext_dummy);
 
 static int
 grub_vsnprintf_real (char *str, grub_size_t n, const char *fmt, va_list args);
@@ -73,7 +72,7 @@ grub_iswordseparator (int c)
 }
 
 /* grub_gettext_dummy is not translating anything.  */
-const char *
+static const char *
 grub_gettext_dummy (const char *s)
 {
   return s;
@@ -227,7 +226,6 @@ grub_vprintf (const char *fmt, va_list args)
   int ret;
 
   ret = grub_vsnprintf_real (0, 0, fmt, args);
-  grub_refresh ();
   return ret;
 }
 
@@ -890,9 +888,6 @@ grub_vsnprintf_real (char *str, grub_size_t max_len, const char *fmt, va_list ar
   if (cc.str)
     *(cc.str) = '\0';
 
-  if (cc.count && !cc.str)
-    grub_refresh ();
-
   return cc.count;
 }
 
@@ -989,6 +984,10 @@ grub_utf8_to_ucs4 (grub_uint32_t *dest, grub_size_t destsize,
 	    {
 	      /* invalid */
 	      code = '?';
+	      /* Character c may be valid, don't eat it.  */
+	      src--;
+	      if (srcsize != (grub_size_t)-1)
+		srcsize++;
 	      count = 0;
 	    }
 	  else

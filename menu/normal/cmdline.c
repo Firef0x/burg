@@ -176,8 +176,9 @@ cl_insert (const grub_uint32_t *str, struct grub_cmdline_get_closure *c)
       grub_memmove (c->buf + c->lpos, str, len * sizeof (grub_uint32_t));
 
       c->llen += len;
+      cl_set_pos_all (c);
+      cl_print_all (c->lpos, 0, c);
       c->lpos += len;
-      cl_print_all (c->lpos - len, 0, c);
       cl_set_pos_all (c);
     }
 }
@@ -274,6 +275,8 @@ grub_cmdline_get (const char *prompt)
   if (grub_history_used () == 0)
     grub_history_add (c.buf, c.llen);
 
+  grub_refresh ();
+
   while ((key = GRUB_TERM_ASCII_CHAR (grub_getkey ())) != '\n' && key != '\r')
     {
       switch (key)
@@ -309,10 +312,13 @@ grub_cmdline_get (const char *prompt)
 	    int restore;
 	    char *insertu8;
 	    char *bufu8;
+	    grub_uint32_t cc;
 
+	    cc = c.buf[c.lpos];
 	    c.buf[c.lpos] = '\0';
 
 	    bufu8 = grub_ucs4_to_utf8_alloc (c.buf, c.lpos);
+	    c.buf[c.lpos] = cc;
 	    if (!bufu8)
 	      {
 		grub_print_error ();
@@ -351,13 +357,24 @@ grub_cmdline_get (const char *prompt)
 				       insertlen, 0);
 		if (t > 0)
 		  {
-		    insert[t] = 0;
-		    cl_insert (insert, &c);
+		    if (insert[t-1] == ' ' && c.buf[c.lpos] == ' ')
+		      {
+			insert[t-1] = 0;
+			if (t != 1)
+			  cl_insert (insert, &c);
+			c.lpos++;
+		      }
+		    else
+		      {
+			insert[t] = 0;
+			cl_insert (insert, &c);
+		      }
 		  }
 
 		grub_free (insertu8);
 		grub_free (insert);
 	      }
+	    cl_set_pos_all (&c);
 	  }
 	  break;
 
@@ -484,6 +501,7 @@ grub_cmdline_get (const char *prompt)
 	    }
 	  break;
 	}
+
       grub_refresh ();
     }
 

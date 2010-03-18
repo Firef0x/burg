@@ -137,7 +137,7 @@ find_grub_drive (const char *name)
 }
 
 static int
-find_free_slot ()
+find_free_slot (void)
 {
   unsigned int i;
 
@@ -337,11 +337,12 @@ open_device (const grub_disk_t disk, grub_disk_addr_t sector, int flags)
     char dev[PATH_MAX];
 
     strcpy (dev, map[disk->id].device);
-    if (disk->partition && strncmp (map[disk->id].device, "/dev/", 5) == 0)
+    if (disk->partition && sector >= disk->partition->start
+	&& strncmp (map[disk->id].device, "/dev/", 5) == 0)
       is_partition = linux_find_partition (dev, disk->partition->start);
 
     /* Open the partition.  */
-    grub_dprintf ("hostdisk", "opening the device `%s' in open_device()", dev);
+    grub_dprintf ("hostdisk", "opening the device `%s' in open_device()\n", dev);
     fd = open (dev, flags);
     if (fd < 0)
       {
@@ -491,6 +492,23 @@ grub_util_biosdisk_read (grub_disk_t disk, grub_disk_addr_t sector,
 {
   int fd;
 
+  /* Split pre-partition and partition reads.  */
+  if (disk->partition && sector < disk->partition->start
+      && sector + size > disk->partition->start)
+    {
+      grub_err_t err;
+      err = grub_util_biosdisk_read (disk, sector,
+				     disk->partition->start - sector,
+				     buf);
+      if (err)
+	return err;
+
+      return grub_util_biosdisk_read (disk, disk->partition->start,
+				      size - (disk->partition->start - sector),
+				      buf + ((disk->partition->start - sector)
+					     << GRUB_DISK_SECTOR_BITS));
+    }
+
   fd = open_device (disk, sector, O_RDONLY);
   if (fd < 0)
     return grub_errno;
@@ -527,6 +545,23 @@ grub_util_biosdisk_write (grub_disk_t disk, grub_disk_addr_t sector,
 			  grub_size_t size, const char *buf)
 {
   int fd;
+
+  /* Split pre-partition and partition writes.  */
+  if (disk->partition && sector < disk->partition->start
+      && sector + size > disk->partition->start)
+    {
+      grub_err_t err;
+      err = grub_util_biosdisk_write (disk, sector,
+				      disk->partition->start - sector,
+				      buf);
+      if (err)
+	return err;
+
+      return grub_util_biosdisk_write (disk, disk->partition->start,
+				       size - (disk->partition->start - sector),
+				       buf + ((disk->partition->start - sector)
+					      << GRUB_DISK_SECTOR_BITS));
+    }
 
   fd = open_device (disk, sector, O_WRONLY);
   if (fd < 0)

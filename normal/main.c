@@ -135,6 +135,8 @@ GRUB_MOD_INIT(normal)
 
   grub_history_init (GRUB_DEFAULT_HISTORY_SIZE);
 
+  grub_install_newline_hook ();
+
   /* Register a command "normal" for the rescue mode.  */
   grub_register_command ("normal", grub_cmd_normal,
 			 0, "Enter normal mode.");
