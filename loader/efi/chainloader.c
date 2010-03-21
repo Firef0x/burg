@@ -37,9 +37,6 @@
 
 static grub_dl_t my_mod;
 
-static grub_efi_physical_address_t address;
-static grub_efi_uintn_t pages;
-static grub_efi_device_path_t *file_path;
 static grub_efi_handle_t image_handle;
 static grub_efi_char16_t *cmdline;
 
@@ -50,9 +47,7 @@ grub_chainloader_unload (void)
 
   b = grub_efi_system_table->boot_services;
   efi_call_1 (b->unload_image, image_handle);
-  efi_call_2 (b->free_pages, address, pages);
 
-  grub_free (file_path);
   grub_free (cmdline);
   cmdline = 0;
 
@@ -118,12 +113,14 @@ copy_file_path (grub_efi_file_path_device_path_t *fp,
 }
 
 static grub_efi_device_path_t *
-make_file_path (grub_efi_device_path_t *dp, const char *filename)
+make_file_path (grub_efi_device_path_t *dp, const char *filename,
+		char **basename)
 {
   char *dir_start;
   char *dir_end;
   grub_size_t size;
   grub_efi_device_path_t *d;
+  grub_efi_device_path_t *file_path;
 
   dir_start = grub_strchr (filename, ')');
   if (! dir_start)
@@ -137,6 +134,7 @@ make_file_path (grub_efi_device_path_t *dp, const char *filename)
       grub_error (GRUB_ERR_BAD_FILENAME, "invalid EFI file path");
       return 0;
     }
+  *basename = dir_end + 1;
 
   size = 0;
   d = dp;
@@ -151,23 +149,17 @@ make_file_path (grub_efi_device_path_t *dp, const char *filename)
   file_path = grub_malloc (size
 			   + ((grub_strlen (dir_start) + 1)
 			      * sizeof (grub_efi_char16_t))
-			   + sizeof (grub_efi_file_path_device_path_t) * 2);
+			   + sizeof (grub_efi_file_path_device_path_t));
   if (! file_path)
     return 0;
 
   grub_memcpy (file_path, dp, size);
 
-  /* Fill the file path for the directory.  */
+  /* Fill the file path for the file.  */
   d = (grub_efi_device_path_t *) ((char *) file_path
 				  + ((char *) d - (char *) dp));
-  grub_efi_print_device_path (d);
   copy_file_path ((grub_efi_file_path_device_path_t *) d,
-		  dir_start, dir_end - dir_start);
-
-  /* Fill the file path for the file.  */
-  d = GRUB_EFI_NEXT_DEVICE_PATH (d);
-  copy_file_path ((grub_efi_file_path_device_path_t *) d,
-		  dir_end + 1, grub_strlen (dir_end + 1));
+		  dir_start, grub_strlen (dir_start) + 1);
 
   /* Fill the end of device path nodes.  */
   d = GRUB_EFI_NEXT_DEVICE_PATH (d);
@@ -192,6 +184,9 @@ grub_cmd_chainloader (grub_command_t cmd __attribute__ ((unused)),
   grub_efi_device_path_t *dp = 0;
   grub_efi_loaded_image_t *loaded_image;
   char *filename;
+  char *basename;
+  char *address;
+  grub_efi_device_path_t *file_path;
 
   if (argc == 0)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, "no file specified");
@@ -228,7 +223,10 @@ grub_cmd_chainloader (grub_command_t cmd __attribute__ ((unused)),
       goto fail;
     }
 
-  file_path = make_file_path (dp, filename);
+  grub_device_close (dev);
+  dev = 0;
+
+  file_path = make_file_path (dp, filename, &basename);
   if (! file_path)
     goto fail;
 
@@ -236,18 +234,11 @@ grub_cmd_chainloader (grub_command_t cmd __attribute__ ((unused)),
   grub_efi_print_device_path (file_path);
 
   size = grub_file_size (file);
-  pages = (((grub_efi_uintn_t) size + ((1 << 12) - 1)) >> 12);
+  address = grub_malloc (size);
+  if (address == NULL)
+    goto fail;
 
-  status = efi_call_4 (b->allocate_pages, GRUB_EFI_ALLOCATE_ANY_PAGES,
-			      GRUB_EFI_LOADER_CODE,
-			      pages, &address);
-  if (status != GRUB_EFI_SUCCESS)
-    {
-      grub_error (GRUB_ERR_OUT_OF_MEMORY, "cannot allocate %u pages", pages);
-      goto fail;
-    }
-
-  if (grub_file_read (file, (void *) ((grub_addr_t) address), size) != size)
+  if (grub_file_read (file, address, size) != size)
     {
       if (grub_errno == GRUB_ERR_NONE)
 	grub_error (GRUB_ERR_BAD_OS, "too small");
@@ -256,8 +247,7 @@ grub_cmd_chainloader (grub_command_t cmd __attribute__ ((unused)),
     }
 
   status = efi_call_6 (b->load_image, 0, grub_efi_image_handle, file_path,
-			  (void *) ((grub_addr_t) address), size,
-			  &image_handle);
+		       address, size, &image_handle);
   if (status != GRUB_EFI_SUCCESS)
     {
       if (status == GRUB_EFI_OUT_OF_RESOURCES)
@@ -267,6 +257,13 @@ grub_cmd_chainloader (grub_command_t cmd __attribute__ ((unused)),
 
       goto fail;
     }
+
+  grub_free (address);
+  address = 0;
+  grub_free (file_path);
+  file_path = 0;
+  grub_file_close (file);
+  file = 0;
 
   /* LoadImage does not set a device handler when the image is
      loaded from memory, so it is necessary to set it explicitly here.
@@ -279,22 +276,24 @@ grub_cmd_chainloader (grub_command_t cmd __attribute__ ((unused)),
     }
   loaded_image->device_handle = dev_handle;
 
-  grub_file_close (file);
-
   if (argc > 1)
     {
       int i, len;
       grub_efi_char16_t *p16;
 
-      for (i = 1, len = 0; i < argc; i++)
+      argv[0] = basename;
+      for (i = 0, len = 1; i < argc; i++)
         len += grub_strlen (argv[i]) + 1;
 
       len *= sizeof (grub_efi_char16_t);
       cmdline = p16 = grub_malloc (len);
       if (! cmdline)
-        goto fail;
+	{
+	  argv[0] = filename;
+	  goto fail;
+	}
 
-      for (i = 1; i < argc; i++)
+      for (i = 0; i < argc; i++)
         {
           char *p8;
 
@@ -304,7 +303,8 @@ grub_cmd_chainloader (grub_command_t cmd __attribute__ ((unused)),
 
           *(p16++) = ' ';
         }
-      *(--p16) = 0;
+      *(p16) = 0;
+      argv[0] = filename;
 
       loaded_image->load_options = cmdline;
       loaded_image->load_options_size = len;
@@ -325,7 +325,7 @@ grub_cmd_chainloader (grub_command_t cmd __attribute__ ((unused)),
     grub_free (file_path);
 
   if (address)
-    efi_call_2 (b->free_pages, address, pages);
+    grub_free (address);
 
   grub_dl_unref (my_mod);
 

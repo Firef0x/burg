@@ -37,6 +37,9 @@ grub_efi_init (void)
   grub_efi_mm_init ();
 
   grub_efidisk_init ();
+
+  efi_call_4 (grub_efi_system_table->boot_services->set_watchdog_timer,
+	      0, 0, 0, 0);
 }
 
 void

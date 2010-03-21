@@ -65,6 +65,16 @@ grub_cmd_gptsync (grub_command_t cmd __attribute__ ((unused)),
   struct grub_partition *partition;
   grub_disk_addr_t first_sector;
   int numactive = 0;
+  int pcboot = 0;
+  char *diskname = args[0];
+
+  if ((argc >= 1) && (! grub_strcmp (args[0], "--pc")))
+    {
+      pcboot++;
+      numactive++;
+      argc--;
+      args++;
+    }
 
   if (argc < 1)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, "device name required");
@@ -208,7 +218,7 @@ grub_cmd_gptsync (grub_command_t cmd __attribute__ ((unused)),
     first_sector = 0xffffffff;
   else
     first_sector--;
-  mbr.entries[0].flag = 0;
+  mbr.entries[0].flag = (pcboot) ? 0x80 : 0;
   mbr.entries[0].type = GRUB_PC_PARTITION_TYPE_GPT_DISK;
   mbr.entries[0].start = grub_cpu_to_le32 (1);
   lba_to_chs (1,
@@ -229,7 +239,7 @@ grub_cmd_gptsync (grub_command_t cmd __attribute__ ((unused)),
       return grub_errno;
     }
 
-  grub_printf ("New MBR is written to '%s'\n", args[0]);
+  grub_printf ("New MBR is written to '%s'\n", diskname);
 
   return GRUB_ERR_NONE;
 }
@@ -241,7 +251,7 @@ GRUB_MOD_INIT(gptsync)
 {
   (void) mod;			/* To stop warning. */
   cmd = grub_register_command ("gptsync", grub_cmd_gptsync,
-			       N_("DEVICE [PARTITION[+/-[TYPE]]] ..."),
+			       N_("[--pc] DEVICE [PARTITION[+/-[TYPE]]] ..."),
 			       N_("Fill hybrid MBR of GPT drive DEVICE. "
 			       "specified partitions will be a part "
 			       "of hybrid mbr. Up to 3 partitions are "

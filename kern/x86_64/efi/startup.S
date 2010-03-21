@@ -55,9 +55,11 @@ VARIABLE(grub_prefix)
         . = _start + 0x50
 
 codestart:
+	subq	$8, %rsp
 	movq	%rcx, EXT_C(grub_efi_image_handle)(%rip)
 	movq	%rdx, EXT_C(grub_efi_system_table)(%rip)
 
 	call	EXT_C(grub_main)
+	addq	$8, %rsp
 	ret
 

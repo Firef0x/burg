@@ -35,8 +35,8 @@ static grub_efi_guid_t uga_draw_guid = GRUB_EFI_UGA_DRAW_GUID;
 static grub_efi_guid_t graphics_output_guid = GRUB_EFI_GRAPHICS_OUTPUT_GUID;
 static struct grub_efi_graphics_output_protocol *gop;
 static struct grub_efi_uga_draw_protocol *uga;
-static grub_uint32_t uga_fb;
-static grub_uint32_t uga_pitch;
+static grub_uint32_t fb_addr;
+static grub_uint32_t fb_pitch;
 
 static struct
 {
@@ -95,7 +95,7 @@ find_card (grub_pci_device_t dev, grub_pci_id_t pciid, void *closure)
   struct find_framebuf_closure *c = closure;
   grub_pci_address_t addr;
 
-  addr = grub_pci_make_address (dev, 2);
+  addr = grub_pci_make_address (dev, GRUB_PCI_REG_CLASS);
   if (grub_pci_read (addr) >> 24 == 0x3)
     {
       int i;
@@ -166,31 +166,59 @@ find_framebuf (grub_uint32_t *fb_base, grub_uint32_t *line_len)
 static int
 check_protocol (void)
 {
-  grub_efi_uga_draw_protocol_t *c;
+  struct grub_efi_uga_draw_protocol *u;
+  struct grub_efi_graphics_output_protocol *g;
 
-  gop = grub_efi_locate_protocol (&graphics_output_guid, 0);
-  if (gop)
-    return 1;
-
-  c = grub_efi_locate_protocol (&uga_draw_guid, 0);
-  if (c)
+  g = grub_efi_locate_protocol (&graphics_output_guid, 0);
+  if (g)
     {
-      grub_uint32_t width, height, depth, rate, pixel;
+      grub_uint32_t width, height, pixel;
       int ret;
 
-      if (efi_call_5 (c->get_mode, c, &width, &height, &depth, &rate))
-	return 0;
+      if (g->mode->frame_buffer_base)
+	{
+	  fb_addr = g->mode->frame_buffer_base;
+	  fb_pitch = g->mode->info->pixels_per_scan_line * 4;
+	  gop = g;
+	  return 1;
+	}
+
+      width = g->mode->info->horizontal_resolution;
+      height = g->mode->info->vertical_resolution;
 
       grub_efi_set_text_mode (0);
       pixel = RGB_MAGIC;
-      efi_call_10 (c->blt, c, (struct grub_efi_uga_pixel *) &pixel,
+      efi_call_10 (g->blt, g, (struct grub_efi_uga_pixel *) &pixel,
 		   GRUB_EFI_UGA_VIDEO_FILL, 0, 0, 0, 0, 1, height, 0);
-      ret = find_framebuf (&uga_fb, &uga_pitch);
+      ret = find_framebuf (&fb_addr, &fb_pitch);
       grub_efi_set_text_mode (1);
 
       if (ret)
 	{
-	  uga = c;
+	  gop = g;
+	  return 1;
+	}
+    }
+
+  u = grub_efi_locate_protocol (&uga_draw_guid, 0);
+  if (u)
+    {
+      grub_uint32_t width, height, depth, rate, pixel;
+      int ret;
+
+      if (efi_call_5 (u->get_mode, u, &width, &height, &depth, &rate))
+	return 0;
+
+      grub_efi_set_text_mode (0);
+      pixel = RGB_MAGIC;
+      efi_call_10 (u->blt, u, (struct grub_efi_uga_pixel *) &pixel,
+		   GRUB_EFI_UGA_VIDEO_FILL, 0, 0, 0, 0, 1, height, 0);
+      ret = find_framebuf (&fb_addr, &fb_pitch);
+      grub_efi_set_text_mode (1);
+
+      if (ret)
+	{
+	  uga = u;
 	  return 1;
 	}
     }
@@ -264,9 +292,6 @@ grub_video_efi_setup (unsigned int width, unsigned int height,
 
 	  framebuffer.mode_info.width = info->horizontal_resolution;
 	  framebuffer.mode_info.height = info->vertical_resolution;
-	  framebuffer.mode_info.pitch = info->pixels_per_scan_line * 4;
-	  framebuffer.ptr = (grub_uint8_t *) (grub_target_addr_t)
-	    (gop->mode->frame_buffer_base & 0xffffffff);
 	  found = 1;
 	}
     }
@@ -284,9 +309,6 @@ grub_video_efi_setup (unsigned int width, unsigned int height,
 	{
 	  framebuffer.mode_info.width = w;
 	  framebuffer.mode_info.height = h;
-	  framebuffer.mode_info.pitch = uga_pitch;
-	  framebuffer.ptr = (grub_uint8_t *) (grub_target_addr_t) uga_fb;
-
 	  found = 1;
 	}
     }
@@ -294,6 +316,9 @@ grub_video_efi_setup (unsigned int width, unsigned int height,
   if (found)
     {
       grub_err_t err;
+
+      framebuffer.mode_info.pitch = fb_pitch;
+      framebuffer.ptr = (grub_uint8_t *) (grub_target_addr_t) fb_addr;
 
       framebuffer.mode_info.mode_type = GRUB_VIDEO_MODE_TYPE_RGB;
       framebuffer.mode_info.bpp = 32;

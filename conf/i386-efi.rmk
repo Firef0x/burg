@@ -140,5 +140,10 @@ xnu_mod_CFLAGS = $(COMMON_CFLAGS)
 xnu_mod_LDFLAGS = $(COMMON_LDFLAGS)
 xnu_mod_ASFLAGS = $(COMMON_ASFLAGS)
 
+pkglib_MODULES += efivars.mod
+efivars_mod_SOURCES = commands/efi/efivars.c
+efivars_mod_CFLAGS = $(COMMON_CFLAGS)
+efivars_mod_ASFLAGS = $(COMMON_ASFLAGS)
+
 include $(srcdir)/conf/i386.mk
 include $(srcdir)/conf/common.mk

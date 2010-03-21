@@ -559,7 +559,7 @@ static int
 grub_linux_setup_video (struct linux_kernel_params *params)
 {
   struct grub_efi_graphics_output_protocol *gop;
-  grub_uint32_t width, height, depth, fb_base, fb_size, line_len;
+  grub_uint32_t width, height, depth, fb_base, line_len;
   int ret;
 
   gop = grub_efi_locate_protocol (&graphics_output_guid, 0);
@@ -567,10 +567,31 @@ grub_linux_setup_video (struct linux_kernel_params *params)
     {
       width = gop->mode->info->horizontal_resolution;
       height = gop->mode->info->vertical_resolution;
+
+      if ((gop->mode->frame_buffer_base) && (gop->mode->frame_buffer_size))
+	{
+	  fb_base = gop->mode->frame_buffer_base;
+	  line_len = 4 * gop->mode->info->pixels_per_scan_line;
+	}
+      else
+	{
+	  grub_uint32_t pixel;
+
+	  grub_efi_set_text_mode (0);
+	  pixel = RGB_MAGIC;
+	  efi_call_10 (gop->blt, gop, (struct grub_efi_uga_pixel *) &pixel,
+		       GRUB_EFI_UGA_VIDEO_FILL, 0, 0, 0, 0, 1, height, 0);
+	  ret = find_framebuf (&fb_base, &line_len);
+	  grub_efi_set_text_mode (1);
+
+	  if (! ret)
+	    {
+	      grub_printf ("Can\'t find frame buffer address\n");
+	      return 1;
+	    }
+	}
+
       depth = 32;
-      line_len = 4 * gop->mode->info->pixels_per_scan_line;
-      fb_base = (gop->mode->frame_buffer_base & 0xffffffff);
-      fb_size = gop->mode->frame_buffer_size;
     }
   else
     {
@@ -602,8 +623,6 @@ grub_linux_setup_video (struct linux_kernel_params *params)
 	  grub_printf ("Can\'t find frame buffer address\n");
 	  return 1;
 	}
-
-      fb_size = (line_len * params->lfb_height + 65535) >> 16;
     }
 
   grub_printf ("Video mode: %ux%u-%u\n", width, height, depth);
@@ -616,7 +635,7 @@ grub_linux_setup_video (struct linux_kernel_params *params)
   params->lfb_line_len = line_len;
 
   params->lfb_base = fb_base;
-  params->lfb_size = ALIGN_UP (line_len * params->lfb_height, 65536);
+  params->lfb_size = (line_len * params->lfb_height + 65535) >> 16;
 
   params->red_mask_size = 8;
   params->red_field_pos = 16;
