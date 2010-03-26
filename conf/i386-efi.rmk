@@ -145,5 +145,10 @@ efivars_mod_SOURCES = commands/efi/efivars.c
 efivars_mod_CFLAGS = $(COMMON_CFLAGS)
 efivars_mod_ASFLAGS = $(COMMON_ASFLAGS)
 
+pkglib_MODULES += netfs.mod
+netfs_mod_SOURCES = fs/efi/netfs.c
+netfs_mod_CFLAGS = $(COMMON_CFLAGS)
+netfs_mod_ASFLAGS = $(COMMON_ASFLAGS)
+
 include $(srcdir)/conf/i386.mk
 include $(srcdir)/conf/common.mk

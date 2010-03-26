@@ -52,28 +52,29 @@ grub_efi_set_prefix (void)
     {
       char *device;
       char *file;
+      char *prefix;
 
       device = grub_efidisk_get_device_name (image->device_handle);
       file = grub_efi_get_filename (image->file_path);
 
-      if (device && file)
-	{
-	  char *p;
-	  char *prefix;
+      if (file)
+        {
+          char *p;
 
-	  /* Get the directory.  */
-	  p = grub_strrchr (file, '/');
-	  if (p)
-	    *p = '\0';
+          /* Get the directory.  */
+          p = grub_strrchr (file, '/');
+          if (p)
+            *p = '\0';
+        }
 
-	  prefix = grub_xasprintf ("(%s)%s", device, file);
-	  if (prefix)
-	    {
-	      grub_env_set ("prefix", prefix);
-	      grub_free (prefix);
-	    }
-	}
+      prefix = grub_xasprintf ("(%s)%s", (device) ? device : "net0",
+			       (file) ? file : "");
 
+      if (prefix)
+        {
+          grub_env_set ("prefix", prefix);
+          grub_free (prefix);
+        }
       grub_free (device);
       grub_free (file);
     }
