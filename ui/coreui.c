@@ -864,6 +864,8 @@ struct progressbar_data
 {
   grub_menu_region_common_t bar;
   grub_menu_region_common_t bg_bar;
+  int last_ofs;
+  int cur_ofs;
 };
 
 static int
@@ -873,27 +875,51 @@ progressbar_get_data_size (void)
 }
 
 static void
+progressbar_init_size (grub_widget_t widget)
+{
+  struct progressbar_data *data = widget->data;
+  grub_menu_region_common_t bar;
+
+  data->bar = get_bitmap (widget, "image", 0, &data->bg_bar);
+  bar = (data->bar) ? data->bar : data->bg_bar;
+  if (bar)
+    {
+      if (! (widget->node->flags & GRUB_WIDGET_FLAG_FIXED_WIDTH))
+	widget->width = bar->width;
+
+      if (! (widget->node->flags & GRUB_WIDGET_FLAG_FIXED_HEIGHT))
+	widget->height = bar->height;
+    }
+  else
+    {
+      grub_video_color_t color;
+      grub_uint32_t fill;
+      grub_video_color_t bg_color;
+      grub_video_color_t bg_fill;
+      char *p;
+
+      p = grub_widget_get_prop (widget->node, "color");
+      if (! p)
+	p = "";
+
+      fill = bg_fill = 0;
+      color = grub_menu_parse_color (p, &fill, &bg_color, &bg_fill);
+
+      data->bar = (grub_menu_region_common_t)
+	grub_menu_region_create_rect (0, 0, color, fill);
+      if (color != bg_color)
+	data->bg_bar = (grub_menu_region_common_t)
+	  grub_menu_region_create_rect (0, 0, bg_color, bg_fill);
+    }
+}
+
+static void
 progressbar_fini_size (grub_widget_t widget)
 {
   struct progressbar_data *data = widget->data;
-  grub_video_color_t color;
-  grub_uint32_t fill;
-  grub_video_color_t bg_color;
-  grub_video_color_t bg_fill;
-  char *p;
 
-  p = grub_widget_get_prop (widget->node, "color");
-  if (! p)
-    p = "";
-
-  fill = bg_fill = 0;
-  color = grub_menu_parse_color (p, &fill, &bg_color, &bg_fill);
-
-  data->bar = (grub_menu_region_common_t)
-    grub_menu_region_create_rect (0, widget->height, color, fill);
-  if (color != bg_color)
-    data->bg_bar = (grub_menu_region_common_t)
-      grub_menu_region_create_rect (0, widget->height, bg_color, bg_fill);
+  grub_menu_region_scale (data->bar, widget->width, widget->height);
+  grub_menu_region_scale (data->bg_bar, widget->width, widget->height);
 }
 
 static void
@@ -910,13 +936,31 @@ progressbar_draw (grub_widget_t widget, grub_menu_region_update_list_t *head,
 	    int x, int y, int width, int height)
 {
   struct progressbar_data *data = widget->data;
+  int x1, y1, w1, h1;
 
-  grub_menu_region_add_update (head, data->bar,
-			       widget->org_x, widget->org_y,
-			       x, y, width, height);
-  grub_menu_region_add_update (head, data->bg_bar,
-			       widget->org_x, widget->org_y,
-			       x, y, width, height);
+  x1 = data->last_ofs;
+  y1 = 0;
+  w1 = data->cur_ofs - data->last_ofs;
+  h1 = widget->height;
+  if (grub_menu_region_check_rect (&x1, &y1, &w1, &h1, x, y, width, height))
+    grub_menu_region_add_update (head, data->bar, widget->org_x, widget->org_y,
+				 x1, y1, w1, h1);
+
+  if ((! data->last_ofs) && (data->bg_bar))
+    {
+      x1 = data->cur_ofs;
+      y1 = 0;
+      w1 = widget->width - x1;
+      h1 = widget->height;
+
+      if (grub_menu_region_check_rect (&x1, &y1, &w1, &h1,
+				       x, y, width, height))
+	grub_menu_region_add_update (head, data->bg_bar,
+				     widget->org_x, widget->org_y,
+				     x1, y1, w1, h1);
+    }
+
+  data->last_ofs = data->cur_ofs;
 }
 
 static void
@@ -925,29 +969,14 @@ progressbar_set_timeout (grub_widget_t widget, int total, int left)
   struct progressbar_data *data = widget->data;
 
   if (left > 0)
-    {
-      int width;
-
-      width = (total - left) * widget->width / total;
-      data->bar->width = width;
-      if (data->bg_bar)
-	{
-	  data->bg_bar->ofs_x = width;
-	  data->bg_bar->width = widget->width - width;
-	}
-    }
-  else
-    {
-      data->bar->width = 0;
-      if (data->bg_bar)
-	data->bg_bar->width = 0;
-    }
+    data->cur_ofs = (total - left) * widget->width / total;
 }
 
 static struct grub_widget_class progressbar_widget_class =
   {
     .name = "progressbar",
     .get_data_size = progressbar_get_data_size,
+    .init_size = progressbar_init_size,
     .fini_size = progressbar_fini_size,
     .free = progressbar_free,
     .draw = progressbar_draw,
