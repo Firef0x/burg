@@ -464,13 +464,16 @@ grub_uitree_load_buf (const char *prefix, int prefix_len, grub_uitree_t root,
 		}
 	    }
 	  else if ((type == TOKEN_TYPE_STRING) &&
-		   (! grub_strcmp (str, "include")))
+		   ((! grub_strcmp (str, "include")) ||
+		    (! grub_strcmp (str, "-include"))))
 	    {
+	      int ignore_error;
 	      grub_uitree_t n;
 	      int b;
 	      int pos;
 	      char *p;
 
+	      ignore_error = (str[0] == '-');
 	      pos = prefix_len;
 	      while  ((str2[0] == '.') && (str2[1] == '.'))
 		{
@@ -495,7 +498,9 @@ grub_uitree_load_buf (const char *prefix, int prefix_len, grub_uitree_t root,
 	      b = (node == root) ? flags : 0;
 	      n = grub_uitree_load_file (node, p, b);
 	      grub_free (p);
-	      if (grub_errno)
+	      if (ignore_error)
+		grub_errno = 0;
+	      else if (grub_errno)
 		break;
 
 	      if ((b & GRUB_UITREE_LOAD_FLAG_SINGLE) && (n != NULL))

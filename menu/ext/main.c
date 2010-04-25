@@ -39,15 +39,13 @@ static const struct grub_arg_option options[] =
     {0, 0, 0, 0, 0, 0}
   };
 
-static grub_uitree_t cur_screen;
-
 static grub_uitree_t
 get_screen (void)
 {
-  if (! cur_screen)
+  if (! grub_widget_screen)
     grub_error (GRUB_ERR_BAD_ARGUMENT, "menu not initialized");
 
-  return cur_screen;
+  return grub_widget_screen;
 }
 
 static void
@@ -300,7 +298,7 @@ static void
 free_section (const char *name)
 {
   grub_uitree_t node;
-  
+
   node = grub_uitree_find (&grub_uitree_root, name);
   if (node)
     {
@@ -577,10 +575,10 @@ show_menu (grub_menu_t menu, int nested)
       if (! root)
 	goto quit;
 
-      if (cur_screen)
-	grub_uitree_free (cur_screen);
+      if (grub_widget_screen)
+	grub_uitree_free (grub_widget_screen);
 
-      cur_screen = grub_uitree_clone (root);
+      grub_widget_screen = grub_uitree_clone (root);
     }
 
   root = get_screen ();
@@ -618,7 +616,7 @@ show_menu (grub_menu_t menu, int nested)
 			GRUB_AS_LIST (gfxmenu_term));
       grub_term_outputs = gfxmenu_term;
       gfxmenu_term->next = NULL;
-      
+
       while (1)
 	{
 	  grub_err_t r = 0;
@@ -663,8 +661,8 @@ show_menu (grub_menu_t menu, int nested)
 	      if (! root)
 		goto quit;
 
-	      grub_uitree_free (cur_screen);
-	      cur_screen = grub_uitree_clone (root);
+	      grub_uitree_free (grub_widget_screen);
+	      grub_widget_screen = grub_uitree_clone (root);
 
 	      root = get_screen ();
 	      if (! root)

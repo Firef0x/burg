@@ -71,6 +71,12 @@ grub_cmd_loadcfg (grub_command_t cmd, int argc, char **args)
       else
 	grub_uitree_load_file (&grub_uitree_root, *args,
 			       GRUB_UITREE_LOAD_FLAG_ROOT);
+
+      if (grub_errno == GRUB_ERR_FILE_NOT_FOUND)
+	grub_errno = 0;
+      else if (grub_errno)
+	break;
+
       argc--;
       args++;
     }
@@ -87,13 +93,13 @@ GRUB_MOD_INIT(loadcfg)
 			   "dump_config [NAMES]", "Dump config section.");
   cmd_free =
     grub_register_command ("free_config", grub_cmd_free,
-			   "free_config [NAMES]", "Free config section.");  
+			   "free_config [NAMES]", "Free config section.");
   cmd_load =
     grub_register_command ("load_config", grub_cmd_loadcfg,
 			   "load_config [FILES]", "Load config file.");
   cmd_str =
     grub_register_command ("load_string", grub_cmd_loadcfg,
-			   "load_string [STRINGS]", "Load config string.");  
+			   "load_string [STRINGS]", "Load config string.");
 }
 
 GRUB_MOD_FINI(loadcfg)

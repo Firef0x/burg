@@ -31,7 +31,6 @@ GRUB_EXPORT(grub_dialog_free);
 GRUB_EXPORT(grub_dialog_message);
 GRUB_EXPORT(grub_dialog_password);
 
-
 grub_uitree_t
 grub_dialog_create (const char *name, int copy, int index,
 		    grub_uitree_t *menu, grub_uitree_t *save)
@@ -215,17 +214,17 @@ grub_dialog_free (grub_uitree_t node, grub_uitree_t menu, grub_uitree_t save)
 static grub_uitree_t
 create_dialog (const char *name)
 {
-  grub_uitree_t root, node;
+  grub_uitree_t node;
 
-  root = grub_uitree_find (&grub_uitree_root, "screen");
-  if (! root)
+  if (! grub_widget_screen)
     return 0;
 
   node = grub_dialog_create (name, 1, 0, 0, 0);
   if (! node)
     return 0;
 
-  grub_tree_add_child (GRUB_AS_TREE (root), GRUB_AS_TREE (node), -1);
+  grub_tree_add_child (GRUB_AS_TREE (grub_widget_screen),
+		       GRUB_AS_TREE (node), -1);
   return node;
 }
 

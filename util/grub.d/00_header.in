@@ -106,8 +106,8 @@ if [ x$GRUB_THEME != x ] && [ ! -f $GRUB_THEME ] ; then
   cat << EOF
 function select_menu {
   if menu_popup -t template_popup theme_menu ; then
-    free_config template_popup template_subitem menu
-    load_config \${prefix}/themes/\${theme_name}/theme
+    free_config template_popup template_subitem menu class screen
+    load_config \${prefix}/themes/\${theme_name}/theme \${prefix}/themes/custom/theme_\${theme_name}
 EOF
   
   if test "x${GRUB_THEME}" = "xsaved"; then
@@ -146,7 +146,7 @@ EOF
   menu_refresh
 }
 EOF
-    if test "x${GRUB_FOLD}" = "xyes"; then
+    if test "x${GRUB_FOLD}" = "xtrue"; then
       echo "set theme_fold=1"
     else
       echo "set theme_fold="
@@ -178,7 +178,7 @@ EOF
     esac
   done
 
-  echo "  load_config \${prefix}/themes/\${theme_name}/theme"
+  echo "  load_config \${prefix}/themes/\${theme_name}/theme \${prefix}/themes/custom/theme_\${theme_name}"
   
   case x${GRUB_TERMINAL_OUTPUT} in
     xgfxterm)

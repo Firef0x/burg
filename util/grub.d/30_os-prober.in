@@ -39,7 +39,7 @@ fi
 
 osx_entry() {
         cat << EOF
-menuentry "${LONGNAME} (${2}-bit) (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_OPTION}{
+menuentry "${LONGNAME} (${2}-bit) (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_NORMAL}{
 EOF
 	save_default_entry | sed -e "s/^/\t/"
 	prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"
@@ -88,7 +88,7 @@ EOF
 EOF
 }
 
-export AUTH_OPTION
+export AUTH_NORMAL AUTH_RESCUE
 
 for OS in ${OSPROBED} ; do
   DEVICE="`echo ${OS} | cut -d ':' -f 1`"
@@ -111,13 +111,23 @@ for OS in ${OSPROBED} ; do
     LONGNAME="${LABEL}"
   fi
 
+  s=`echo :${GRUB_TITLE_OVERRIDE}: | sed "s,.*:${DEVICE}=\([^:]*\):.*,\1,"`
+  if test "x$s" != "x:${GRUB_TITLE_OVERRIDE}:" ; then
+    LONGNAME="$s"
+  fi
+
+  s=`echo :${GRUB_CLASS_OVERRIDE}: | sed "s,.*:${DEVICE}=\([^:]*\):.*,\1,"`
+  if test "x$s" != "x:${GRUB_CLASS_OVERRIDE}:" ; then
+    OSLABEL="$s"
+  fi
+
   echo "Found ${LONGNAME} on ${DEVICE}" >&2
 
   case ${BOOT} in
     chain)
 
       cat << EOF
-menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_OPTION}{
+menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_NORMAL}{
 EOF
       save_default_entry | sed -e "s/^/\t/"
       prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"
@@ -159,7 +169,7 @@ EOF
 	fi
 
         cat << EOF
-menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} --class os --group group_${DEVICE} ${AUTH_OPTION}{
+menuentry "${LLABEL} (on ${DEVICE})" --class ${OSLABEL} --class os --group group_${DEVICE} ${AUTH_NORMAL}{
 EOF
 	save_default_entry | sed -e "s/^/\t/"
 	if [ -z "${prepare_boot_cache}" ]; then
@@ -167,11 +177,11 @@ EOF
 	fi
 	printf '%s\n' "${prepare_boot_cache}"
 	cat <<  EOF
-	linux ${LKERNEL} ${LPARAMS}
+	linux${GRUB_LINUX16} ${LKERNEL} ${LPARAMS}
 EOF
         if [ -n "${LINITRD}" ] ; then
           cat << EOF
-	initrd ${LINITRD}
+	initrd${GRUB_LINUX16} ${LINITRD}
 EOF
         fi
         cat << EOF
@@ -186,7 +196,7 @@ EOF
     ;;
     hurd)
       cat << EOF
-menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_OPTION}{
+menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_NORMAL}{
 EOF
       save_default_entry | sed -e "s/^/\t/"
       prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"

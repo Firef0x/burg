@@ -36,7 +36,7 @@ else
 fi
 
 CLASS="--class ${OSLABEL} ${CLASS}"
-export AUTH_OPTION
+export AUTH_NORMAL AUTH_RESCUE
 get_auth_option ${OSLABEL}
 
 # loop-AES arranges things so that /dev/loop/X can be our root device, but
@@ -62,10 +62,12 @@ linux_entry ()
   args="$4"
   if ${recovery} ; then
     title="$(gettext "%s, with Linux %s (recovery mode)")"
+    auth_option=${AUTH_RESCUE}
   else
     title="$(gettext "%s, with Linux %s")"
+    auth_option=${AUTH_NORMAL}
   fi
-  printf "menuentry \"${title}\" ${CLASS} --group group_main ${AUTH_OPTION}{\n" "${os}" "${version}"
+  printf "menuentry \"${title}\" ${CLASS} --group group_main ${auth_option}{\n" "${os}" "${version}"
   save_default_entry | sed -e "s/^/\t/"
 
   # Use ELILO's generic "efifb" when it's known to be available.
@@ -89,12 +91,12 @@ EOF
   printf '%s\n' "${prepare_boot_cache}"
   cat << EOF
 	echo	$(printf "$(gettext "Loading Linux %s ...")" ${version})
-	linux	${rel_dirname}/${basename} root=${linux_root_device_thisversion} ro ${args}
+	linux${GRUB_LINUX16}	${rel_dirname}/${basename} root=${linux_root_device_thisversion} ro ${args}
 EOF
   if test -n "${initrd}" ; then
     cat << EOF
 	echo	$(gettext "Loading initial ramdisk ...")
-	initrd	${rel_dirname}/${initrd}
+	initrd${GRUB_LINUX16}	${rel_dirname}/${initrd}
 EOF
   fi
   cat << EOF

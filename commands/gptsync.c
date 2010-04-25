@@ -66,7 +66,6 @@ grub_cmd_gptsync (grub_command_t cmd __attribute__ ((unused)),
   grub_disk_addr_t first_sector;
   int numactive = 0;
   int pcboot = 0;
-  char *diskname = args[0];
 
   if ((argc >= 1) && (! grub_strcmp (args[0], "--pc")))
     {
@@ -239,7 +238,7 @@ grub_cmd_gptsync (grub_command_t cmd __attribute__ ((unused)),
       return grub_errno;
     }
 
-  grub_printf ("New MBR is written to '%s'\n", diskname);
+  grub_printf ("New MBR is written to '%s'\n", args[0]);
 
   return GRUB_ERR_NONE;
 }

@@ -224,12 +224,22 @@ export GRUB_DEFAULT \
   GRUB_GFXPAYLOAD_LINUX \
   GRUB_DISABLE_OS_PROBER \
   GRUB_INIT_TUNE \
-  GRUB_SAVEDEFAULT \
-  GRUB_FOLD \
-  GRUB_USERS
+  GRUB_SAVEDEFAULT
 
 GRUB_USERS_ALL=`echo :${GRUB_USERS}: | sed "s,.*:\*=\([^:]*\):.*,\1,;s,:.*:,,"`
-export GRUB_USERS_ALL
+
+if test "x${GRUB_LINUX16}" = "xtrue"; then
+  GRUB_LINUX16=16
+else
+  GRUB_LINUX16=
+fi
+
+export GRUB_FOLD \
+  GRUB_USERS \
+  GRUB_USERS_ALL \
+  GRUB_LINUX16 \
+  GRUB_TITLE_OVERRIDE \
+  GRUB_CLASS_OVERRIDE
 
 if test "x${grub_cfg}" != "x"; then
   rm -f ${grub_cfg}.new

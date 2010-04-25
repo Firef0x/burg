@@ -94,6 +94,7 @@ grub_widget_class_unregister (grub_widget_class_t class)
 }
 
 extern grub_uitree_t grub_widget_current_node;
+extern grub_uitree_t grub_widget_screen;
 extern int grub_widget_refresh;
 
 grub_err_t grub_widget_create (grub_uitree_t node);

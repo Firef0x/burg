@@ -281,7 +281,7 @@ for cipher_file in cipher_files:
             conf.write ("pkglib_MODULES += %s.mod\n" % modname)
             conf.write ("%s_mod_SOURCES = %s\n" %\
                             (modname, modfiles))
-            conf.write ("%s_mod_CFLAGS = $(COMMON_CFLAGS) -Wno-missing-field-initializers -Wno-error -I$(srcdir)/lib/libgcrypt_wrap\n" % modname)
+            conf.write ("%s_mod_CFLAGS = $(COMMON_CFLAGS) -Wno-error -I$(srcdir)/lib/libgcrypt_wrap\n" % modname)
             conf.write ("%s_mod_LDFLAGS = $(COMMON_LDFLAGS)\n\n" % modname)
         elif isc and cipher_file != "camellia.c":
             print ("WARNING: C file isn't a module: %s" % cipher_file)

@@ -40,10 +40,12 @@ GRUB_EXPORT(grub_widget_input);
 GRUB_EXPORT(grub_widget_get_prop);
 GRUB_EXPORT(grub_widget_current_node);
 GRUB_EXPORT(grub_widget_refresh);
+GRUB_EXPORT(grub_widget_screen);
 
 grub_widget_class_t grub_widget_class_list;
 grub_uitree_t grub_widget_current_node;
 int grub_widget_refresh;
+grub_uitree_t grub_widget_screen;
 
 grub_err_t
 grub_widget_create (grub_uitree_t node)

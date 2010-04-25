@@ -192,14 +192,23 @@ version_find_latest ()
 get_auth_option ()
 {
   local a=
-  AUTH_OPTION=
+  local b=
+  AUTH_NORMAL=
+  AUTH_RESCUE=
   if [ -n "${GRUB_USERS}" ]; then
     a=`echo :${GRUB_USERS}: | sed "s,.*:$1=\([^:]*\):.*,\1,"`
     if [ "x$a" = "x:${GRUB_USERS}:" ]; then
       a=${GRUB_USERS_ALL}
     fi
     if [ -n "${a}" ]; then
-      AUTH_OPTION="--users \"${a}\" "
+      AUTH_NORMAL="--users \"${a}\" "
+    fi
+    b=`echo :${GRUB_USERS}: | sed "s,.*:\*$1=\([^:]*\):.*,\1,"`
+    if [ "x$b" = "x:${GRUB_USERS}:" ]; then
+      b=${a}
+    fi
+    if [ -n "${b}" ]; then
+      AUTH_RESCUE="--users \"${b}\" "
     fi
   fi
 }
