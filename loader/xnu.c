@@ -1422,7 +1422,7 @@ grub_cmd_xnu_splash (grub_extcmd_t cmd,
 }
 
 
-#ifndef GRUB_UTIL
+#ifndef GRUB_MACHINE_EMU
 static grub_err_t
 grub_cmd_xnu_resume (grub_command_t cmd __attribute__ ((unused)),
 		     int argc, char *args[])
@@ -1476,7 +1476,7 @@ GRUB_MOD_INIT(xnu)
 				     N_("Load a splash image for XNU."),
 				     xnu_splash_cmd_options);
 
-#ifndef GRUB_UTIL
+#ifndef GRUB_MACHINE_EMU
   cmd_resume = grub_register_command ("xnu_resume", grub_cmd_xnu_resume,
 				      0, N_("Load XNU hibernate image."));
 #endif
@@ -1488,7 +1488,7 @@ GRUB_MOD_INIT(xnu)
 
 GRUB_MOD_FINI(xnu)
 {
-#ifndef GRUB_UTIL
+#ifndef GRUB_MACHINE_EMU
   grub_unregister_command (cmd_resume);
 #endif
   grub_unregister_command (cmd_mkext);

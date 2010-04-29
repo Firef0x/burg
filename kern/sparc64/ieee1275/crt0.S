@@ -25,7 +25,7 @@
 grub_code_start:
 _start:
 	ba	codestart
-	 nop
+	 mov  %o4, %o0
 
 	. = EXT_C(_start) + GRUB_KERNEL_MACHINE_TOTAL_MODULE_SIZE
 
@@ -55,8 +55,17 @@ codestart:
 	or	%o3, %lo(grub_bss_end), %o3
 	sethi	%hi(grub_total_module_size), %o4
 	lduw	[%o4 + %lo(grub_total_module_size)], %o4
+
 	add     %o2, %o4, %o2
 	add     %o3, %o4, %o3
+
+	/* Save ieee1275 stack for future use by booter.  */
+	mov     %o6, %o1
+	/* Our future stack.  */
+	sethi	%hi(GRUB_KERNEL_MACHINE_STACK_SIZE - 2047), %o5
+	or	%o5, %lo(GRUB_KERNEL_MACHINE_STACK_SIZE - 2047), %o5
+	add     %o3, %o5, %o6
+	
 	sub	%o2, 4, %o2
 	sub	%o3, 4, %o3
 1:	lduw	[%o2], %o5
@@ -64,7 +73,7 @@ codestart:
 	subcc	%o4, 4, %o4
 	sub	%o2, 4, %o2
 	bne,pt	%icc, 1b
-	  sub	%o3, 4, %o3
+	 sub	%o3, 4, %o3
 #endif
 
 	/* Now it's safe to clear out the BSS.  */
@@ -77,8 +86,9 @@ codestart:
 	cmp	%o2, %o3
 	blt,pt	%xcc, 1b
 	 nop
+	sethi	%hi(grub_ieee1275_original_stack), %o2
+	stx	%o1, [%o2 + %lo(grub_ieee1275_original_stack)]
 	sethi	%hi(grub_ieee1275_entry_fn), %o2
-	stx	%o0, [%o2 + %lo(grub_ieee1275_entry_fn)]
 	call	grub_main
-	 nop
+	 stx	%o0, [%o2 + %lo(grub_ieee1275_entry_fn)]
 1:	ba,a	1b

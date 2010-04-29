@@ -239,10 +239,8 @@ check_blocklists (grub_envblk_t envblk, struct blocklist *blocklists,
   /* One more sanity check. Re-read all sectors by blocklists, and compare
      those with the data read via a file.  */
   disk = file->device->disk;
-  if (disk->partition)
-    part_start = grub_partition_get_start (disk->partition);
-  else
-    part_start = 0;
+
+  part_start = grub_partition_get_start (disk->partition);
 
   buf = grub_envblk_buffer (envblk);
   for (p = blocklists, index = 0; p; index += p->length, p = p->next)
@@ -272,10 +270,7 @@ write_blocklists (grub_envblk_t envblk, struct blocklist *blocklists,
 
   buf = grub_envblk_buffer (envblk);
   disk = file->device->disk;
-  if (disk->partition)
-    part_start = grub_partition_get_start (disk->partition);
-  else
-    part_start = 0;
+  part_start = grub_partition_get_start (disk->partition);
 
   index = 0;
   for (p = blocklists; p; index += p->length, p = p->next)

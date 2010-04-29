@@ -51,7 +51,6 @@ fi
 if test "x${GRUB_THEME}" = "xsaved"; then
   echo "set theme_name=ubuntu"
 fi
-
 cat << EOF
 if [ -s \$prefix/burgenv ]; then
   load_env
@@ -73,34 +72,28 @@ function savedefault {
 }
 EOF
 
-case ${GRUB_TERMINAL_INPUT}:${GRUB_TERMINAL_OUTPUT} in
-  serial:* | *:serial)
-    if test ! -e ${grub_prefix}/serial.mod ; then
-      echo "Serial terminal not available on this platform." >&2 ; exit 1
+serial=0;
+gfxterm=0;
+for x in ${GRUB_TERMINAL_INPUT} ${GRUB_TERMINAL_OUTPUT}; do
+    if [ xserial = "x$x" ]; then
+	serial=1;
+    fi
+    if [ xgfxterm = "x$x" ]; then
+	gfxterm=1;
+    fi
+done
+
+if [ "x$serial" = x1 ]; then
+    if ! test -e ${grub_prefix}/serial.mod ; then
+	echo "Serial terminal not available on this platform." >&2 ; exit 1
     fi
 
     if [ "x${GRUB_SERIAL_COMMAND}" = "x" ] ; then
-      grub_warn "Requested serial terminal but GRUB_SERIAL_COMMAND is unspecified. Default parameters will be used."
-      GRUB_SERIAL_COMMAND=serial
+	grub_warn "Requested serial terminal but GRUB_SERIAL_COMMAND is unspecified. Default parameters will be used."
+	GRUB_SERIAL_COMMAND=serial
     fi
     echo "${GRUB_SERIAL_COMMAND}"
-  ;;
-esac
-
-case x${GRUB_TERMINAL_INPUT} in
-  x)
-    # Just use the native terminal
-  ;;
-  x*)
-    cat << EOF
-if terminal_input ${GRUB_TERMINAL_INPUT} ; then true ; else
-  # For backward compatibility with versions of terminal.mod that don't
-  # understand terminal_input
-  terminal ${GRUB_TERMINAL_INPUT}
 fi
-EOF
-  ;;
-esac
 
 if [ x$GRUB_THEME != x ] && [ ! -f $GRUB_THEME ] ; then
   cat << EOF
@@ -180,9 +173,8 @@ EOF
 
   echo "  load_config \${prefix}/themes/\${theme_name}/theme \${prefix}/themes/custom/theme_\${theme_name}"
   
-  case x${GRUB_TERMINAL_OUTPUT} in
-    xgfxterm)
-      cat << EOF
+  if [ "x$gfxterm" = x1 ]; then
+    cat << EOF
   insmod ${GRUB_VIDEO_BACKEND}
   insmod png
   insmod jpeg
@@ -190,46 +182,103 @@ EOF
   set gfxfont="Unifont Regular 16"
   menu_region.gfx
 EOF
-    ;;
-  esac
+  fi
 
   cat << EOF
   controller.ext
 fi
 EOF
-  GRUB_TERMINAL_OUTPUT=
+
+  gfxterm=0
+  term_output=
+  for x in ${GRUB_TERMINAL_OUTPUT}; do
+    if [ xgfxterm != "x$x" ]; then
+      term_output=${term_output} $x
+    fi
+  done
+  GRUB_TERMINAL_OUTPUT=${term_output}
 fi
 
-case x${GRUB_TERMINAL_OUTPUT} in
- xgfxterm)
+if [ "x$gfxterm" = x1 ]; then
     # Make the font accessible
-    prepare_grub_to_access_device `${grub_probe} --target=device ${GRUB_FONT_PATH}`
+    prepare_grub_to_access_device `${grub_probe} --target=device "${GRUB_FONT_PATH}"`
 
     cat << EOF
-if loadfont `make_system_path_relative_to_its_root ${GRUB_FONT_PATH}` ; then
+if loadfont `make_system_path_relative_to_its_root "${GRUB_FONT_PATH}"` ; then
   set gfxmode=${GRUB_GFXMODE}
   insmod gfxterm
   insmod ${GRUB_VIDEO_BACKEND}
-  if terminal_output gfxterm ; then true ; else
-    # For backward compatibility with versions of terminal.mod that don't
-    # understand terminal_output
-    terminal gfxterm
-  fi
 EOF
-if [ x$GRUB_THEME != x ] && [ -f $GRUB_THEME ] \
-	&& is_path_readable_by_grub $GRUB_THEME; then
-    echo "Found theme: $GRUB_THEME" >&2
-    prepare_grub_to_access_device `${grub_probe} --target=device $GRUB_THEME` | sed -e "s/^/  /"
-    cat << EOF
+    if [ "x$GRUB_THEME" != x ] && [ -f "$GRUB_THEME" ] \
+	&& is_path_readable_by_grub "$GRUB_THEME"; then
+	echo "Found theme: $GRUB_THEME" >&2
+	prepare_grub_to_access_device `${grub_probe} --target=device "$GRUB_THEME"` | sed -e "s/^/  /"
+	cat << EOF
   insmod gfxmenu
+EOF
+	themedir="`dirname "$GRUB_THEME"`"
+	for x in "$themedir"/*.pf2 "$themedir"/f/*.pf2; do
+	    if [ -f "$x" ]; then
+		cat << EOF
+  loadfont (\$root)`make_system_path_relative_to_its_root $x`
+EOF
+	    fi
+	done
+	if [ x"`echo "$themedir"/*.jpg`" != x"$themedir/*.jpg" ] || [ x"`echo "$themedir"/*.jpeg`" != x"$themedir/*.jpeg" ]; then
+	    cat << EOF
+  insmod jpeg
+EOF
+	fi
+	if [ x"`echo "$themedir"/*.png`" != x"$themedir/*.png" ]; then
+	    cat << EOF
   insmod png
+EOF
+	fi
+	if [ x"`echo "$themedir"/*.tga`" != x"$themedir/*.tga" ]; then
+	    cat << EOF
+  insmod tga
+EOF
+	fi
+
+	cat << EOF
   set theme=(\$root)`make_system_path_relative_to_its_root $GRUB_THEME`
 EOF
-fi
+    elif [ "x$GRUB_BACKGROUND" != x ] && [ -f "$GRUB_BACKGROUND" ] \
+	    && is_path_readable_by_grub "$GRUB_BACKGROUND"; then
+	echo "Found background: $GRUB_BACKGROUND" >&2
+	case "$GRUB_BACKGROUND" in
+	    *.png)         reader=png ;;
+	    *.tga)         reader=tga ;;
+	    *.jpg|*.jpeg)  reader=jpeg ;;
+	    *)             echo "Unsupported image format" >&2; exit 1 ;;
+	esac
+	prepare_grub_to_access_device `${grub_probe} --target=device "$GRUB_BACKGROUND"` | sed -e "s/^/  /"
+	cat << EOF
+  insmod $reader
+  background_image -m stretch `make_system_path_relative_to_its_root "$GRUB_BACKGROUND"`
+EOF
+    fi
     cat << EOF
+fi
+EOF
+fi
+
+case x${GRUB_TERMINAL_INPUT} in
+  x)
+    # Just use the native terminal
+  ;;
+  x*)
+    cat << EOF
+if terminal_input ${GRUB_TERMINAL_INPUT} ; then true ; else
+  # For backward compatibility with versions of terminal.mod that don't
+  # understand terminal_input
+  terminal ${GRUB_TERMINAL_INPUT}
 fi
 EOF
   ;;
+esac
+
+case x${GRUB_TERMINAL_OUTPUT} in
   x)
     # Just use the native terminal
   ;;

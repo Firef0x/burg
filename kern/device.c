@@ -138,7 +138,7 @@ iterate_disk (const char *disk_name, void *closure)
   dev = grub_device_open (disk_name);
   if (! dev)
     {
-      grub_errno = 0;
+      grub_errno = GRUB_ERR_NONE;
       return 0;
     }
 

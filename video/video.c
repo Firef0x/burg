@@ -697,11 +697,11 @@ grub_video_update_rect (int x, int y, int width, int height)
 }
 
 /* Initialize Video API module.  */
-GRUB_MOD_INIT(video_video)
+GRUB_MOD_INIT(video)
 {
 }
 
 /* Finalize Video API module.  */
-GRUB_MOD_FINI(video_video)
+GRUB_MOD_FINI(video)
 {
 }

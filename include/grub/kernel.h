@@ -63,6 +63,8 @@ extern grub_addr_t grub_arch_modules_addr (void);
 
 extern void grub_module_iterate (int (*hook) (struct grub_module_header *));
 
+grub_addr_t grub_modules_get_end (void);
+
 /* The start point of the C code.  */
 void grub_main (void);
 

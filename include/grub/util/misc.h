@@ -27,6 +27,7 @@
 
 #include <config.h>
 #include <grub/types.h>
+#include <grub/symbol.h>
 #include <grub/list.h>
 
 #ifdef __NetBSD__
@@ -41,9 +42,9 @@
 extern char *progname;
 extern int verbosity;
 
-void grub_util_warn (const char *fmt, ...);
-void grub_util_info (const char *fmt, ...);
-void grub_util_error (const char *fmt, ...) __attribute__ ((noreturn));
+void EXPORT_FUNC(grub_util_warn) (const char *fmt, ...);
+void EXPORT_FUNC(grub_util_info) (const char *fmt, ...);
+void EXPORT_FUNC(grub_util_error) (const char *fmt, ...) __attribute__ ((noreturn));
 
 void *xmalloc (size_t size);
 void *xrealloc (void *ptr, size_t size);
@@ -95,6 +96,8 @@ grub_int64_t grub_util_get_disk_size (const char *name);
 
 
 char *make_system_path_relative_to_its_root (const char *path);
+
+char *canonicalize_file_name (const char *path);
 
 void grub_util_init_nls (void);
 

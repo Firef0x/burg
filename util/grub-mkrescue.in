@@ -145,7 +145,7 @@ if test -e "${coreboot_dir}" ; then
     memdisk_dir=`mktemp -d "$MKTEMP_TEMPLATE"`
     mkdir -p ${memdisk_dir}/boot/burg
     # obtain date-based UUID
-    iso_uuid=$(date +%Y-%m-%d-%H-%M-%S-00)
+    iso_uuid=$(date -u +%Y-%m-%d-%H-%M-%S-00)
 
     modules="$(cat ${coreboot_dir}/partmap.lst) ${modules}"
     cat << EOF > ${memdisk_dir}/boot/burg/burg.cfg
@@ -156,7 +156,7 @@ EOF
         echo "insmod $i"
     done ; \
     echo "source /boot/burg/burg.cfg") \
-    > ${iso9660_dir}/boot/burg/i386-pc/burg.cfg
+    > ${iso9660_dir}/boot/burg/i386-coreboot/burg.cfg
 
     tar -C ${memdisk_dir} -cf ${memdisk_img} boot
     rm -rf ${memdisk_dir}
@@ -187,7 +187,7 @@ if test -e "${pc_dir}" ; then
     echo "source /boot/burg/burg.cfg") \
     > ${iso9660_dir}/boot/burg/i386-pc/burg.cfg
 
-    grub_mkisofs_arguments="${grub_mkisofs_arguments} -b boot/burg/i386-pc/eltorito.img -boot-info-table \
+    grub_mkisofs_arguments="${grub_mkisofs_arguments} -b boot/burg/i386-pc/eltorito.img -no-emul-boot -boot-info-table \
 		--embedded-boot ${embed_img}"
 fi
 

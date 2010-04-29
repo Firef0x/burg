@@ -107,17 +107,12 @@ apple_partition_map_iterate (grub_disk_t disk,
   struct grub_partition part;
   struct grub_apple_header aheader;
   struct grub_apple_part apart;
-  struct grub_disk raw;
   int partno = 0, partnum = 0;
   unsigned pos;
 
-  /* Enforce raw disk access.  */
-  raw = *disk;
-  raw.partition = 0;
-
   part.partmap = &grub_apple_partition_map;
 
-  if (grub_disk_read (&raw, 0, 0, sizeof (aheader), &aheader))
+  if (grub_disk_read (disk, 0, 0, sizeof (aheader), &aheader))
     return grub_errno;
 
   if (grub_be_to_cpu16 (aheader.magic) != GRUB_APPLE_HEADER_MAGIC)
@@ -133,8 +128,10 @@ apple_partition_map_iterate (grub_disk_t disk,
 
   do
     {
-      if (grub_disk_read (&raw, pos / GRUB_DISK_SECTOR_SIZE,
-			  pos % GRUB_DISK_SECTOR_SIZE,
+      part.offset = pos / GRUB_DISK_SECTOR_SIZE;
+      part.index = pos % GRUB_DISK_SECTOR_SIZE;
+
+      if (grub_disk_read (disk, part.offset, part.index,
 			  sizeof (struct grub_apple_part),  &apart))
 	return grub_errno;
 
@@ -158,6 +155,7 @@ apple_partition_map_iterate (grub_disk_t disk,
 	/ GRUB_DISK_SECTOR_SIZE;
       part.offset = pos;
       part.index = partno;
+      part.number = partno;
 
       grub_dprintf ("partition",
 		    "partition %d: name %s, type %s, start 0x%x, len 0x%x\n",
@@ -181,78 +179,20 @@ apple_partition_map_iterate (grub_disk_t disk,
 		     "Apple partition map not found");
 }
 
-struct apple_partition_map_probe_closure
-{
-  grub_partition_t p;
-  int partnum;
-};
-
-static int
-find_func (grub_disk_t d __attribute__ ((unused)),
-	   const grub_partition_t partition, void *closure)
-{
-  struct apple_partition_map_probe_closure *c = closure;
-  if (c->partnum == partition->index)
-    {
-      c->p = (grub_partition_t) grub_malloc (sizeof (*c->p));
-      if (! c->p)
-	return 1;
-
-      grub_memcpy (c->p, partition, sizeof (*c->p));
-      return 1;
-    }
-
-  return 0;
-}
-
-static grub_partition_t
-apple_partition_map_probe (grub_disk_t disk, const char *str)
-{
-  char *s = (char *) str;
-  struct apple_partition_map_probe_closure c;
-
-  c.p = 0;
-  /* Get the partition number.  */
-  c.partnum = grub_strtoul (s, 0, 10) - 1;
-  if (grub_errno)
-    {
-      grub_error (GRUB_ERR_BAD_FILENAME, "invalid partition");
-      return 0;
-    }
-
-  if (apple_partition_map_iterate (disk, find_func, &c))
-    goto fail;
-
-  return c.p;
-
- fail:
-  grub_free (c.p);
-  return 0;
-}
-
-
-static char *
-apple_partition_map_get_name (const grub_partition_t p)
-{
-  return grub_xasprintf ("%d", p->index + 1);
-}
-
 
 /* Partition map type.  */
 static struct grub_partition_map grub_apple_partition_map =
   {
-    .name = "part_apple",
+    .name = "apple",
     .iterate = apple_partition_map_iterate,
-    .probe = apple_partition_map_probe,
-    .get_name = apple_partition_map_get_name
   };
 
-GRUB_MOD_INIT(apple_partition_map)
+GRUB_MOD_INIT(part_apple)
 {
   grub_partition_map_register (&grub_apple_partition_map);
 }
 
-GRUB_MOD_FINI(apple_partition_map)
+GRUB_MOD_FINI(part_apple)
 {
   grub_partition_map_unregister (&grub_apple_partition_map);
 }

@@ -324,7 +324,7 @@ grub_dl_resolve_symbols (grub_dl_t mod, struct grub_obj_header *e)
 	  symbol_addr = grub_dl_resolve_symbol (name);
 	  if (! symbol_addr)
 	    return grub_error (GRUB_ERR_BAD_MODULE,
-			       "the symbol `%s' not found", name);
+			       "symbol not found: `%s'", name);
 	  rel++;
 	}
       else
@@ -485,7 +485,7 @@ grub_dl_resolve_dependencies (grub_dl_t mod, char *name)
     }
 }
 
-#ifndef GRUB_UTIL
+#if !GRUB_NO_MODULES
 int
 grub_dl_ref (grub_dl_t mod)
 {
@@ -628,7 +628,7 @@ grub_dl_load_file (const char *filename)
 grub_dl_t
 grub_dl_load (const char *name)
 {
-#ifdef GRUB_UTIL
+#if GRUB_NO_MODULES
   (void) name;
   return 0;
 #else

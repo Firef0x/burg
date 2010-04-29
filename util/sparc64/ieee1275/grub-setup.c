@@ -35,6 +35,7 @@
 #include <grub/term.h>
 #include <grub/util/raid.h>
 #include <grub/util/lvm.h>
+#include <grub/util/ofpath.h>
 
 #include <grub_setup_init.h>
 
@@ -104,30 +105,6 @@ grub_refresh (void)
   fflush (stdout);
 }
 
-static char *compute_dest_ofpath (const char *dest)
-{
-  int len = strlen (dest);
-  char *res, *p, c;
-
-  res = xmalloc (len);
-  p = res;
-  while ((c = *dest++) != '\0')
-    {
-      if (c == '\\' && *dest == ',')
-	{
-	  *p++ = ',';
-	  dest++;
-	}
-      else if (c == ',')
-	break;
-      else
-	*p++ = c;
-    }
-  *p++ = '\0';
-
-  return res;
-}
-
 static void
 save_first_sector (grub_disk_addr_t sector, unsigned int offset,
 		   unsigned int length, void *closure)
@@ -189,8 +166,8 @@ setup (const char *prefix, const char *dir,
   size_t boot_size, core_size;
   grub_uint16_t core_sectors;
   grub_device_t root_dev, dest_dev;
-  char *boot_devpath, *dest_ofpath;
-  grub_disk_addr_t *kernel_sector;
+  char *boot_devpath;
+  grub_disk_addr_t *kernel_byte;
   struct boot_blocklist *first_block, *block;
   char *tmp_img;
   int i;
@@ -200,8 +177,6 @@ setup (const char *prefix, const char *dir,
   struct { grub_uint64_t start; grub_uint64_t end; } embed_region;
   struct save_blocklists_closure c;
   embed_region.start = embed_region.end = ~0UL;
-
-  dest_ofpath = compute_dest_ofpath (dest);
 
   /* Read the boot image by the OS service.  */
   boot_path = grub_util_get_path (dir, boot_file);
@@ -216,9 +191,9 @@ setup (const char *prefix, const char *dir,
   boot_devpath = (char *) (boot_img
 			   + GRUB_BOOT_AOUT_HEADER_SIZE
 			   + GRUB_BOOT_MACHINE_BOOT_DEVPATH);
-  kernel_sector = (grub_disk_addr_t *) (boot_img
-					+ GRUB_BOOT_AOUT_HEADER_SIZE
-					+ GRUB_BOOT_MACHINE_KERNEL_SECTOR);
+  kernel_byte = (grub_disk_addr_t *) (boot_img
+				      + GRUB_BOOT_AOUT_HEADER_SIZE
+				      + GRUB_BOOT_MACHINE_KERNEL_BYTE);
 
   core_path = grub_util_get_path (dir, core_file);
   core_size = grub_util_get_image_size (core_path);
@@ -235,8 +210,7 @@ setup (const char *prefix, const char *dir,
 					   + GRUB_DISK_SECTOR_SIZE
 					   - sizeof (*block));
 
-  grub_util_info ("root is `%s', dest is `%s', and dest_ofpath is `%s'",
-		  root, dest, dest_ofpath);
+  grub_util_info ("root is `%s', dest is `%s'", root, dest);
 
   /* Open the root device and the destination device.  */
   grub_util_info ("Opening root");
@@ -362,14 +336,30 @@ setup (const char *prefix, const char *dir,
       != (grub_ssize_t) core_size - GRUB_DISK_SECTOR_SIZE)
     grub_util_error ("failed to read the rest sectors of the core image");
 
+  if (file->device->disk->id != dest_dev->disk->id)
+    {
+      const char *dest_ofpath;
+      dest_ofpath
+	= grub_util_devname_to_ofpath (grub_util_biosdisk_get_osdev (file->device->disk));
+      grub_util_info ("dest_ofpath is `%s'", dest_ofpath);
+      strncpy (boot_devpath, dest_ofpath, GRUB_BOOT_MACHINE_BOOT_DEVPATH_END
+	       - GRUB_BOOT_MACHINE_BOOT_DEVPATH - 1);
+      boot_devpath[GRUB_BOOT_MACHINE_BOOT_DEVPATH_END
+		   - GRUB_BOOT_MACHINE_BOOT_DEVPATH - 1] = 0;
+    }
+  else
+    {
+      grub_util_info ("non cross-disk install");
+      memset (boot_devpath, 0, GRUB_BOOT_MACHINE_BOOT_DEVPATH_END
+	      - GRUB_BOOT_MACHINE_BOOT_DEVPATH);
+    }
+
   grub_file_close (file);
 
   free (core_path);
   free (tmp_img);
 
-  *kernel_sector = grub_cpu_to_be64 (first_sector);
-
-  strcpy(boot_devpath, dest_ofpath);
+  *kernel_byte = grub_cpu_to_be64 (first_sector << GRUB_DISK_SECTOR_BITS);
 
   grub_util_info ("boot device path %s, prefix is %s, dest is %s",
 		  boot_devpath, prefix, dest);
@@ -646,7 +636,8 @@ main (int argc, char *argv[])
 
   find_dest_dev (&ginfo, argv);
 
-  ginfo.prefix = grub_get_prefix (ginfo.dir ? : DEFAULT_DIRECTORY, 0);
+  ginfo.prefix = make_system_path_relative_to_its_root (ginfo.dir ?
+							: DEFAULT_DIRECTORY);
 
   check_root_dev (&ginfo);
 

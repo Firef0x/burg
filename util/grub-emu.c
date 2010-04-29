@@ -38,12 +38,6 @@
 #include <grub/partition.h>
 #include <grub/i18n.h>
 
-#ifdef HAVE_SDL_SDL_H
-#include <SDL/SDL.h>
-#endif
-
-#include <grub_emu_init.h>
-
 #define ENABLE_RELOCATABLE 0
 #include "progname.h"
 
@@ -52,7 +46,6 @@ static jmp_buf main_env;
 
 /* Store the prefix specified by an argument.  */
 static char *prefix = NULL;
-
 struct grub_module_info grub_modinfo;
 char grub_code_start[0];
 
@@ -62,6 +55,7 @@ grub_arch_modules_addr (void)
   return 0;
 }
 
+#if GRUB_NO_MODULES
 grub_err_t
 grub_arch_dl_check_header (void *ehdr)
 {
@@ -78,6 +72,7 @@ grub_arch_dl_relocate_symbols (grub_dl_t mod, void *ehdr)
 
   return GRUB_ERR_BAD_MODULE;
 }
+#endif
 
 void
 grub_reboot (void)
@@ -114,10 +109,6 @@ grub_machine_fini (void)
   grub_console_fini ();
 }
 
-void
-read_command_list (void)
-{
-}
 
 
 static struct option options[] =
@@ -150,7 +141,7 @@ usage (int status)
       "  -d, --directory=DIR       use GRUB files in the directory DIR [default=%s]\n"
       "  -v, --verbose             print verbose messages\n"
       "  -H, --hold[=SECONDS]      wait until a debugger will attach\n"
-      "  -D, --disk                access physical disk\n"
+      "  -D, --disk                allow to access physical disk\n"
       "  -h, --help                display this message and exit\n"
       "  -V, --version             print version information and exit\n"
       "\n"
@@ -158,6 +149,15 @@ usage (int status)
   return status;
 }
 
+
+void grub_hostfs_init (void);
+void grub_hostfs_fini (void);
+void grub_host_init (void);
+void grub_host_fini (void);
+#if GRUB_NO_MODULES
+void grub_init_all (void);
+void grub_fini_all (void);
+#endif
 
 int
 main (int argc, char *argv[])
@@ -170,8 +170,6 @@ main (int argc, char *argv[])
   int disk = 0;
 
   set_program_name (argv[0]);
-
-  grub_util_init_nls ();
 
   while ((opt = getopt_long (argc, argv, "r:d:m:vH:DhV", options, 0)) != -1)
     switch (opt)
@@ -223,12 +221,15 @@ main (int argc, char *argv[])
 
   signal (SIGINT, SIG_IGN);
   grub_console_init ();
+  grub_host_init ();
+  grub_hostfs_init ();
 
   /* XXX: This is a bit unportable.  */
-  if (disk)
-    grub_util_biosdisk_init (dev_map);
+  grub_util_biosdisk_init (dev_map);
 
+#if GRUB_NO_MODULES
   grub_init_all ();
+#endif
 
   /* Make sure that there is a root device.  */
   if (! root_dev)
@@ -251,16 +252,23 @@ main (int argc, char *argv[])
 	root_dev = "host";
     }
 
-  dir = grub_get_prefix (dir, ! strcmp (root_dev, "host"));
+  if (strcmp (root_dev, "host") == 0)
+    dir = xstrdup (dir);
+  else
+    dir = make_system_path_relative_to_its_root (dir);
   prefix = xmalloc (strlen (root_dev) + 2 + strlen (dir) + 1);
   sprintf (prefix, "(%s)%s", root_dev, dir);
-  free (dir);  
+  free (dir);
 
   /* Start GRUB!  */
   if (setjmp (main_env) == 0)
     grub_main ();
 
+#if GRUB_NO_MODULES
   grub_fini_all ();
+#endif
+  grub_hostfs_fini ();
+  grub_host_fini ();
 
   grub_machine_fini ();
 

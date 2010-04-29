@@ -79,16 +79,16 @@ MOSTLYCLEAN_IMAGE_TARGETS += mostlyclean-image-#{@name}.#{@rule_count}
       if /\.S$/ =~ src then
         "#{obj}: #{src} $(#{src}_DEPENDENCIES)
 ifeq ($(AS),)
-	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<,\"  AS    #{obj}\")
+	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -DGRUB_FILE=\\\"#{src}\\\" -MD -c -o $@ $<,\"  AS    #{obj}\")
 else
-	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -S $< | $(AS) -o $@,\"  AS    #{obj}\")
+	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -DGRUB_FILE=\\\"#{src}\\\" -MD -S $< | $(AS) -o $@,\"  AS    #{obj}\")
 endif
 -include #{dep}
 
 "
       else
         "#{obj}: #{src} $(#{src}_DEPENDENCIES)
-	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<,\"  CC    #{obj}\")
+	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) $(TARGET_#{flag}) $(#{prefix}_#{flag}) -DGRUB_FILE=\\\"#{src}\\\" -MD -c -o $@ $<,\"  CC    #{obj}\")
 -include #{dep}
 
 "
@@ -130,8 +130,14 @@ mostlyclean-module-#{@name}.#{@rule_count}:
 
 MOSTLYCLEAN_MODULE_TARGETS += mostlyclean-module-#{@name}.#{@rule_count}
 
-#{@name}: $(#{prefix}_DEPENDENCIES) #{objs_str} grub-mkmod
+ifeq ($(TARGET_NO_MODULES), yes)
+#{@name}: #{objs_str}
+	$(TARGET_CC) $(#{prefix}_LDFLAGS) $(TARGET_LDFLAGS) -Wl,-r,-d -o $@ #{objs_str}
+#	$(call quiet-command,$(TARGET_CC) $(#{prefix}_LDFLAGS) $(TARGET_LDFLAGS) -Wl,-r,-d -o $@ #{objs_str},\"  LINK  #{@name}\")
+else
+#{@name}: #{objs_str} grub-mkmod
 	$(call quiet-command,./grub-mkmod -o $@ $(filter %.o, $^),\"  MOD   #{@name}\")
+endif
 
 MODFILES += #{@name}
 
@@ -146,16 +152,16 @@ MODFILES += #{@name}
       if /\.S$/ =~ src then
         "#{obj}: #{src} $(#{src}_DEPENDENCIES)
 ifeq ($(AS),)
-	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<,\"  AS    #{obj}\")
+	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -DGRUB_FILE=\\\"#{src}\\\" -MD -c -o $@ $<,\"  AS    #{obj}\")
 else
-	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -S $< | $(AS) -o $@,\"  AS    #{obj}\")
+	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) -DASM_FILE=1 $(TARGET_#{flag}) $(#{prefix}_#{flag}) -DGRUB_FILE=\\\"#{src}\\\" -MD -S $< | $(AS) -o $@,\"  AS    #{obj}\")
 endif
 -include #{dep}
 
 "
       else
         "#{obj}: #{src} $(#{src}_DEPENDENCIES)
-	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<,\"  CC    #{obj}\")
+	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) $(TARGET_#{flag}) $(#{prefix}_#{flag}) -DGRUB_FILE=\\\"#{src}\\\" -MD -c -o $@ $<,\"  CC    #{obj}\")
 -include #{dep}
 
 "
@@ -210,7 +216,7 @@ MOSTLYCLEAN_UTILITY_TARGETS += mostlyclean-utility-#{@name}.#{@rule_count}
       dir = File.dirname(src)
 
       "#{obj}: #{src} $(#{src}_DEPENDENCIES)
-	$(call quiet-command,$(CC) -I#{dir} -I$(srcdir)/#{dir} $(CPPFLAGS) $(CFLAGS) -DGRUB_UTIL=1 $(#{prefix}_CFLAGS) -MD -c -o $@ $<,\"  CC    #{obj}\")
+	$(call quiet-command,$(CC) -I#{dir} -I$(srcdir)/#{dir} $(CPPFLAGS) $(CFLAGS) -DGRUB_UTIL=1 $(#{prefix}_CFLAGS) -DGRUB_FILE=\\\"#{src}\\\" -MD -c -o $@ $<,\"  CC    #{obj}\")
 -include #{dep}
 
 "
@@ -225,21 +231,26 @@ class Program
   end
   attr_reader :dir, :name
 
+  def print_tail()
+    prefix = @name.to_var
+    print "CLEANFILES += #{@name} $(#{prefix}_OBJECTS)
+#{@name}: $(#{prefix}_DEPENDENCIES) $(#{prefix}_OBJECTS)
+	$(call quiet-command,$(TARGET_CC) -o $@ $(#{prefix}_OBJECTS) $(TARGET_LDFLAGS) $(#{prefix}_LDFLAGS),\"  LINK  #{@name}\")
+	if test x$(TARGET_NO_STRIP) != xyes ; then $(STRIP) -R .rel.dyn -R .reginfo -R .note -R .comment $@; fi
+
+"
+  end
+
   def rule(sources)
     prefix = @name.to_var
     objs = sources.collect do |src|
       raise "unknown source file `#{src}'" if /\.[cS]$/ !~ src
       prefix + '-' + src.to_obj
     end
-    objs_str = objs.join(' ');
     deps = objs.collect {|obj| obj.suffix('d')}
     deps_str = deps.join(' ');
 
-    "CLEANFILES += #{@name} #{objs_str}
-MOSTLYCLEANFILES += #{deps_str}
-
-#{@name}: $(#{prefix}_DEPENDENCIES) #{objs_str}
-	$(call quiet-command,$(TARGET_CC) -o $@ #{objs_str} $(TARGET_LDFLAGS) $(#{prefix}_LDFLAGS),\"  LINK  #{@name}\")
+    "MOSTLYCLEANFILES += #{deps_str}
 
 " + objs.collect_with_index do |obj, i|
       src = sources[i]
@@ -250,9 +261,10 @@ MOSTLYCLEANFILES += #{deps_str}
       dir = File.dirname(src)
 
       "#{obj}: #{src} $(#{src}_DEPENDENCIES)
-	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -MD -c -o $@ $<,\"  CC    #{obj}\")
+	$(call quiet-command,$(TARGET_CC) -I#{dir} -I$(srcdir)/#{dir} $(TARGET_CPPFLAGS) #{extra_flags} $(TARGET_#{flag}) $(#{prefix}_#{flag}) -DGRUB_FILE=\\\"#{src}\\\" -MD -c -o $@ $<,\"  CC    #{obj}\")
 -include #{dep}
 
+#{prefix}_OBJECTS += #{obj}
 "
     end.join('')
   end
@@ -361,4 +373,5 @@ while l = gets
 
 end
 utils.each {|util| util.print_tail()}
+programs.each {|program| program.print_tail()}
 

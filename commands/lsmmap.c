@@ -16,12 +16,15 @@
  *  along with GRUB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef GRUB_MACHINE_EMU
 #include <grub/machine/memory.h>
+#endif
 #include <grub/dl.h>
 #include <grub/misc.h>
 #include <grub/command.h>
 #include <grub/i18n.h>
 
+#ifndef GRUB_MACHINE_EMU
 static int
 hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
       void *closure __attribute__ ((unused)))
@@ -30,13 +33,16 @@ hook (grub_uint64_t addr, grub_uint64_t size, grub_uint32_t type,
 	       (long long) addr, (long long) size, type);
   return 0;
 }
+#endif
 
 static grub_err_t
 grub_cmd_lsmmap (grub_command_t cmd __attribute__ ((unused)),
 		 int argc __attribute__ ((unused)), char **args __attribute__ ((unused)))
 
 {
+#ifndef GRUB_MACHINE_EMU
   grub_machine_mmap_iterate (hook, 0);
+#endif
 
   return 0;
 }

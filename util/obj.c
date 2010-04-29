@@ -900,7 +900,7 @@ grub_obj_link (struct grub_util_obj *obj, grub_uint32_t base)
 const char *
 grub_obj_map_symbol (const char *name)
 {
-  if (! strcmp (name, "memcpy"))
+  if ((! strcmp (name, "memcpy")) || (! strcmp (name, "memmove")))
     return "grub_memmove";
   if (! strcmp (name, "memset"))
     return "grub_memset";

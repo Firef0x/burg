@@ -98,7 +98,12 @@ grub_dl_t grub_dl_load_core (void *addr, grub_size_t size);
 int grub_dl_unload (grub_dl_t mod);
 void grub_dl_unload_unneeded (void);
 void grub_dl_unload_all (void);
-#ifdef GRUB_UTIL
+#if defined (GRUB_UTIL) || defined (GRUB_TARGET_NO_MODULES)
+#define GRUB_NO_MODULES 1
+#else
+#define GRUB_NO_MODULES 0
+#endif
+#if GRUB_NO_MODULES
 static inline int
 grub_dl_ref (grub_dl_t mod)
 {
@@ -126,7 +131,7 @@ grub_err_t grub_arch_dl_relocate_symbols (grub_dl_t mod, void *ehdr);
 grub_err_t grub_dl_add (grub_dl_t mod);
 grub_err_t grub_dl_resolve_dependencies (grub_dl_t mod, char *name);
 
-#if defined (_mips) && ! defined (GRUB_UTIL)
+#if defined (_mips) && ! GRUB_NO_MODULES
 #define GRUB_LINKER_HAVE_INIT 1
 void grub_arch_dl_init_linker (void);
 #endif

@@ -96,7 +96,7 @@ for OS in ${OSPROBED} ; do
   LABEL="`echo ${OS} | cut -d ':' -f 3 | tr '^' ' '`"
   BOOT="`echo ${OS} | cut -d ':' -f 4`"
 
-  OSLABEL="$(echo ${LABEL} | tr '[A-Z]' '[a-z]' | sed 's,[0-9]*$,,')" 
+  OSLABEL="$(echo ${LABEL} | tr '[A-Z]' '[a-z]' | cut -d' ' -f1 | sed 's,[0-9]*$,,')"
   if [ -z "${OSLABEL}" ] ; then
     OSLABEL="unknown";
   fi

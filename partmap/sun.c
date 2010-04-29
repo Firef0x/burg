@@ -90,20 +90,16 @@ sun_partition_map_iterate (grub_disk_t disk,
 			   void *closure)
 {
   grub_partition_t p;
-  struct grub_disk raw;
   struct grub_sun_block block;
   int partnum;
   grub_err_t err;
-
-  raw = *disk;
-  raw.partition = 0;
 
   p = (grub_partition_t) grub_zalloc (sizeof (struct grub_partition));
   if (! p)
     return grub_errno;
 
   p->partmap = &grub_sun_partition_map;
-  err = grub_disk_read (&raw, 0, 0, sizeof (struct grub_sun_block),
+  err = grub_disk_read (disk, 0, 0, sizeof (struct grub_sun_block),
 			&block);
   if (err)
     {
@@ -114,8 +110,7 @@ sun_partition_map_iterate (grub_disk_t disk,
   if (GRUB_PARTMAP_SUN_MAGIC != grub_be_to_cpu16 (block.magic))
     {
       grub_free (p);
-      return grub_error (GRUB_ERR_BAD_PART_TABLE,
-			 "not a sun partition table");
+      return grub_error (GRUB_ERR_BAD_PART_TABLE, "not a sun partition table");
     }
 
   if (! grub_sun_is_valid (&block))
@@ -139,7 +134,7 @@ sun_partition_map_iterate (grub_disk_t disk,
 		  * grub_be_to_cpu16 (block.ntrks)
 		  * grub_be_to_cpu16 (block.nsect));
       p->len = grub_be_to_cpu32 (desc->num_sectors);
-      p->index = partnum;
+      p->number = p->index = partnum;
       if (p->len)
 	{
 	  if (hook (disk, p, closure))
@@ -152,77 +147,19 @@ sun_partition_map_iterate (grub_disk_t disk,
   return grub_errno;
 }
 
-struct sun_partition_map_probe_closure
-{
-  grub_partition_t p;
-  int partnum;
-};
-
-static int
-find_func (grub_disk_t d __attribute__ ((unused)),
-	   const grub_partition_t partition, void *closure)
-{
-  struct sun_partition_map_probe_closure *c = closure;
-
-  if (c->partnum == partition->index)
-    {
-      c->p = (grub_partition_t) grub_malloc (sizeof (*c->p));
-      if (c->p)
-	grub_memcpy (c->p, partition, sizeof (*c->p));
-
-      return 1;
-    }
-
-  return 0;
-}
-
-static grub_partition_t
-sun_partition_map_probe (grub_disk_t disk, const char *str)
-{
-  char *s = (char *) str;
-  struct sun_partition_map_probe_closure c;
-
-  grub_errno = GRUB_ERR_NONE;
-  c.p = 0;
-  c.partnum = grub_strtoul (s, 0, 10) - 1;
-  if (grub_errno == GRUB_ERR_NONE)
-    {
-      if (sun_partition_map_iterate (disk, find_func, &c))
-        {
-          grub_free (c.p);
-          c.p = 0;
-        }
-    }
-  else
-    {
-      grub_error (GRUB_ERR_BAD_FILENAME, "invalid partition");
-      c.p = 0;
-    }
-
-  return c.p;
-}
-
-static char *
-sun_partition_map_get_name (const grub_partition_t p)
-{
-  return grub_xasprintf ("%d", p->index + 1);
-}
-
 /* Partition map type.  */
 static struct grub_partition_map grub_sun_partition_map =
   {
-    .name = "part_sun",
+    .name = "sun",
     .iterate = sun_partition_map_iterate,
-    .probe = sun_partition_map_probe,
-    .get_name = sun_partition_map_get_name
   };
 
-GRUB_MOD_INIT(sun_partition_map)
+GRUB_MOD_INIT(part_sun)
 {
   grub_partition_map_register (&grub_sun_partition_map);
 }
 
-GRUB_MOD_FINI(sun_partition_map)
+GRUB_MOD_FINI(part_sun)
 {
   grub_partition_map_unregister (&grub_sun_partition_map);
 }

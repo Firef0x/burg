@@ -37,7 +37,7 @@ void *grub_memalign (grub_size_t align, grub_size_t size);
 grub_size_t grub_mm_get_free (void);
 
 /* For debugging.  */
-#if defined(MM_DEBUG) && !defined(GRUB_UTIL)
+#if defined(MM_DEBUG) && !defined(GRUB_UTIL) && !defined (GRUB_MACHINE_EMU)
 /* Set this variable to 1 when you want to trace all memory function calls.  */
 extern int grub_mm_debug;
 
@@ -45,19 +45,19 @@ void grub_mm_dump_free (void);
 void grub_mm_dump (unsigned lineno);
 
 #define grub_malloc(size)	\
-  grub_debug_malloc (__FILE__, __LINE__, size)
+  grub_debug_malloc (GRUB_FILE, __LINE__, size)
 
 #define grub_zalloc(size)	\
-  grub_debug_zalloc (__FILE__, __LINE__, size)
+  grub_debug_zalloc (GRUB_FILE, __LINE__, size)
 
 #define grub_realloc(ptr,size)	\
-  grub_debug_realloc (__FILE__, __LINE__, ptr, size)
+  grub_debug_realloc (GRUB_FILE, __LINE__, ptr, size)
 
 #define grub_memalign(align,size)	\
-  grub_debug_memalign (__FILE__, __LINE__, align, size)
+  grub_debug_memalign (GRUB_FILE, __LINE__, align, size)
 
 #define grub_free(ptr)	\
-  grub_debug_free (__FILE__, __LINE__, ptr)
+  grub_debug_free (GRUB_FILE, __LINE__, ptr)
 
 void *grub_debug_malloc (const char *file, int line,
 			 grub_size_t size);

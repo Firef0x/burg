@@ -266,7 +266,7 @@ grub_efiemu_mm_return_request (int handle)
       }
 }
 
-#ifndef GRUB_UTIL
+#ifndef GRUB_MACHINE_EMU
 static int
 bounds_hook (grub_uint64_t addr __attribute__ ((unused)),
 	     grub_uint64_t size __attribute__ ((unused)),
@@ -285,7 +285,7 @@ grub_efiemu_mmap_init (void)
   // the place for memory used by efiemu itself
   mmap_reserved_size = GRUB_EFI_MAX_MEMORY_TYPE + 1;
 
-#ifndef GRUB_UTIL
+#ifndef GRUB_MACHINE_EMU
   grub_machine_mmap_iterate (bounds_hook, 0);
 #endif
 

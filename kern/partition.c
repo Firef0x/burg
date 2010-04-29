@@ -17,89 +17,164 @@
  */
 
 #include <grub/misc.h>
+#include <grub/mm.h>
 #include <grub/partition.h>
 #include <grub/disk.h>
 
 GRUB_EXPORT(grub_partition_map_list);
-GRUB_EXPORT(grub_partition_probe);
-GRUB_EXPORT(grub_partition_iterate);
 GRUB_EXPORT(grub_partition_get_name);
+GRUB_EXPORT(grub_partition_iterate);
+GRUB_EXPORT(grub_partition_probe);
 
 grub_partition_map_t grub_partition_map_list;
 
-struct grub_partition_probe_closure
+struct find_func_closure
 {
-  struct grub_disk *disk;
-  const char *str;
-  grub_partition_t part;
+  int partnum;
+  grub_partition_t p;
 };
 
 static int
-part_map_probe (const grub_partition_map_t partmap, void *closure)
+find_func (grub_disk_t d __attribute__ ((unused)),
+	   const grub_partition_t partition, void *closure)
 {
-  struct grub_partition_probe_closure *c = closure;
-
-  c->part = partmap->probe (c->disk, c->str);
-  if (c->part)
-    return 1;
-
-  if (grub_errno == GRUB_ERR_BAD_PART_TABLE)
+  struct find_func_closure *c = closure;
+  if (c->partnum == partition->number)
     {
-      /* Continue to next partition map type.  */
-      grub_errno = GRUB_ERR_NONE;
-      return 0;
+      c->p = (grub_partition_t) grub_malloc (sizeof (*c->p));
+      if (! c->p)
+	return 1;
+
+      grub_memcpy (c->p, partition, sizeof (*c->p));
+      return 1;
     }
 
-  return 1;
+  return 0;
+}
+
+static grub_partition_t
+grub_partition_map_probe (const grub_partition_map_t partmap,
+			  grub_disk_t disk, int partnum)
+{
+  struct find_func_closure c;
+
+  c.partnum = partnum;
+  c.p = 0;
+  partmap->iterate (disk, find_func, &c);
+  if (grub_errno)
+    goto fail;
+
+  return c.p;
+
+ fail:
+  grub_free (c.p);
+  return 0;
 }
 
 grub_partition_t
 grub_partition_probe (struct grub_disk *disk, const char *str)
 {
-  struct grub_partition_probe_closure c;
+  grub_partition_t part = 0;
+  grub_partition_t curpart = 0;
+  grub_partition_t tail;
+  const char *ptr;
 
-  c.disk = disk;
-  c.str = str;
-  c.part = 0;
-  /* Use the first partition map type found.  */
-  grub_partition_map_iterate (part_map_probe, &c);
+  part = tail = disk->partition;
 
-  return c.part;
+  for (ptr = str; *ptr;)
+    {
+      grub_partition_map_t partmap;
+      int num;
+      const char *partname, *partname_end;
+
+      partname = ptr;
+      while (*ptr && grub_isalpha (*ptr))
+	ptr++;
+      partname_end = ptr;
+      num = grub_strtoul (ptr, (char **) &ptr, 0) - 1;
+
+      curpart = 0;
+      /* Use the first partition map type found.  */
+      FOR_PARTITION_MAPS(partmap)
+      {
+	if (partname_end != partname &&
+	    (grub_strncmp (partmap->name, partname, partname_end - partname)
+	     != 0 || partmap->name[partname_end - partname] != 0))
+	  continue;
+
+	disk->partition = part;
+	curpart = grub_partition_map_probe (partmap, disk, num);
+	disk->partition = tail;
+	if (curpart)
+	  break;
+
+	if (grub_errno == GRUB_ERR_BAD_PART_TABLE)
+	  {
+	    /* Continue to next partition map type.  */
+	    grub_errno = GRUB_ERR_NONE;
+	    continue;
+	  }
+
+	break;
+      }
+
+      if (! curpart)
+	{
+	  while (part)
+	    {
+	      curpart = part->parent;
+	      grub_free (part);
+	      part = curpart;
+	    }
+	  return 0;
+	}
+      curpart->parent = part;
+      part = curpart;
+      if (! ptr || *ptr != ',')
+	break;
+      ptr++;
+    }
+
+  return part;
 }
 
-static int
-part_map_iterate_hook (grub_disk_t d __attribute__ ((unused)),
-		       const grub_partition_t partition __attribute__ ((unused)),
-		       void *closure __attribute__ ((unused)))
+struct part_iterate_closure
 {
-  return 1;
-}
-
-struct grub_partition_iterate_closure
-{
-  struct grub_disk *disk;
-  grub_partition_map_t partmap;
+  int (*hook) (grub_disk_t disk, const grub_partition_t partition,
+	       void *closure);
+  void *closure;
+  int ret;
 };
 
 static int
-part_map_iterate (const grub_partition_map_t p, void *closure)
+part_iterate (grub_disk_t dsk,
+	      const grub_partition_t partition, void *closure)
 {
-  struct grub_partition_iterate_closure *c = closure;
-
-  grub_dprintf ("partition", "Detecting %s...\n", p->name);
-  p->iterate (c->disk, part_map_iterate_hook, 0);
-
-  if (grub_errno != GRUB_ERR_NONE)
+  struct part_iterate_closure *c = closure;
+  struct grub_partition p = *partition;
+  p.parent = dsk->partition;
+  dsk->partition = 0;
+  if (c->hook (dsk, &p, c->closure))
     {
-      /* Continue to next partition map type.  */
-      grub_dprintf ("partition", "%s detection failed.\n", p->name);
-      grub_errno = GRUB_ERR_NONE;
-      return 0;
+      c->ret = 1;
+      return 1;
     }
-
-  grub_dprintf ("partition", "%s detection succeeded.\n", p->name);
-  c->partmap = p;
-  return 1;
+  if (p.start != 0)
+    {
+      const struct grub_partition_map *partmap;
+      dsk->partition = &p;
+      FOR_PARTITION_MAPS(partmap)
+	{
+	  grub_err_t err;
+	  err = partmap->iterate (dsk, part_iterate, closure);
+	  if (err)
+	    grub_errno = GRUB_ERR_NONE;
+	  if (c->ret)
+	    break;
+	}
+    }
+  dsk->partition = p.parent;
+  return c->ret;
 }
 
 int
@@ -109,20 +184,54 @@ grub_partition_iterate (struct grub_disk *disk,
 				     void *closure),
 			void *closure)
 {
-  int ret = 0;
-  struct grub_partition_iterate_closure c;
+  struct part_iterate_closure c;
+  const struct grub_partition_map *partmap;
 
-  c.disk = disk;
-  c.partmap = 0;
-  grub_partition_map_iterate (part_map_iterate, &c);
-  if (c.partmap)
-    ret = c.partmap->iterate (disk, hook, closure);
+  c.hook = hook;
+  c.closure = closure;
+  c.ret = 0;
+  FOR_PARTITION_MAPS(partmap)
+    {
+      grub_err_t err;
+      err = partmap->iterate (disk, part_iterate, &c);
+      if (err)
+	grub_errno = GRUB_ERR_NONE;
+      if (c.ret)
+	break;
+    }
 
-  return ret;
+  return c.ret;
 }
 
 char *
 grub_partition_get_name (const grub_partition_t partition)
 {
-  return partition->partmap->get_name (partition);
+  char *out = 0;
+  int curlen = 0;
+  grub_partition_t part;
+  for (part = partition; part; part = part->parent)
+    {
+      /* Even on 64-bit machines this buffer is enough to hold
+	 longest number.  */
+      char buf[grub_strlen (part->partmap->name) + 25];
+      int strl;
+      grub_snprintf (buf, sizeof (buf), "%s%d", part->partmap->name,
+		     part->number + 1);
+      strl = grub_strlen (buf);
+      if (curlen)
+	{
+	  out = grub_realloc (out, curlen + strl + 2);
+	  grub_memcpy (out + strl + 1, out, curlen);
+	  out[curlen + 1 + strl] = 0;
+	  grub_memcpy (out, buf, strl);
+	  out[strl] = ',';
+	  curlen = curlen + 1 + strl;
+	}
+      else
+	{
+	  curlen = strl;
+	  out = grub_strdup (buf);
+	}
+    }
+  return out;
 }

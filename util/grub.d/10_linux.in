@@ -23,7 +23,7 @@ libdir=@libdir@
 . ${libdir}/burg/burg-mkconfig_lib
 
 export TEXTDOMAIN=@PACKAGE@
-export TEXTDOMAINDIR=@LOCALEDIR@
+export TEXTDOMAINDIR=@localedir@
 
 CLASS="--class gnu-linux --class gnu --class os"
 
@@ -32,7 +32,7 @@ if [ "x${GRUB_DISTRIBUTOR}" = "x" ] ; then
   OSLABEL=linux
 else
   OS="${GRUB_DISTRIBUTOR} GNU/Linux"
-  OSLABEL="$(echo ${GRUB_DISTRIBUTOR} | tr '[A-Z]' '[a-z]')" 
+  OSLABEL="$(echo ${GRUB_DISTRIBUTOR} | tr '[A-Z]' '[a-z]' | cut -d' ' -f1)"
 fi
 
 CLASS="--class ${OSLABEL} ${CLASS}"
@@ -61,13 +61,13 @@ linux_entry ()
   recovery="$3"
   args="$4"
   if ${recovery} ; then
-    title="$(gettext "%s, with Linux %s (recovery mode)")"
+    title="$(gettext_quoted "%s, with Linux %s (recovery mode)")"
     auth_option=${AUTH_RESCUE}
   else
-    title="$(gettext "%s, with Linux %s")"
+    title="$(gettext_quoted "%s, with Linux %s")"
     auth_option=${AUTH_NORMAL}
   fi
-  printf "menuentry \"${title}\" ${CLASS} --group group_main ${auth_option}{\n" "${os}" "${version}"
+  printf "menuentry '${title}' ${CLASS} --group group_main ${auth_option}{\n" "${os}" "${version}"
   save_default_entry | sed -e "s/^/\t/"
 
   # Use ELILO's generic "efifb" when it's known to be available.
@@ -90,12 +90,12 @@ EOF
   fi
   printf '%s\n' "${prepare_boot_cache}"
   cat << EOF
-	echo	$(printf "$(gettext "Loading Linux %s ...")" ${version})
+	echo	'$(printf "$(gettext_quoted "Loading Linux %s ...")" ${version})'
 	linux${GRUB_LINUX16}	${rel_dirname}/${basename} root=${linux_root_device_thisversion} ro ${args}
 EOF
   if test -n "${initrd}" ; then
     cat << EOF
-	echo	$(gettext "Loading initial ramdisk ...")
+	echo	'$(gettext_quoted "Loading initial ramdisk ...")'
 	initrd${GRUB_LINUX16}	${rel_dirname}/${initrd}
 EOF
   fi

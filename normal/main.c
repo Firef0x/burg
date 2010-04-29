@@ -34,14 +34,20 @@ GRUB_EXPORT(grub_normal_exit_level);
 static int nested_level = 0;
 int grub_normal_exit_level = 0;
 
-static char *
-read_lists (struct grub_env_var *var __attribute__ ((unused)),
-	    const char *val)
+static void
+read_lists (const char *val)
 {
-  read_command_list ();
-  read_fs_list ();
-  read_crypto_list ();
-  read_terminal_list ();
+  read_command_list (val);
+  read_fs_list (val);
+  read_crypto_list (val);
+  read_terminal_list (val);
+}
+
+static char *
+read_lists_hook (struct grub_env_var *var __attribute__ ((unused)),
+		 const char *val)
+{
+  read_lists (val);
   return val ? grub_strdup (val) : NULL;
 }
 
@@ -49,12 +55,14 @@ read_lists (struct grub_env_var *var __attribute__ ((unused)),
 static void
 grub_enter_normal_mode (const char *config)
 {
+  const char *prefix = grub_env_get ("prefix");
+
   nested_level++;
-  read_lists (NULL, NULL);
+  read_lists (prefix);
   read_handler_list ();
   grub_autolist_font = grub_autolist_load ("fonts/font.lst");
   grub_errno = 0;
-  grub_register_variable_hook ("prefix", NULL, read_lists);
+  grub_register_variable_hook ("prefix", NULL, read_lists_hook);
   grub_command_execute ("parser.grub", 0, 0);
   grub_command_execute ("controller.normal", 0, 0);
   grub_menu_execute (config, 0, 0);

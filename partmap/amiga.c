@@ -78,20 +78,15 @@ amiga_partition_map_iterate (grub_disk_t disk,
 {
   struct grub_partition part;
   struct grub_amiga_rdsk rdsk;
-  struct grub_disk raw;
   int partno = 0;
   int next = -1;
   unsigned pos;
-
-  /* Enforce raw disk access.  */
-  raw = *disk;
-  raw.partition = 0;
 
   /* The RDSK block is one of the first 15 blocks.  */
   for (pos = 0; pos < 15; pos++)
     {
       /* Read the RDSK block which is a descriptor for the entire disk.  */
-      if (grub_disk_read (&raw, pos, 0, sizeof (rdsk), &rdsk))
+      if (grub_disk_read (disk, pos, 0, sizeof (rdsk), &rdsk))
 	return grub_errno;
 
       if (grub_strcmp ((char *) rdsk.magic, "RDSK") == 0)
@@ -112,7 +107,7 @@ amiga_partition_map_iterate (grub_disk_t disk,
       struct grub_amiga_partition apart;
 
       /* Read the RDSK block which is a descriptor for the entire disk.  */
-      if (grub_disk_read (&raw, next, 0, sizeof (apart), &apart))
+      if (grub_disk_read (disk, next, 0, sizeof (apart), &apart))
 	return grub_errno;
 
       /* Calculate the first block and the size of the partition.  */
@@ -125,7 +120,8 @@ amiga_partition_map_iterate (grub_disk_t disk,
 		  * grub_be_to_cpu32 (apart.block_per_track));
 
       part.offset = (grub_off_t) next * 512;
-      part.index = partno;
+      part.number = partno;
+      part.index = 0;
       part.partmap = &grub_amiga_partition_map;
 
       if (hook (disk, &part, closure))
@@ -138,79 +134,20 @@ amiga_partition_map_iterate (grub_disk_t disk,
   return 0;
 }
 
-struct amiga_partition_map_probe_closure
-{
-  grub_partition_t p;
-  int partnum;
-};
-
-static int
-find_func (grub_disk_t d __attribute__ ((unused)),
-	   const grub_partition_t partition, void *closure)
-{
-  struct amiga_partition_map_probe_closure *c = closure;
-
-  if (c->partnum == partition->index)
-    {
-      c->p = (grub_partition_t) grub_malloc (sizeof (*c->p));
-      if (! c->p)
-	return 1;
-
-      grub_memcpy (c->p, partition, sizeof (*c->p));
-      return 1;
-    }
-
-  return 0;
-}
-
-static grub_partition_t
-amiga_partition_map_probe (grub_disk_t disk, const char *str)
-{
-  char *s = (char *) str;
-  struct amiga_partition_map_probe_closure c;
-
-  c.p = 0;
-  /* Get the partition number.  */
-  c.partnum = grub_strtoul (s, 0, 10) - 1;
-  if (grub_errno)
-    {
-      grub_error (GRUB_ERR_BAD_FILENAME, "invalid partition");
-      return 0;
-    }
-
-  if (amiga_partition_map_iterate (disk, find_func, &c))
-    goto fail;
-
-  return c.p;
-
- fail:
-  grub_free (c.p);
-  return 0;
-}
-
-
-static char *
-amiga_partition_map_get_name (const grub_partition_t p)
-{
-  return grub_xasprintf ("%d", p->index + 1);
-}
-
 
 /* Partition map type.  */
 static struct grub_partition_map grub_amiga_partition_map =
   {
-    .name = "part_amiga",
+    .name = "amiga",
     .iterate = amiga_partition_map_iterate,
-    .probe = amiga_partition_map_probe,
-    .get_name = amiga_partition_map_get_name
   };
 
-GRUB_MOD_INIT(amiga_partition_map)
+GRUB_MOD_INIT(part_amiga)
 {
   grub_partition_map_register (&grub_amiga_partition_map);
 }
 
-GRUB_MOD_FINI(amiga_partition_map)
+GRUB_MOD_FINI(part_amiga)
 {
   grub_partition_map_unregister (&grub_amiga_partition_map);
 }
