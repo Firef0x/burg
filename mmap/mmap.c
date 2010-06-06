@@ -24,6 +24,7 @@
 #include <grub/mm.h>
 #include <grub/command.h>
 #include <grub/dl.h>
+#include <grub/i18n.h>
 
 GRUB_EXPORT(grub_mmap_register);
 GRUB_EXPORT(grub_mmap_unregister);
@@ -440,8 +441,8 @@ static grub_command_t cmd;
 GRUB_MOD_INIT(mmap)
 {
   cmd = grub_register_command ("badram", grub_cmd_badram,
-			       "ADDR1,MASK1[,ADDR2,MASK2[,...]]",
-			       "Declare memory regions as badram.");
+			       N_("ADDR1,MASK1[,ADDR2,MASK2[,...]]"),
+			       N_("Declare memory regions as badram."));
 }
 
 GRUB_MOD_FINI(mmap)

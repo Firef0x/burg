@@ -47,6 +47,8 @@ struct grub_menu_entry
   /* The sourcecode of the menu entry, used by the editor.  */
   const char *sourcecode;
 
+  int hotkey;
+
   const char *group;
 
   /* The next element.  */

@@ -135,7 +135,7 @@ GRUB_MOD_INIT(normal)
   grub_env_export ("prefix");
 
   export_cmd = grub_register_command ("export", grub_cmd_export,
-				      "export ENVVAR", "Export a variable.");
+				      N_("ENVVAR"), N_("Export a variable."));
 
   /* Normal mode shouldn't be unloaded.  */
   if (mod)
@@ -147,9 +147,9 @@ GRUB_MOD_INIT(normal)
 
   /* Register a command "normal" for the rescue mode.  */
   grub_register_command ("normal", grub_cmd_normal,
-			 0, "Enter normal mode.");
+			 0, N_("Enter normal mode."));
   grub_register_command ("normal_exit", grub_cmd_normal_exit,
-			 0, "Exit from normal mode.");
+			 0, N_("Exit from normal mode."));
 }
 
 GRUB_MOD_FINI(normal)

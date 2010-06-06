@@ -102,7 +102,7 @@ print_command_help (grub_command_t cmd, void *closure)
 	  if (cmd->flags & GRUB_COMMAND_FLAG_EXTCMD)
 	    grub_arg_show_help ((grub_extcmd_t) cmd->data);
 	  else
-	    grub_printf ("%s %s %s\n%s\b", _("Usage:"), cmd->name, _(cmd->summary),
+	    grub_printf ("%s %s %s\n%s\n", _("Usage:"), cmd->name, _(cmd->summary),
 			 _(cmd->description));
 	}
     }

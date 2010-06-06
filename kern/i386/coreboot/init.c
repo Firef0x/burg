@@ -122,7 +122,9 @@ grub_machine_init (void)
   /* Initialize the console as early as possible.  */
   grub_vga_text_init ();
 
+#if defined (GRUB_MACHINE_MULTIBOOT) || defined (GRUB_MACHINE_QEMU)
   grub_machine_mmap_init ();
+#endif
   grub_machine_mmap_iterate (heap_init, 0);
 
   grub_tsc_init ();

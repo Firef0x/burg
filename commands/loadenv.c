@@ -318,7 +318,7 @@ read_hook (grub_disk_addr_t sector, unsigned offset, unsigned length,
     c->head = block;
 }
 
-#ifdef GRUB_UTIL
+#ifdef GRUB_MACHINE_EMU
 
 #include <stdio.h>
 #include <unistd.h>
@@ -382,7 +382,7 @@ grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
   grub_file_t file;
   grub_envblk_t envblk;
   struct grub_cmd_save_env_closure c;
-#ifdef GRUB_UTIL
+#ifdef GRUB_MACHINE_EMU
   char *host_file = check_host_file ((state[0].set) ? state[0].arg : 0);  
 #endif
 
@@ -409,7 +409,7 @@ grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
   if (! envblk)
     goto fail;
 
-#ifdef GRUB_UTIL
+#ifdef GRUB_MACHINE_EMU
   if ((host_file == NULL) && (check_blocklists (envblk, c.head, file)))
     goto fail;
 #else
@@ -435,7 +435,7 @@ grub_cmd_save_env (grub_extcmd_t cmd, int argc, char **args)
       args++;
     }
 
-#ifdef GRUB_UTIL
+#ifdef GRUB_MACHINE_EMU
   if (host_file)
     {
       FILE *fp;

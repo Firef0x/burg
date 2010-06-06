@@ -68,6 +68,17 @@ free_menu_entry_classes (struct grub_menu_entry_class *head)
     }
 }
 
+static struct
+{
+  char *name;
+  int key;
+} hotkey_aliases[] =
+  {
+    {"backspace", '\b'},
+    {"tab", '\t'},
+    {"delete", GRUB_TERM_DC}
+  };
+
 /* Add a menu entry to the current menu context (as given by the environment
    variable data slot `menu').  As the configuration file is read, the script
    parser calls this when a menu entry is to be created.  */
@@ -84,6 +95,7 @@ grub_menu_entry_add (int argc, const char **args, const char *sourcecode)
   struct grub_menu_entry_class *classes_tail;
   char *users = NULL;
   const char *group = NULL;
+  int hotkey = 0;
 
   /* Allocate dummy head node for class list.  */
   classes_head = grub_zalloc (sizeof (struct grub_menu_entry_class));
@@ -149,6 +161,32 @@ grub_menu_entry_add (int argc, const char **args, const char *sourcecode)
 		}
 
 	      continue;
+	    }
+	  else if (grub_strcmp(arg, "hotkey") == 0)
+	    {
+	      unsigned j;
+
+	      i++;
+	      if (args[i][1] == 0)
+		{
+		  hotkey = args[i][0];
+		  continue;
+		}
+
+	      for (j = 0; j < ARRAY_SIZE (hotkey_aliases); j++)
+		if (grub_strcmp (args[i], hotkey_aliases[j].name) == 0)
+		  {
+		    hotkey = hotkey_aliases[j].key;
+		    break;
+		  }
+
+	      if (j < ARRAY_SIZE (hotkey_aliases))
+		continue;
+
+	      failed = 1;
+	      grub_error (GRUB_ERR_MENU,
+			  "Invalid hotkey: '%s'.", args[i]);
+	      break;
 	    }
 	  else if (grub_strcmp(arg, "group") == 0)
 	    {
@@ -218,6 +256,7 @@ grub_menu_entry_add (int argc, const char **args, const char *sourcecode)
     }
 
   (*last)->title = menutitle;
+  (*last)->hotkey = hotkey;
   (*last)->classes = classes_head;
   if (users)
     (*last)->restricted = 1;
