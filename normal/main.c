@@ -37,10 +37,14 @@ int grub_normal_exit_level = 0;
 static void
 read_lists (const char *val)
 {
+#ifdef GRUB_MACHINE_EMU
+  (void) val;
+#else
   read_command_list (val);
   read_fs_list (val);
   read_crypto_list (val);
   read_terminal_list (val);
+#endif
 }
 
 static char *

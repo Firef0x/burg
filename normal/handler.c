@@ -168,7 +168,7 @@ read_handler_list (void)
     return;
   first_time = 0;
 
-#ifdef GRUB_UTIL
+#ifdef GRUB_MACHINE_EMU
   (void) prefix;
 #else
   prefix = grub_env_get ("prefix");
