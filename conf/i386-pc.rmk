@@ -255,6 +255,12 @@ loadbin_mod_SOURCES = loader/i386/pc/loadbin.c
 loadbin_mod_CFLAGS = $(COMMON_CFLAGS)
 loadbin_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
+# 915 resolution.
+pkglib_MODULES += 915resolution.mod
+915resolution_mod_SOURCES = commands/i386/pc/915resolution.c
+915resolution_mod_CFLAGS = $(COMMON_CFLAGS)
+915resolution_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
 ifeq ($(enable_efiemu), yes)
 
 efiemu32.o: efiemu/runtime/efiemu.c $(TARGET_OBJ2ELF)
