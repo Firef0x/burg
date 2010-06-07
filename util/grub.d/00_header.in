@@ -51,6 +51,9 @@ fi
 if test "x${GRUB_THEME}" = "xsaved"; then
   echo "set theme_name=ubuntu"
 fi
+if test "x${GRUB_GFXMODE}" = "xsaved"; then
+  echo "set gfxmode=640x480"
+fi
 cat << EOF
 if [ -s \$prefix/burgenv ]; then
   load_env
@@ -71,6 +74,9 @@ function savedefault {
   fi
 }
 EOF
+if test "x${GRUB_GFXMODE}" != "xsaved"; then
+  echo "set gfxmode=${GRUB_GFXMODE}"
+fi
 
 serial=0;
 gfxterm=0;
@@ -146,6 +152,21 @@ EOF
     fi
   fi
   
+  cat << EOF
+function select_resolution {
+  if menu_popup -t template_popup resolution_menu ; then
+    menu_reload_mode
+EOF
+
+  if test "x${GRUB_GFXMODE}" = "xsaved"; then
+    echo "    save_env gfxmode"
+  fi
+
+  cat << EOF
+  fi
+}
+EOF
+
   echo "if test -f \${prefix}/themes/\${theme_name}/theme ; then"
 
   cat << EOF
@@ -172,15 +193,15 @@ EOF
   done
 
   echo "  load_config \${prefix}/themes/\${theme_name}/theme \${prefix}/themes/custom/theme_\${theme_name}"
-  
+
   if [ "x$gfxterm" = x1 ]; then
     cat << EOF
   insmod ${GRUB_VIDEO_BACKEND}
   insmod png
   insmod jpeg
-  set gfxmode=${GRUB_GFXMODE}
   set gfxfont="Unifont Regular 16"
   menu_region.gfx
+  vmenu resolution_menu
 EOF
   fi
 
@@ -205,7 +226,6 @@ if [ "x$gfxterm" = x1 ]; then
 
     cat << EOF
 if loadfont `make_system_path_relative_to_its_root "${GRUB_FONT_PATH}"` ; then
-  set gfxmode=${GRUB_GFXMODE}
   insmod gfxterm
   insmod ${GRUB_VIDEO_BACKEND}
 EOF

@@ -721,7 +721,11 @@ sleep_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For loadenv.mod.
 loadenv_mod_SOURCES = commands/loadenv.c lib/envblk.c
+ifeq ($(platform), emu)
 loadenv_mod_CFLAGS = $(TARGET_CPPFLAGS) $(TARGET_CFLAGS)
+else
+loadenv_mod_CFLAGS = $(COMMON_CFLAGS)
+endif
 loadenv_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
 # For crc.mod.

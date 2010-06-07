@@ -244,11 +244,44 @@ grub_cmd_popup (grub_extcmd_t cmd, int argc, char **args)
 }
 
 static grub_err_t
+grub_cmd_read (grub_command_t cmd __attribute__ ((unused)),
+	       int argc, char **args)
+{
+  grub_uitree_t node;
+
+  if (argc < 2)
+    return grub_error (GRUB_ERR_BAD_ARGUMENT, "not enough parameter");
+
+  if (! grub_widget_current_node)
+    return grub_error (GRUB_ERR_BAD_ARGUMENT, "no current node");
+
+  node = grub_widget_current_node;
+  while (node)
+    {
+      char *parm;
+
+      parm = grub_uitree_get_prop (node, "parameters");
+      if (parm)
+	{
+	  char *result;
+
+	  result = grub_dialog_get_parm (node, parm, args[0]);
+	  if (result)
+	    grub_env_set (args[1], result);
+	  break;
+	}
+      node = node->parent;
+    }
+
+  return 0;
+}
+
+static grub_err_t
 grub_cmd_refresh (grub_command_t cmd __attribute__ ((unused)),
 		  int argc __attribute__ ((unused)),
 		  char **args __attribute__ ((unused)))
 {
-  grub_widget_refresh = 1;
+  grub_widget_refresh = GRUB_WIDGET_REFRESH;
   return 0;
 }
 
@@ -257,6 +290,20 @@ grub_cmd_toggle_mode (grub_command_t cmd __attribute__ ((unused)),
 		      int argc __attribute__ ((unused)),
 		      char **args __attribute__ ((unused)))
 {
+  grub_widget_refresh = GRUB_WIDGET_TOGGLE_MODE;
+  return 0;
+}
+
+static grub_err_t
+grub_cmd_reload_mode (grub_command_t cmd __attribute__ ((unused)),
+		      int argc __attribute__ ((unused)),
+		      char **args __attribute__ ((unused)))
+{
+  grub_widget_refresh = GRUB_WIDGET_RELOAD_MODE;
+  return 0;
+}
+
+#if 0
   grub_uitree_t node;
   grub_menu_region_t region;
   char *p;
@@ -270,12 +317,13 @@ grub_cmd_toggle_mode (grub_command_t cmd __attribute__ ((unused)),
   p = ((! region) || (! grub_strcmp (region->name, "gfx"))) ?
     "menu_region.text" : "menu_region.gfx";
   grub_command_execute (p, 0, 0);
+  grub_command_execute ("menu_region.gfx", 0, 0);
   grub_widget_create (node);
   grub_widget_init (node);
   grub_widget_draw (node);
 
   return grub_errno;
-}
+#endif
 
 static grub_uitree_t
 create_menuitem (int main_menu)
@@ -649,8 +697,8 @@ show_menu (grub_menu_t menu, int nested)
 	  if (grub_widget_refresh)
 	    {
 	      grub_menu_entry_t entry;
+	      grub_menu_region_t region;
 
-	      grub_widget_refresh = 0;
 	      grub_errno = 0;
 	      if ((node) && (menu))
 		for (entry = menu->entry_list; entry; entry = entry->next)
@@ -668,6 +716,23 @@ show_menu (grub_menu_t menu, int nested)
 	      if (! root)
 		goto quit;
 	      grub_env_unset ("timeout");
+
+	      region = grub_menu_region_get_current ();
+	      if (grub_widget_refresh == GRUB_WIDGET_TOGGLE_MODE)
+		{
+		  char *p;
+		  p = ((! region) || (! grub_strcmp (region->name, "gfx"))) ?
+		    "menu_region.text" : "menu_region.gfx";
+		  grub_command_execute (p, 0, 0);
+		}
+	      else if (grub_widget_refresh == GRUB_WIDGET_RELOAD_MODE)
+		{
+		  if (region->fini)
+		    region->fini ();
+		  if (region->init)
+		    region->init ();
+		}
+	      grub_widget_refresh = 0;
 	    }
 	  else
 	    break;
@@ -711,7 +776,7 @@ struct grub_controller grub_ext_controller =
 };
 
 static grub_extcmd_t cmd_popup, cmd_edit;
-static grub_command_t cmd_refresh, cmd_toggle_mode;
+static grub_command_t cmd_read, cmd_refresh, cmd_toggle_mode, cmd_reload_mode;
 
 GRUB_MOD_INIT(emenu)
 {
@@ -719,17 +784,23 @@ GRUB_MOD_INIT(emenu)
 
   cmd_popup = grub_register_extcmd ("menu_popup", grub_cmd_popup,
 				    GRUB_COMMAND_FLAG_BOTH,
-				    "menu_popup [OPTIONS] NAME [PARM=VALUE]..",
+				    "[OPTIONS] NAME [PARM=VALUE]..",
 				    "popup window", options);
   cmd_edit = grub_register_extcmd ("menu_edit", grub_cmd_popup,
 				   GRUB_COMMAND_FLAG_BOTH,
-				   "menu_edit [OPTIONS] NAME [PARM=PARM1]..",
+				   "[OPTIONS] NAME [PARM=PARM1]..",
 				   "popup edit window", options);
+  cmd_read = grub_register_command ("menu_read", grub_cmd_read,
+				    "PARM_NAME VAR_NAME",
+				    "read property from dialog and assign its value to variable");
   cmd_refresh = grub_register_command ("menu_refresh", grub_cmd_refresh,
 				       0, "refresh menu");
   cmd_toggle_mode =
     grub_register_command ("menu_toggle_mode", grub_cmd_toggle_mode,
 			   0, "toggle mode");
+  cmd_reload_mode =
+    grub_register_command ("menu_reload_mode", grub_cmd_reload_mode,
+			   0, "reload mode");
 }
 
 GRUB_MOD_FINI(emenu)
@@ -738,6 +809,8 @@ GRUB_MOD_FINI(emenu)
 
   grub_unregister_extcmd (cmd_popup);
   grub_unregister_extcmd (cmd_edit);
+  grub_unregister_command (cmd_read);
   grub_unregister_command (cmd_refresh);
   grub_unregister_command (cmd_toggle_mode);
+  grub_unregister_command (cmd_reload_mode);
 }

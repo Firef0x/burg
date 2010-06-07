@@ -271,9 +271,13 @@ grub_dialog_password (const char *userlist)
       user = grub_dialog_get_parm (node, parm, "username");
       if (user)
 	{
+	  char *p;
 	  grub_memset (pass, 0, sizeof (pass));
-	  grub_strcpy (pass, grub_dialog_get_parm (node, parm, "password"));
+	  p = grub_dialog_get_parm (node, parm, "password");
+	  grub_strcpy (pass, p);
+	  grub_memset (p, 0, grub_strlen (p));
 	  result = (grub_auth_check_password (userlist, user, pass));
+	  grub_memset (pass, 0, sizeof (pass));
 	}
 
       if (! result)

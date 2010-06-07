@@ -93,6 +93,10 @@ grub_widget_class_unregister (grub_widget_class_t class)
 		    GRUB_AS_LIST (class));
 }
 
+#define GRUB_WIDGET_REFRESH		1
+#define GRUB_WIDGET_TOGGLE_MODE		2
+#define GRUB_WIDGET_RELOAD_MODE		3
+
 extern grub_uitree_t grub_widget_current_node;
 extern grub_uitree_t grub_widget_screen;
 extern int grub_widget_refresh;

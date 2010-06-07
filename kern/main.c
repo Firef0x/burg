@@ -192,10 +192,12 @@ grub_main (void)
   /* First of all, initialize the machine.  */
   grub_machine_init ();
 
+#if 0
   /* Hello.  */
   grub_setcolorstate (GRUB_TERM_COLOR_HIGHLIGHT);
   grub_printf ("Welcome to GRUB!\n\n");
   grub_setcolorstate (GRUB_TERM_COLOR_STANDARD);
+#endif
 
   /* Load pre-loaded modules and free the space.  */
 #ifdef GRUB_LINKER_HAVE_INIT
