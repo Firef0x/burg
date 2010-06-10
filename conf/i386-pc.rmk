@@ -261,6 +261,12 @@ vmenu_mod_SOURCES = commands/i386/pc/vmenu.c
 vmenu_mod_CFLAGS = $(COMMON_CFLAGS)
 vmenu_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
+# For fb.mod.
+pkglib_MODULES += fb.mod
+fb_mod_SOURCES = fs/i386/pc/fb.c
+fb_mod_CFLAGS = $(COMMON_CFLAGS)
+fb_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
 # For 915resolution.mod.
 pkglib_MODULES += 915resolution.mod
 915resolution_mod_SOURCES = commands/i386/pc/915resolution.c

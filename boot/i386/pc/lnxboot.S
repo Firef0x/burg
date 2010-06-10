@@ -148,7 +148,7 @@ real_code:
 
 	/* Setup stack.  */
 
-	xorw	%si, %si
+	xorl	%esi, %esi
 	movw	%si, %ss
 	movw	$(CODE_ADDR), %sp
 
