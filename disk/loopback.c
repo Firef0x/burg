@@ -22,6 +22,7 @@
 #include <grub/file.h>
 #include <grub/disk.h>
 #include <grub/mm.h>
+#include <grub/env.h>
 #include <grub/extcmd.h>
 #include <grub/i18n.h>
 
@@ -69,6 +70,13 @@ delete_loopback (const char *name)
   return 0;
 }
 
+static char *
+get_full_name (char *name)
+{
+  return (name[0] == '(') ? grub_strdup (name) :
+    grub_xasprintf ("(%s)%s", grub_env_get ("root"), name);
+}
+
 /* The command to add and remove loopback devices.  */
 static grub_err_t
 grub_cmd_loopback (grub_extcmd_t cmd, int argc, char **args)
@@ -101,7 +109,7 @@ grub_cmd_loopback (grub_extcmd_t cmd, int argc, char **args)
 
   if (newdev)
     {
-      char *newname = grub_strdup (args[1]);
+      char *newname = get_full_name (args[1]);
       if (! newname)
 	return grub_errno;
 
@@ -126,7 +134,7 @@ grub_cmd_loopback (grub_extcmd_t cmd, int argc, char **args)
       return grub_errno;
     }
 
-  newdev->filename = grub_strdup (args[1]);
+  newdev->filename = get_full_name (args[1]);
   if (! newdev->filename)
     {
       grub_free (newdev->devname);
