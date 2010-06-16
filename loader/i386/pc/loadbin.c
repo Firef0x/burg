@@ -266,7 +266,11 @@ get_drive_number (void)
     {
       p = grub_strchr (p, ',');
       if (p)
-	part = grub_strtoul (p + 1, 0, 0) - 1;
+	{
+	  while ((*p) && ((*p < '0') || (*p > '9')))
+	    p++;
+	  part = grub_strtoul (p, 0, 0) - 1;
+	}
     }
 
   return drive | ((part & 0xff) << 8);
