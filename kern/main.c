@@ -30,6 +30,7 @@
 #include <grub/reader.h>
 #include <grub/parser.h>
 #include <grub/controller.h>
+#include <grub/menu.h>
 
 GRUB_EXPORT(grub_module_iterate);
 GRUB_EXPORT(grub_machine_fini);
@@ -191,6 +192,8 @@ grub_main (void)
 {
   /* First of all, initialize the machine.  */
   grub_machine_init ();
+
+  grub_env_set_menu (grub_zalloc (sizeof (struct grub_menu)));
 
 #if 0
   /* Hello.  */

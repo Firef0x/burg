@@ -37,6 +37,7 @@ grub_getline (grub_file_t file)
   if (! cmdline)
     return 0;
 
+ retry:
   while (1)
     {
       if (grub_file_read (file, &c, 1) != 1)
@@ -96,6 +97,16 @@ grub_getline (grub_file_t file)
     }
 
   cmdline[pos] = '\0';
+
+  if (((grub_uint8_t) cmdline[0] == 0xef) &&
+      ((grub_uint8_t) cmdline[1] == 0xbb) &&
+      ((grub_uint8_t) cmdline[2] == 0xbf))
+    {
+      pos -= 3;
+      if (pos == 0)
+	goto retry;
+      grub_strcpy (cmdline, cmdline + 3);
+    }
 
   /* If the buffer is empty, don't return anything at all.  */
   if (pos == 0)

@@ -104,26 +104,18 @@ fb_rw_chs (int cmd, grub_uint32_t sector, int size)
 }
 
 static int
-fb_rw (int cmd, char *buf, grub_disk_addr_t sector, int ofs, int size,
-       void (*hook) (grub_disk_addr_t sector,
-		     unsigned offset, unsigned length, void* closure),
-       void *closure)
+fb_rw (int cmd, char *buf, grub_disk_addr_t sector, int size)
 {
   sector -= fb_ofs;
   while (size)
     {
       int ns, nb;
 
-      nb = size;
-      ns = (ofs + size + 511) >> 9;
-      if (ns > fb_max)
-	{
-	  ns = fb_max;
-	  nb = (ns << 9) - ofs;
-	}
+      ns = (size > fb_max) ? fb_max : size;
+      nb = ns << 9;
 
       if (cmd)
-	grub_memcpy ((char *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR + ofs, buf, nb);
+	grub_memcpy ((char *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR, buf, nb);
 
       if ((fb_lba) ? fb_rw_lba (cmd, sector, ns) : fb_rw_chs (cmd, sector, ns))
 	return 1;
@@ -131,33 +123,12 @@ fb_rw (int cmd, char *buf, grub_disk_addr_t sector, int ofs, int size,
       if (buf)
 	{
 	  if (! cmd)
-	    grub_memcpy (buf, (char *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR + ofs,
-			 nb);
+	    grub_memcpy (buf, (char *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR, nb);
 	  buf += nb;
 	}
 
-      if (hook)
-	{
-	  while (nb)
-	    {
-	      int n;
-
-	      n = nb;
-	      if (ofs + nb > GRUB_DISK_SECTOR_SIZE)
-		n = GRUB_DISK_SECTOR_SIZE - ofs;
-	      hook (sector, ofs, n, closure);
-	      sector++;
-	      nb -= n;
-	      size -= n;
-	      ofs = 0;
-	    }
-	}
-      else
-	{
-	  sector += ns;
-	  size -= nb;
-	  ofs = 0;
-	}
+      sector += ns;
+      size -= ns;
     }
 
   return 0;
@@ -226,7 +197,7 @@ fb_detect (void)
   if (! fb_list)
     return 0;
 
-  if (fb_rw (0, fb_list, boot_base + 1, 0, boot_size << 9, 0, 0))
+  if (fb_rw (0, fb_list, boot_base + 1, boot_size))
     return 0;
 
   data = (struct fb_data *) fb_list;
@@ -296,20 +267,18 @@ grub_fb_close (grub_disk_t disk __attribute ((unused)))
 }
 
 static grub_err_t
-grub_fb_read (grub_disk_t disk, grub_disk_addr_t sector,
-	      grub_size_t size, char *buf)
+grub_fb_read (grub_disk_t disk __attribute ((unused)),
+	      grub_disk_addr_t sector, grub_size_t size, char *buf)
 {
-  return (fb_rw (0, buf, sector, 0, size << 9,
-		 disk->read_hook, disk->closure)) ?
+  return (fb_rw (0, buf, sector, size)) ?
     grub_error (GRUB_ERR_READ_ERROR, "read error") : GRUB_ERR_NONE;
 }
 
 static grub_err_t
-grub_fb_write (grub_disk_t disk, grub_disk_addr_t sector,
-	       grub_size_t size, const char *buf)
+grub_fb_write (grub_disk_t disk __attribute ((unused)),
+	       grub_disk_addr_t sector, grub_size_t size, const char *buf)
 {
-  return (fb_rw (1, (char *) buf, sector, 0, size << 9,
-		 disk->read_hook, disk->closure)) ?
+  return (fb_rw (1, (char *) buf, sector, size)) ?
     grub_error (GRUB_ERR_WRITE_ERROR, "write error") : GRUB_ERR_NONE;
 }
 
@@ -392,14 +361,23 @@ static grub_ssize_t
 grub_fbfs_read (grub_file_t file, char *buf, grub_size_t len)
 {
   struct fbm_file *p;
+  grub_disk_t disk;
   grub_uint32_t sector;
   grub_size_t saved_len, ofs;
 
+  disk = file->device->disk;
+  disk->read_hook = file->read_hook;
+  disk->closure = file->closure;
+
   p = file->data;
   if (p->data_start >= fb_pri_size)
-    return (fb_rw (0, buf, p->data_start + (file->offset >> 9),
-		   file->offset & 0x1ff, len,
-		   file->read_hook, file->closure)) ? -1 : (grub_ssize_t) len;
+    {
+      grub_err_t err;
+
+      err = grub_disk_read (disk, p->data_start, file->offset, len, buf);
+      disk->read_hook = 0;
+      return (err) ? -1 : (grub_ssize_t) len;
+    }
 
   sector = p->data_start + ((grub_uint32_t) file->offset / 510);
   ofs = ((grub_uint32_t) file->offset % 510);
@@ -411,14 +389,18 @@ grub_fbfs_read (grub_file_t file, char *buf, grub_size_t len)
       n = len;
       if (ofs + n > 510)
 	n = 510 - ofs;
-      if (fb_rw (0, buf, sector, ofs, n, file->read_hook, file->closure))
-	return -1;
+      if (grub_disk_read (disk, sector, ofs, n, buf))
+	{
+	  saved_len = -1;
+	  break;
+	}
       sector++;
       buf += n;
       len -= n;
       ofs = 0;
     }
 
+  disk->read_hook = 0;
   return saved_len;
 }
 

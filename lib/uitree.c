@@ -345,11 +345,18 @@ grub_uitree_load_buf (const char *prefix, int prefix_len, grub_uitree_t root,
 		      char *buf, int size, int flags)
 {
   int type, count, sub;
-  char pre, *save;
+  char pre;
   grub_uitree_t node;
-  
+
+  if (((grub_uint8_t) buf[0] == 0xef) &&
+      ((grub_uint8_t) buf[1] == 0xbb) &&
+      ((grub_uint8_t) buf[2] == 0xbf))
+    {
+      buf += 3;
+      size -= 3;
+    }
+
   node = root;
-  save = buf;
   pre = 0;
   while ((type = read_token (buf, &pre, size, &count, &sub))
 	 != TOKEN_TYPE_ERROR)

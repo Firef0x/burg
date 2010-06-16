@@ -1104,13 +1104,57 @@ add_module (struct grub_util_obj *obj, const char *path,
   return info;
 }
 
+static char *
+read_config_file (char *filename, size_t *pack_size)
+{
+  FILE *f;
+  char *data, *p;
+  int size;
+
+  *pack_size = 0;
+  f = fopen (filename, "r");
+  if (! f)
+    return 0;
+
+  size = grub_util_get_image_size (filename) + 1;
+  p = data = xmalloc (size);
+  while (fgets (p, size, f))
+    {
+      int len, org_len;
+
+      if (p[0] == '#')
+	continue;
+
+      if (((grub_uint8_t) p[0] == 0xef) &&
+	  ((grub_uint8_t) p[1] == 0xbb) &&
+	  ((grub_uint8_t) p[2] == 0xbf))
+	strcpy (p, p + 3);
+
+      len = org_len = strlen (p);
+      while ((len > 0) && ((p[len - 1] == '\n') || (p[len - 1] == '\r')))
+	len--;
+
+      if (len != org_len)
+	p[len++] = '\n';
+
+      p += len;
+      size -= len;
+    }
+
+  *p = 0;
+  *pack_size = p + 1 - data;
+
+  fclose (f);
+  return data;
+}
+
 struct grub_util_obj_segment *
 grub_obj_add_modinfo (struct grub_util_obj *obj, const char *dir,
 		      struct grub_util_path_list *path_list, int as_info,
 		      char *memdisk_path, char *config_path)
 {
   size_t memdisk_size = 0, config_size = 0;
-  char *kernel_path, *info;
+  char *kernel_path, *info, *config_data;
   int offset, total_module_size;
   struct grub_util_obj_segment *seg;
 
@@ -1136,7 +1180,7 @@ grub_obj_add_modinfo (struct grub_util_obj *obj, const char *dir,
 
   if (config_path)
     {
-      config_size = grub_util_get_image_size (config_path) + 1;
+      config_data = read_config_file (config_path, &config_size);
       grub_util_info ("the size of config file is 0x%x", config_size);
       total_module_size += config_size + sizeof (struct grub_module_header);
     }
@@ -1168,9 +1212,9 @@ grub_obj_add_modinfo (struct grub_util_obj *obj, const char *dir,
       header->size = grub_host_to_target32 (config_size + sizeof (*header));
       offset += sizeof (*header);
 
-      grub_util_load_image (config_path, info + offset);
+      memcpy (info + offset, config_data, config_size);
       offset += config_size;
-      *(info + offset - 1) = 0;
+      free (config_data);
     }
 
   ((struct grub_module_info *) info)->magic =

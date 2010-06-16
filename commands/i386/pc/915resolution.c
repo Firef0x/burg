@@ -521,6 +521,7 @@ static void unlock_vbios(vbios_map * map) {
     case CT_915GM:
     case CT_945G:
     case CT_945GM:
+    case CT_945GME:
     case CT_946GZ:
     case CT_G965:
     case CT_Q965:
@@ -536,11 +537,6 @@ static void unlock_vbios(vbios_map * map) {
         outl(0x80000090, 0xcf8);
         outb(0x33, 0xcfd);
         outb(0x33, 0xcfe);
-        break;
-
-    case CT_945GME:
-      // TODO
-      break;
     }
 
 #if DEBUG

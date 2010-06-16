@@ -326,7 +326,7 @@ getline (char **line, int cont __attribute__ ((unused)), void *closure)
   return GRUB_ERR_NONE;
 }
 
-static grub_menu_t
+static void
 read_config_file (const char *config)
 {
   grub_menu_t newmenu;
@@ -339,7 +339,7 @@ read_config_file (const char *config)
     {
       newmenu = grub_zalloc (sizeof (*newmenu));
       if (! newmenu)
-	return 0;
+	return;
 
       grub_env_set_menu (newmenu);
     }
@@ -347,7 +347,7 @@ read_config_file (const char *config)
   /* Try to open the config file.  */
   c.file = grub_file_open (config);
   if (! c.file)
-    return 0;
+    return;
 
   while (1)
     {
@@ -368,8 +368,6 @@ read_config_file (const char *config)
 
   if (c.old_parser)
     grub_parser_set_current (c.old_parser);
-
-  return newmenu;
 }
 
 /* Read the config file CONFIG and execute the menu interface or
@@ -377,19 +375,23 @@ read_config_file (const char *config)
 void
 grub_menu_execute (const char *config, int nested, int batch)
 {
-  grub_menu_t menu = 0;
+  grub_menu_t menu;
+  int has_menu;
 
   if (config)
     {
-      menu = read_config_file (config);
+      read_config_file (config);
 
       /* Ignore any error.  */
       grub_errno = GRUB_ERR_NONE;
     }
 
+  menu = grub_env_get_menu ();
+  has_menu = (menu && menu->size);
+
   if (! batch)
     {
-      if (menu && menu->size)
+      if (has_menu)
 	{
 	  if (grub_controller_show_menu (menu, nested))
 	    {
@@ -401,6 +403,6 @@ grub_menu_execute (const char *config, int nested, int batch)
 	}
     }
 
-  if ((! menu) && (! nested))
+  if ((! has_menu) && (! nested))
     grub_controller_show_menu (0, 0);
 }
