@@ -30,19 +30,19 @@
 #define FB_MAGIC	"FBBF"
 #define FB_MAGIC_LONG	0x46424246
 
-#define FBM_TYPE_FILE	1
+#define FB_VER_MAJOR	1
+#define FB_VER_MINOR	6
 
 struct fb_mbr
 {
   grub_uint8_t jmp_code;
   grub_uint8_t jmp_ofs;
-  grub_uint8_t boot_code[0x1a9];
-  grub_uint8_t max_sec;		/* 0x1ab  */
-  grub_uint16_t lba;		/* 0x1ac  */
-  grub_uint8_t spt;		/* 0x1ae  */
-  grub_uint8_t heads;		/* 0x1af  */
-  grub_uint16_t boot_base;	/* 0x1b0  */
-  grub_uint16_t boot_size;	/* 0x1b2  */
+  grub_uint8_t boot_code[0x1ab];
+  grub_uint8_t max_sec;		/* 0x1ad  */
+  grub_uint16_t lba;		/* 0x1ae  */
+  grub_uint8_t spt;		/* 0x1b0  */
+  grub_uint8_t heads;		/* 0x1b1  */
+  grub_uint16_t boot_base;	/* 0x1b2  */
   grub_uint32_t fb_magic;	/* 0x1b4  */
   grub_uint8_t mbr_table[0x46];	/* 0x1b8  */
   grub_uint16_t end_magic;	/* 0x1fe  */
@@ -50,22 +50,23 @@ struct fb_mbr
 
 struct fb_data
 {
-  grub_uint16_t menu_ofs;	/* 0x200  */
+  grub_uint16_t boot_size;	/* 0x200  */
   grub_uint16_t flags;		/* 0x202  */
   grub_uint8_t ver_major;	/* 0x204  */
   grub_uint8_t ver_minor;	/* 0x205  */
-  grub_uint32_t pri_size;	/* 0x206  */
-  grub_uint32_t ext_size;	/* 0x20a  */
+  grub_uint16_t list_used;	/* 0x206  */
+  grub_uint16_t list_size;	/* 0x208  */
+  grub_uint16_t pri_size;	/* 0x20a  */
+  grub_uint32_t ext_size;	/* 0x20c  */
 } __attribute__((packed));
 
 struct fbm_file
 {
   grub_uint8_t size;
-  grub_uint8_t type;
+  grub_uint8_t flag;
   grub_uint32_t data_start;
   grub_uint32_t data_size;
   grub_uint32_t data_time;
-  grub_uint8_t flag;
   char name[0];
 } __attribute__((packed));
 
@@ -118,7 +119,19 @@ fb_rw (int cmd, char *buf, grub_disk_addr_t sector, int size)
 	grub_memcpy ((char *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR, buf, nb);
 
       if ((fb_lba) ? fb_rw_lba (cmd, sector, ns) : fb_rw_chs (cmd, sector, ns))
-	return 1;
+	{
+	  if (fb_max > 7)
+	    {
+	      fb_max = 7;
+	      continue;
+	    }
+	  else if (fb_max > 1)
+	    {
+	      fb_max = 1;
+	      continue;
+	    }
+	  return 1;
+	}
 
       if (buf)
 	{
@@ -139,19 +152,18 @@ fb_detect (void)
 {
   struct fb_mbr *m;
   struct fb_data *data;
-  int boot_base, boot_size, i, menu_ofs, list_size;
-  char *p;
+  int boot_base, boot_size, list_used, i;
+  char *p1, *p2;
 
   fb_drive = grub_boot_drive;
 
   if (fb_drive == GRUB_BOOT_MACHINE_PXE_DL)
     return 0;
 
-  if (! fb_rw_lba (0, 0, 1))
-    fb_lba = 1;
-  else if (grub_biosdisk_rw_standard (0x02, fb_drive,
-				      0, 0, 1, 1,
-				      GRUB_MEMORY_MACHINE_SCRATCH_SEG))
+  fb_lba = grub_biosdisk_check_int13_extensions (fb_drive);
+  if ((fb_lba) ? fb_rw_lba (0, 0, 1) :
+      grub_biosdisk_rw_standard (0x02, fb_drive, 0, 0, 1, 1,
+				 GRUB_MEMORY_MACHINE_SCRATCH_SEG))
     return 0;
 
   m =  (struct fb_mbr *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR;
@@ -161,7 +173,6 @@ fb_detect (void)
   fb_ofs = m->lba;
   fb_max = m->max_sec;
   boot_base = m->boot_base;
-  boot_size = m->boot_size;
 
   if (! fb_lba)
     {
@@ -193,49 +204,32 @@ fb_detect (void)
       fb_nhd = (lba - fb_ofs) / fb_spt;
     }
 
-  fb_list = grub_malloc (boot_size << 9);
+  data = (struct fb_data *) m;
+  if (fb_rw (0, (char *) data, boot_base + 1, 1))
+    return 0;
+
+  if ((data->ver_major != FB_VER_MAJOR) || (data->ver_minor != FB_VER_MINOR))
+    return 0;
+
+  boot_size = data->boot_size;
+  fb_pri_size = data->pri_size;
+  fb_total_size = data->pri_size + data->ext_size;
+  list_used = data->list_used;
+
+  fb_list = grub_malloc (list_used << 9);
   if (! fb_list)
     return 0;
 
-  if (fb_rw (0, fb_list, boot_base + 1, boot_size))
+  if (fb_rw (0, fb_list, boot_base + 1 + boot_size, list_used))
     return 0;
 
-  data = (struct fb_data *) fb_list;
-  if ((data->ver_major != 1) || (data->ver_minor < 5))
-    return 0;
-
-  menu_ofs = data->menu_ofs;
-  fb_pri_size = data->pri_size;
-  fb_total_size = data->pri_size + data->ext_size;
-
-  i = (menu_ofs >> 9) + 1;
-  p = fb_list + (i << 9) - 2;
-  for (; i < boot_size; i++)
+  p1 = p2 = fb_list;
+  for (i = 0; i < list_used - 1; i++)
     {
-      grub_memcpy (p, fb_list + (i << 9), 510);
-      p += 510;
+      p1 += 510;
+      p2 += 512;
+      grub_memcpy (p1, p2, 510);
     }
-
-  list_size = p - fb_list;
-
-  p = fb_list;
-  while (fb_list[menu_ofs])
-    {
-      int len;
-
-      len = fb_list[menu_ofs] + 2;
-
-      if (fb_list[menu_ofs + 1] == FBM_TYPE_FILE)
-	{
-	  grub_memcpy (p, fb_list + menu_ofs, len);
-	  p += len;
-	}
-
-      menu_ofs += len;
-      if (menu_ofs >= list_size)
-	return 0;
-    }
-  *p = 0;
 
   return 1;
 }

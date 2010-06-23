@@ -966,6 +966,12 @@ datehook_mod_SOURCES = hook/datehook.c
 datehook_mod_CFLAGS = $(COMMON_CFLAGS)
 datehook_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
+# For time.mod
+pkglib_MODULES += time.mod
+time_mod_SOURCES = commands/time.c
+time_mod_CFLAGS = $(COMMON_CFLAGS)
+time_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
 # For lsmmap.mod
 pkglib_MODULES += lsmmap.mod
 lsmmap_mod_SOURCES = commands/lsmmap.c

@@ -143,7 +143,7 @@ grub_cmd_popup (grub_extcmd_t cmd, int argc, char **args)
     return grub_errno;
 
   name = args[0];
-  if (name[0] == '#')
+  if (name[0] == ':')
     {
       name = grub_uitree_get_prop (grub_widget_current_node, name + 1);
       if (! name)

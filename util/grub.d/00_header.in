@@ -48,8 +48,13 @@ if test "x${GRUB_USERS}" != "x" ; then
   awk -F: 'BEGIN {super=""} {print "password_" $3,$1,$4; if ($2=="s") super=super $1 ",";} END {if (super=="") exit 1; else print "set superusers=" super;}' $pass_file || { echo "No superuser is found" >&2 ; exit 1; }
 fi
 
+default_theme="$(echo ${GRUB_DISTRIBUTOR} | tr '[A-Z]' '[a-z]' | cut -d' ' -f1)"
+if test ! -r "${grub_prefix}/themes/${default_theme}/theme"; then
+  default_theme=burg
+fi
+
 if test "x${GRUB_THEME}" = "xsaved"; then
-  echo "set theme_name=ubuntu"
+  echo "set theme_name=${default_theme}"
 fi
 if test "x${GRUB_GFXMODE}" = "xsaved"; then
   echo "set gfxmode=640x480"

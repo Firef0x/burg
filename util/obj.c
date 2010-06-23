@@ -1116,7 +1116,7 @@ read_config_file (char *filename, size_t *pack_size)
   if (! f)
     return 0;
 
-  size = grub_util_get_image_size (filename) + 1;
+  size = grub_util_get_image_size (filename) + 2;
   p = data = xmalloc (size);
   while (fgets (p, size, f))
     {
