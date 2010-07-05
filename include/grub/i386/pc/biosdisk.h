@@ -24,6 +24,7 @@
 
 #define GRUB_BIOSDISK_FLAG_LBA	1
 #define GRUB_BIOSDISK_FLAG_CDROM 2
+#define GRUB_BIOSDISK_FLAG_FB 4
 
 #define GRUB_BIOSDISK_CDTYPE_NO_EMUL	0
 #define GRUB_BIOSDISK_CDTYPE_1_2_M	1
@@ -36,10 +37,11 @@
 struct grub_biosdisk_data
 {
   int drive;
-  unsigned long cylinders;
   unsigned long heads;
   unsigned long sectors;
-  unsigned long flags;
+  int flags;
+  int max_sectors;
+  grub_uint64_t total_sectors;
 };
 
 /* Drive Parameters.  */

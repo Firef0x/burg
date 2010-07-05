@@ -26,8 +26,151 @@
 #include <grub/misc.h>
 #include <grub/err.h>
 #include <grub/term.h>
+#include <grub/fbfs.h>
 
-static int cd_drive = 0;
+static int cd_drive = -1;
+
+#define DISK_NUM_INC	4
+
+static struct grub_biosdisk_data *grub_biosdisk_geom;
+static int grub_biosdisk_num;
+
+static struct grub_biosdisk_data *
+get_drive_geom (int drive)
+{
+  int i;
+  struct grub_biosdisk_data *data = grub_biosdisk_geom;
+  grub_uint64_t total_sectors = 0;
+  unsigned long cylinders;
+  int is_fb = 0;
+  struct fb_mbr *m;
+
+  for (i = 0; i < grub_biosdisk_num; i++, data++)
+    if (data->drive == drive)
+      return data;
+
+  if ((drive != cd_drive) && ((drive >= 0x80) || (drive == grub_boot_drive)))
+    {
+      if (grub_biosdisk_rw_standard (0x02, drive, 0, 0, 1, 1,
+				     GRUB_MEMORY_MACHINE_SCRATCH_SEG) != 0)
+	return 0;
+    }
+
+  m = (struct fb_mbr *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR;
+  if ((grub_biosdisk_num & (DISK_NUM_INC - 1)) == 0)
+    {
+      grub_biosdisk_geom = grub_realloc (grub_biosdisk_geom,
+					 (grub_biosdisk_num + DISK_NUM_INC) *
+					 sizeof (*data));
+      if (! grub_biosdisk_geom)
+	return 0;
+
+      is_fb = ((m->fb_magic == FB_MAGIC_LONG) && (m->end_magic == 0xaa55));
+    }
+
+  data = &grub_biosdisk_geom[grub_biosdisk_num++];
+  grub_memset (data, 0, sizeof (*data));
+  data->drive = drive;
+
+  if (drive == cd_drive)
+    {
+      data->flags = GRUB_BIOSDISK_FLAG_LBA | GRUB_BIOSDISK_FLAG_CDROM;
+      data->sectors = 32;
+      data->total_sectors = GRUB_ULONG_MAX;  /* TODO: get the correct size.  */
+      return data;
+    }
+
+  if (drive & 0x80)
+    {
+      /* HDD */
+      int version;
+
+      version = grub_biosdisk_check_int13_extensions (drive);
+      if (version)
+	{
+	  struct grub_biosdisk_drp *drp
+	    = (struct grub_biosdisk_drp *)
+	    (GRUB_MEMORY_MACHINE_SCRATCH_ADDR + 512);
+
+	  /* Clear out the DRP.  */
+	  grub_memset (drp, 0, sizeof (*drp));
+	  drp->size = sizeof (*drp);
+	  if (! grub_biosdisk_get_diskinfo_int13_extensions (drive, drp))
+	    {
+	      data->flags = GRUB_BIOSDISK_FLAG_LBA;
+
+	      if (drp->cylinders == 65535)
+		total_sectors = GRUB_ULONG_MAX;
+	      else if (drp->total_sectors)
+		total_sectors = drp->total_sectors;
+	      else
+                /* Some buggy BIOSes doesn't return the total sectors
+                   correctly but returns zero. So if it is zero, compute
+                   it by C/H/S returned by the LBA BIOS call.  */
+                total_sectors = drp->cylinders * drp->heads * drp->sectors;
+	    }
+	}
+    }
+
+  data->sectors = 63;
+  data->heads = 255;
+  cylinders = 0;
+  grub_biosdisk_get_diskinfo_standard (drive, &cylinders,
+				       &data->heads, &data->sectors);
+  if (is_fb)
+    {
+      grub_uint16_t ofs = m->lba;
+
+      data->max_sectors = m->max_sec;
+      if (data->max_sectors >= 0x80)
+	{
+	  data->max_sectors &= 0x7f;
+	  data->flags &= ~GRUB_BIOSDISK_FLAG_LBA;
+	}
+
+      if (! (data->flags & GRUB_BIOSDISK_FLAG_LBA))
+	{
+	  grub_uint16_t lba;
+
+	  if (grub_biosdisk_rw_standard (0x02, drive,
+					 0, 1, 1, 1,
+					 GRUB_MEMORY_MACHINE_SCRATCH_SEG))
+	    goto next;
+
+	  lba = m->end_magic;
+	  if (lba == 0xaa55)
+	    {
+	      if (m->fb_magic != FB_MAGIC_LONG)
+		goto next;
+	      else
+		lba = m->lba;
+	    }
+
+	  data->sectors = lba - ofs;
+
+	  if (grub_biosdisk_rw_standard (0x02, drive,
+					 1, 0, 1, 1,
+					 GRUB_MEMORY_MACHINE_SCRATCH_SEG))
+	    goto next;
+
+	  lba = m->end_magic;
+	  if (lba == 0xaa55)
+	    goto next;
+
+	  data->heads = (lba - ofs) / data->sectors;
+	}
+
+      data->flags |= GRUB_BIOSDISK_FLAG_FB;
+    }
+
+ next:
+  cylinders *= data->heads * data->sectors;
+  if (total_sectors < cylinders)
+    total_sectors = cylinders;
+
+  data->total_sectors = total_sectors;
+  return data;
+}
 
 static int
 grub_biosdisk_get_drive (const char *name)
@@ -56,10 +199,24 @@ grub_biosdisk_call_hook (int (*hook) (const char *name, void *closure),
 			 void *closure, int drive)
 {
   char name[10];
+  struct grub_biosdisk_data *data;
+
+  data = get_drive_geom (drive);
+  if (! data)
+    return 0;
 
   grub_snprintf (name, sizeof (name),
 		 (drive & 0x80) ? "hd%d" : "fd%d", drive & (~0x80));
-  return hook (name, closure);
+  if (hook (name, closure))
+    return 1;
+
+  if ((data->flags & GRUB_BIOSDISK_FLAG_FB) && (drive == grub_boot_drive))
+    {
+      if (hook ("fb", closure))
+	return 1;
+    }
+
+  return 0;
 }
 
 static int
@@ -72,18 +229,11 @@ grub_biosdisk_iterate (int (*hook) (const char *name, void *closure),
   /* For hard disks, attempt to read the MBR.  */
   for (drive = 0x80; drive < 0x90; drive++)
     {
-      if (grub_biosdisk_rw_standard (0x02, drive, 0, 0, 1, 1,
-				     GRUB_MEMORY_MACHINE_SCRATCH_SEG) != 0)
-	{
-	  grub_dprintf ("disk", "Read error when probing drive 0x%2x\n", drive);
-	  break;
-	}
-
       if (grub_biosdisk_call_hook (hook, closure, drive))
 	return 1;
     }
 
-  if (cd_drive)
+  if (cd_drive >= 0x90)
     {
       if (grub_biosdisk_call_hook (hook, closure, cd_drive))
       return 1;
@@ -101,97 +251,29 @@ grub_biosdisk_iterate (int (*hook) (const char *name, void *closure),
 static grub_err_t
 grub_biosdisk_open (const char *name, grub_disk_t disk)
 {
-  grub_uint64_t total_sectors = 0;
   int drive;
   struct grub_biosdisk_data *data;
 
-  drive = grub_biosdisk_get_drive (name);
+  drive = (! grub_strcmp (name, "fb")) ? grub_boot_drive :
+    grub_biosdisk_get_drive (name);
   if (drive < 0)
     return grub_errno;
 
-  disk->has_partitions = ((drive & 0x80) && (drive != cd_drive));
-  disk->id = drive;
-
-  data = (struct grub_biosdisk_data *) grub_zalloc (sizeof (*data));
+  data = get_drive_geom (drive);
   if (! data)
-    return grub_errno;
+    return grub_error (GRUB_ERR_BAD_DEVICE, "invalid drive");
 
-  data->drive = drive;
-
-  if ((cd_drive) && (drive == cd_drive))
-    {
-      data->flags = GRUB_BIOSDISK_FLAG_LBA | GRUB_BIOSDISK_FLAG_CDROM;
-      data->sectors = 32;
-      total_sectors = GRUB_ULONG_MAX;  /* TODO: get the correct size.  */
-    }
-  else if (drive & 0x80)
-    {
-      /* HDD */
-      int version;
-
-      version = grub_biosdisk_check_int13_extensions (drive);
-      if (version)
-	{
-	  struct grub_biosdisk_drp *drp
-	    = (struct grub_biosdisk_drp *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR;
-
-	  /* Clear out the DRP.  */
-	  grub_memset (drp, 0, sizeof (*drp));
-	  drp->size = sizeof (*drp);
-	  if (! grub_biosdisk_get_diskinfo_int13_extensions (drive, drp))
-	    {
-	      data->flags = GRUB_BIOSDISK_FLAG_LBA;
-
-	      if (drp->cylinders == 65535)
-		total_sectors = GRUB_ULONG_MAX;
-	      else if (drp->total_sectors)
-		total_sectors = drp->total_sectors;
-	      else
-                /* Some buggy BIOSes doesn't return the total sectors
-                   correctly but returns zero. So if it is zero, compute
-                   it by C/H/S returned by the LBA BIOS call.  */
-                total_sectors = drp->cylinders * drp->heads * drp->sectors;
-	    }
-	}
-    }
-
-  if (! (data->flags & GRUB_BIOSDISK_FLAG_CDROM))
-    {
-      if (grub_biosdisk_get_diskinfo_standard (drive,
-					       &data->cylinders,
-					       &data->heads,
-					       &data->sectors) != 0)
-        {
-	  if (total_sectors && (data->flags & GRUB_BIOSDISK_FLAG_LBA))
-	    {
-	      data->sectors = 63;
-	      data->heads = 255;
-	      data->cylinders
-		= grub_divmod64 (total_sectors
-				 + data->heads * data->sectors - 1,
-				 data->heads * data->sectors, 0);
-	    }
-	  else
-	    {
-	      grub_free (data);
-	      return grub_error (GRUB_ERR_BAD_DEVICE, "%s cannot get C/H/S values", disk->name);
-	    }
-        }
-
-      if (! total_sectors)
-        total_sectors = data->cylinders * data->heads * data->sectors;
-    }
-
-  disk->total_sectors = total_sectors;
+  disk->has_partitions = (drive != cd_drive);
+  disk->id = drive;
+  disk->total_sectors = data->total_sectors;
   disk->data = data;
 
   return GRUB_ERR_NONE;
 }
 
 static void
-grub_biosdisk_close (grub_disk_t disk)
+grub_biosdisk_close (grub_disk_t disk __attribute ((unused)))
 {
-  grub_free (disk->data);
 }
 
 /* For readability.  */
@@ -242,7 +324,6 @@ grub_biosdisk_rw (int cmd, grub_disk_t disk,
 	  {
 	    /* Fall back to the CHS mode.  */
 	    data->flags &= ~GRUB_BIOSDISK_FLAG_LBA;
-	    disk->total_sectors = data->cylinders * data->heads * data->sectors;
 	    return grub_biosdisk_rw (cmd, disk, sector, size, segment);
 	  }
     }
@@ -263,9 +344,6 @@ grub_biosdisk_rw (int cmd, grub_disk_t disk,
       head = ((grub_uint32_t) sector) / data->sectors;
       hoff = head % data->heads;
       coff = head / data->heads;
-
-      if (coff >= data->cylinders)
-	return grub_error (GRUB_ERR_OUT_OF_RANGE, "%s out of disk", disk->name);
 
       if (grub_biosdisk_rw_standard (cmd + 0x02, data->drive,
 				     coff, hoff, soff, size, segment))
@@ -314,6 +392,8 @@ grub_biosdisk_read (grub_disk_t disk, grub_disk_addr_t sector,
       grub_size_t cdoff = 0;
 
       len = get_safe_sectors (sector, data->sectors);
+      if ((data->max_sectors) && ((int) len > data->max_sectors))
+	len = data->max_sectors;
 
       if (data->flags & GRUB_BIOSDISK_FLAG_CDROM)
 	{
@@ -387,6 +467,7 @@ static void
 grub_disk_biosdisk_fini (void)
 {
   grub_disk_dev_unregister (&grub_biosdisk_dev);
+  grub_free (grub_biosdisk_geom);
 }
 
 GRUB_MOD_INIT(biosdisk)

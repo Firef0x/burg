@@ -26,202 +26,68 @@
 #include <grub/machine/kernel.h>
 #include <grub/machine/memory.h>
 #include <grub/machine/biosdisk.h>
+#include <grub/fbfs.h>
 
-#define FB_MAGIC	"FBBF"
-#define FB_MAGIC_LONG	0x46424246
-
-#define FB_VER_MAJOR	1
-#define FB_VER_MINOR	6
-
-struct fb_mbr
+struct grub_fb_data
 {
-  grub_uint8_t jmp_code;
-  grub_uint8_t jmp_ofs;
-  grub_uint8_t boot_code[0x1ab];
-  grub_uint8_t max_sec;		/* 0x1ad  */
-  grub_uint16_t lba;		/* 0x1ae  */
-  grub_uint8_t spt;		/* 0x1b0  */
-  grub_uint8_t heads;		/* 0x1b1  */
-  grub_uint16_t boot_base;	/* 0x1b2  */
-  grub_uint32_t fb_magic;	/* 0x1b4  */
-  grub_uint8_t mbr_table[0x46];	/* 0x1b8  */
-  grub_uint16_t end_magic;	/* 0x1fe  */
-} __attribute__((packed));
+  grub_uint32_t ofs;
+  grub_uint32_t pri_size;
+  struct fbm_file *ptr;
+  char fb_list[0];
+};
 
-struct fb_data
-{
-  grub_uint16_t boot_size;	/* 0x200  */
-  grub_uint16_t flags;		/* 0x202  */
-  grub_uint8_t ver_major;	/* 0x204  */
-  grub_uint8_t ver_minor;	/* 0x205  */
-  grub_uint16_t list_used;	/* 0x206  */
-  grub_uint16_t list_size;	/* 0x208  */
-  grub_uint16_t pri_size;	/* 0x20a  */
-  grub_uint32_t ext_size;	/* 0x20c  */
-} __attribute__((packed));
-
-struct fbm_file
-{
-  grub_uint8_t size;
-  grub_uint8_t flag;
-  grub_uint32_t data_start;
-  grub_uint32_t data_size;
-  grub_uint32_t data_time;
-  char name[0];
-} __attribute__((packed));
-
-static int fb_drive, fb_lba, fb_nhd, fb_spt, fb_max;
-static char *fb_list;
-static grub_uint32_t fb_ofs, fb_pri_size, fb_total_size;
-
-static int
-fb_rw_lba (int cmd, grub_disk_addr_t sector, int size)
-{
-  struct grub_biosdisk_dap *dap;
-  dap = (struct grub_biosdisk_dap *) (GRUB_MEMORY_MACHINE_SCRATCH_ADDR
-				      + (63 << GRUB_DISK_SECTOR_BITS));
-
-  dap->length = sizeof (*dap);
-  dap->reserved = 0;
-  dap->blocks = size;
-  dap->buffer = GRUB_MEMORY_MACHINE_SCRATCH_SEG << 16;
-  dap->block = sector;
-  return grub_biosdisk_rw_int13_extensions (cmd + 0x42, fb_drive, dap);
-}
-
-static int
-fb_rw_chs (int cmd, grub_uint32_t sector, int size)
-{
-  unsigned coff, hoff, soff, head;
-
-  soff = sector % fb_spt + 1;
-  head = sector / fb_spt;
-  hoff = head % fb_nhd;
-  coff = head / fb_nhd;
-
-  return grub_biosdisk_rw_standard (cmd + 0x02, fb_drive,
-				    coff, hoff, soff, size,
-				    GRUB_MEMORY_MACHINE_SCRATCH_SEG);
-}
-
-static int
-fb_rw (int cmd, char *buf, grub_disk_addr_t sector, int size)
-{
-  sector -= fb_ofs;
-  while (size)
-    {
-      int ns, nb;
-
-      ns = (size > fb_max) ? fb_max : size;
-      nb = ns << 9;
-
-      if (cmd)
-	grub_memcpy ((char *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR, buf, nb);
-
-      if ((fb_lba) ? fb_rw_lba (cmd, sector, ns) : fb_rw_chs (cmd, sector, ns))
-	{
-	  if (fb_max > 7)
-	    {
-	      fb_max = 7;
-	      continue;
-	    }
-	  else if (fb_max > 1)
-	    {
-	      fb_max = 1;
-	      continue;
-	    }
-	  return 1;
-	}
-
-      if (buf)
-	{
-	  if (! cmd)
-	    grub_memcpy (buf, (char *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR, nb);
-	  buf += nb;
-	}
-
-      sector += ns;
-      size -= ns;
-    }
-
-  return 0;
-}
-
-static int
-fb_detect (void)
+static struct grub_fb_data *
+grub_fbfs_mount (grub_disk_t disk)
 {
   struct fb_mbr *m;
-  struct fb_data *data;
-  int boot_base, boot_size, list_used, i;
-  char *p1, *p2;
+  struct fb_data *d;
+  char buf[512];
+  struct grub_fb_data *data;
+  int boot_base, boot_size, list_used, pri_size, ofs, i;
+  char *fb_list, *p1, *p2;
 
-  fb_drive = grub_boot_drive;
+  if (grub_disk_read (disk, 0, 0, sizeof (buf), buf))
+    goto fail;
 
-  if (fb_drive == GRUB_BOOT_MACHINE_PXE_DL)
-    return 0;
-
-  fb_lba = grub_biosdisk_check_int13_extensions (fb_drive);
-  if ((fb_lba) ? fb_rw_lba (0, 0, 1) :
-      grub_biosdisk_rw_standard (0x02, fb_drive, 0, 0, 1, 1,
-				 GRUB_MEMORY_MACHINE_SCRATCH_SEG))
-    return 0;
-
-  m =  (struct fb_mbr *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR;
-  if ((m->fb_magic != FB_MAGIC_LONG) || (m->end_magic != 0xaa55))
-    return 0;
-
-  fb_ofs = m->lba;
-  fb_max = m->max_sec;
-  boot_base = m->boot_base;
-
-  if (! fb_lba)
+  m = (struct fb_mbr *) buf;
+  d = (struct fb_data *) buf;
+  if (*((grub_uint32_t *) &buf[0]) == FB_AR_MAGIC_LONG)
     {
-      grub_uint16_t lba;
+      ofs = 0;
+      boot_base = 0;
+      boot_size = 0;
+      pri_size = 0;
+    }
+  else
+    {
+      if ((m->fb_magic != FB_MAGIC_LONG) || (m->end_magic != 0xaa55))
+	goto fail;
 
-      if (grub_biosdisk_rw_standard (0x02, fb_drive,
-				      0, 1, 1, 1,
-				      GRUB_MEMORY_MACHINE_SCRATCH_SEG))
-	return 0;
+      ofs = m->lba;
+      boot_base = m->boot_base;
 
-      lba = m->end_magic;
-      if (lba == 0xaa55)
-	{
-	  if (m->fb_magic != FB_MAGIC_LONG)
-	    return 0;
-	  else
-	    lba = m->lba;
-	}
-      fb_spt = lba - fb_ofs;
+      if (grub_disk_read (disk, boot_base + 1 - ofs, 0, sizeof (buf), buf))
+	goto fail;
 
-      if (grub_biosdisk_rw_standard (0x02, fb_drive,
-				     1, 0, 1, 1,
-				     GRUB_MEMORY_MACHINE_SCRATCH_SEG))
-	return 0;
-
-      lba = m->end_magic;
-      if (lba == 0xaa55)
-	return 0;
-      fb_nhd = (lba - fb_ofs) / fb_spt;
+      boot_size = d->boot_size;
+      pri_size = d->pri_size;
     }
 
-  data = (struct fb_data *) m;
-  if (fb_rw (0, (char *) data, boot_base + 1, 1))
-    return 0;
+  if ((d->ver_major != FB_VER_MAJOR) || (d->ver_minor != FB_VER_MINOR))
+    goto fail;
 
-  if ((data->ver_major != FB_VER_MAJOR) || (data->ver_minor != FB_VER_MINOR))
-    return 0;
+  list_used = d->list_used;
+  data = grub_malloc (sizeof (*data) + (list_used << 9));
+  if (! data)
+    goto fail;
 
-  boot_size = data->boot_size;
-  fb_pri_size = data->pri_size;
-  fb_total_size = data->pri_size + data->ext_size;
-  list_used = data->list_used;
-
-  fb_list = grub_malloc (list_used << 9);
-  if (! fb_list)
-    return 0;
-
-  if (fb_rw (0, fb_list, boot_base + 1 + boot_size, list_used))
-    return 0;
+  fb_list = data->fb_list;
+  if (grub_disk_read (disk, boot_base + 1 + boot_size - ofs, 0,
+		      (list_used << 9), fb_list))
+    {
+      grub_free (data);
+      goto fail;
+    }
 
   p1 = p2 = fb_list;
   for (i = 0; i < list_used - 1; i++)
@@ -231,62 +97,14 @@ fb_detect (void)
       grub_memcpy (p1, p2, 510);
     }
 
-  return 1;
-}
+  data->ofs = ofs;
+  data->pri_size = pri_size;
+  return data;
 
-static int
-grub_fb_iterate (int (*hook) (const char *name, void *closure),
-		 void *closure)
-{
-  if (hook ("fb", closure))
-    return 1;
+ fail:
+  grub_error (GRUB_ERR_BAD_FS, "not a fb filesystem");
   return 0;
 }
-
-static grub_err_t
-grub_fb_open (const char *name, grub_disk_t disk)
-{
-  if (grub_strcmp (name, "fb") != 0)
-    return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "not a fb disk");
-
-  disk->has_partitions = 0;
-  disk->total_sectors = fb_total_size;
-
-  return GRUB_ERR_NONE;
-}
-
-static void
-grub_fb_close (grub_disk_t disk __attribute ((unused)))
-{
-}
-
-static grub_err_t
-grub_fb_read (grub_disk_t disk __attribute ((unused)),
-	      grub_disk_addr_t sector, grub_size_t size, char *buf)
-{
-  return (fb_rw (0, buf, sector, size)) ?
-    grub_error (GRUB_ERR_READ_ERROR, "read error") : GRUB_ERR_NONE;
-}
-
-static grub_err_t
-grub_fb_write (grub_disk_t disk __attribute ((unused)),
-	       grub_disk_addr_t sector, grub_size_t size, const char *buf)
-{
-  return (fb_rw (1, (char *) buf, sector, size)) ?
-    grub_error (GRUB_ERR_WRITE_ERROR, "write error") : GRUB_ERR_NONE;
-}
-
-static struct grub_disk_dev grub_fb_dev =
-  {
-    .name = "fb",
-    .id = GRUB_DISK_DEVICE_FB_ID,
-    .iterate = grub_fb_iterate,
-    .open = grub_fb_open,
-    .close = grub_fb_close,
-    .read = grub_fb_read,
-    .write = grub_fb_write,
-    .next = 0
-  };
 
 static grub_err_t
 grub_fbfs_dir (grub_device_t device, const char *path,
@@ -299,9 +117,11 @@ grub_fbfs_dir (grub_device_t device, const char *path,
   struct fbm_file *p;
   char *fn;
   int len, ofs;
+  struct grub_fb_data *data;
 
-  if (device->disk->dev->id != GRUB_DISK_DEVICE_FB_ID)
-    return grub_error (GRUB_ERR_BAD_FS, "not a fb disk");
+  data = grub_fbfs_mount (device->disk);
+  if (! data)
+    return grub_errno;
 
   while (*path == '/')
     path++;
@@ -310,9 +130,11 @@ grub_fbfs_dir (grub_device_t device, const char *path,
   ofs = (fn) ? (fn + 1 - path) : 0;
 
   grub_memset (&info, 0, sizeof (info));
-  p = (struct fbm_file *) fb_list;
+  info.mtimeset = 1;
+  p = (struct fbm_file *) data->fb_list;
   while (p->size)
     {
+      info.mtime = grub_le_to_cpu32 (p->data_time);
       if ((! grub_memcmp (path, p->name, len)) &&
 	  (hook (p->name + ofs, &info, closure)))
 	break;
@@ -320,27 +142,30 @@ grub_fbfs_dir (grub_device_t device, const char *path,
       p = (struct fbm_file *) ((char *) p + p->size + 2);
     }
 
+  grub_free (data);
   return GRUB_ERR_NONE;
 }
-
 
 static grub_err_t
 grub_fbfs_open (struct grub_file *file, const char *name)
 {
   struct fbm_file *p;
+  struct grub_fb_data *data;
 
-  if (file->device->disk->dev->id != GRUB_DISK_DEVICE_FB_ID)
-    return grub_error (GRUB_ERR_BAD_FS, "not a fb disk");
+  data = grub_fbfs_mount (file->device->disk);
+  if (! data)
+    return grub_errno;
 
   while (*name == '/')
     name++;
 
-  p = (struct fbm_file *) fb_list;
+  p = (struct fbm_file *) data->fb_list;
   while (p->size)
     {
       if (! grub_strcmp (name, p->name))
 	{
-	  file->data = p;
+	  file->data = data;
+	  data->ptr = p;
 	  file->size = p->data_size;
 	  return GRUB_ERR_NONE;
 	}
@@ -358,22 +183,25 @@ grub_fbfs_read (grub_file_t file, char *buf, grub_size_t len)
   grub_disk_t disk;
   grub_uint32_t sector;
   grub_size_t saved_len, ofs;
+  struct grub_fb_data *data;
 
   disk = file->device->disk;
   disk->read_hook = file->read_hook;
   disk->closure = file->closure;
 
-  p = file->data;
-  if (p->data_start >= fb_pri_size)
+  data = file->data;
+  p = data->ptr;
+  if (p->data_start >= data->pri_size)
     {
       grub_err_t err;
 
-      err = grub_disk_read (disk, p->data_start, file->offset, len, buf);
+      err = grub_disk_read (disk, p->data_start - data->ofs, file->offset,
+			    len, buf);
       disk->read_hook = 0;
       return (err) ? -1 : (grub_ssize_t) len;
     }
 
-  sector = p->data_start + ((grub_uint32_t) file->offset / 510);
+  sector = p->data_start + ((grub_uint32_t) file->offset / 510) - data->ofs;
   ofs = ((grub_uint32_t) file->offset % 510);
   saved_len = len;
   while (len)
@@ -399,8 +227,9 @@ grub_fbfs_read (grub_file_t file, char *buf, grub_size_t len)
 }
 
 static grub_err_t
-grub_fbfs_close (grub_file_t file __attribute ((unused)))
+grub_fbfs_close (grub_file_t file)
 {
+  grub_free (file->data);
   return GRUB_ERR_NONE;
 }
 
@@ -425,24 +254,10 @@ static struct grub_fs grub_fb_fs =
 
 GRUB_MOD_INIT(fb)
 {
-  if (fb_detect ())
-    {
-      grub_disk_dev_register (&grub_fb_dev);
-      grub_fs_register (&grub_fb_fs);
-    }
-  else
-    {
-      fb_drive = -1;
-      grub_free (fb_list);
-    }
+  grub_fs_register (&grub_fb_fs);
 }
 
 GRUB_MOD_FINI(fb)
 {
-  if (fb_drive >= 0)
-    {
-      grub_free (fb_list);
-      grub_disk_dev_unregister (&grub_fb_dev);
-      grub_fs_unregister (&grub_fb_fs);
-    }
+  grub_fs_unregister (&grub_fb_fs);
 }
