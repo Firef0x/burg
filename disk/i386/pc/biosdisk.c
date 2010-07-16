@@ -75,7 +75,7 @@ get_drive_geom (int drive)
   if (drive == cd_drive)
     {
       data->flags = GRUB_BIOSDISK_FLAG_LBA | GRUB_BIOSDISK_FLAG_CDROM;
-      data->sectors = 32;
+      data->max_sectors = data->sectors = 32;
       data->total_sectors = GRUB_ULONG_MAX;  /* TODO: get the correct size.  */
       return data;
     }
@@ -117,6 +117,7 @@ get_drive_geom (int drive)
   cylinders = 0;
   grub_biosdisk_get_diskinfo_standard (drive, &cylinders,
 				       &data->heads, &data->sectors);
+  data->max_sectors = 63;
   if (is_fb)
     {
       grub_uint16_t ofs = m->lba;
@@ -391,9 +392,14 @@ grub_biosdisk_read (grub_disk_t disk, grub_disk_addr_t sector,
       grub_size_t len;
       grub_size_t cdoff = 0;
 
-      len = get_safe_sectors (sector, data->sectors);
-      if ((data->max_sectors) && ((int) len > data->max_sectors))
+      if (data->flags & data->flags & GRUB_BIOSDISK_FLAG_LBA)
 	len = data->max_sectors;
+      else
+	{
+	  len = get_safe_sectors (sector, data->sectors);
+	  if (len > data->max_sectors)
+	    len = data->max_sectors;
+	}
 
       if (data->flags & GRUB_BIOSDISK_FLAG_CDROM)
 	{
@@ -432,7 +438,15 @@ grub_biosdisk_write (grub_disk_t disk, grub_disk_addr_t sector,
     {
       grub_size_t len;
 
-      len = get_safe_sectors (sector, data->sectors);
+      if (data->flags & data->flags & GRUB_BIOSDISK_FLAG_LBA)
+	len = data->max_sectors;
+      else
+	{
+	  len = get_safe_sectors (sector, data->sectors);
+	  if (len > data->max_sectors)
+	    len = data->max_sectors;
+	}
+
       if (len > size)
 	len = size;
 

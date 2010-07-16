@@ -40,7 +40,7 @@ struct grub_biosdisk_data
   unsigned long heads;
   unsigned long sectors;
   int flags;
-  int max_sectors;
+  grub_size_t max_sectors;
   grub_uint64_t total_sectors;
 };
 

@@ -453,13 +453,14 @@ grub_fat_read_data (grub_disk_t disk, struct grub_fat_data *data,
 
       disk->read_hook = read_hook;
       disk->closure = closure;
-      grub_disk_read (disk, sector, offset, size, buf);
+      grub_disk_read_direct (disk, sector, offset, size, buf);
       disk->read_hook = 0;
       if (grub_errno)
 	return -1;
 
       len -= size;
-      buf += size;
+      if (buf)
+	buf += size;
       ret += size;
       logical_cluster++;
       offset = 0;

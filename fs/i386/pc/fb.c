@@ -195,8 +195,8 @@ grub_fbfs_read (grub_file_t file, char *buf, grub_size_t len)
     {
       grub_err_t err;
 
-      err = grub_disk_read (disk, p->data_start - data->ofs, file->offset,
-			    len, buf);
+      err = grub_disk_read_direct (disk, p->data_start - data->ofs,
+				   file->offset, len, buf);
       disk->read_hook = 0;
       return (err) ? -1 : (grub_ssize_t) len;
     }

@@ -320,16 +320,17 @@ grub_fshelp_read_file (grub_disk_t disk, grub_fshelp_node_t node,
 	  disk->read_hook = read_hook;
 	  disk->closure = closure;
 
-	  grub_disk_read (disk, blknr, skipfirst,
-			  blockend, buf);
+	  grub_disk_read_direct (disk, blknr, skipfirst,
+				 blockend, buf);
 	  disk->read_hook = 0;
 	  if (grub_errno)
 	    return -1;
 	}
-      else
+      else if (buf)
 	grub_memset (buf, 0, blockend);
 
-      buf += blocksize - skipfirst;
+      if (buf)
+	buf += blocksize - skipfirst;
     }
 
   return len;
