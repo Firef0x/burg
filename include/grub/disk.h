@@ -44,6 +44,7 @@ enum grub_disk_dev_id
     GRUB_DISK_DEVICE_FILE_ID,
     GRUB_DISK_DEVICE_LUKS_ID,
     GRUB_DISK_DEVICE_USB_ID,
+    GRUB_DISK_DEVICE_MAP_ID,
   };
 
 struct grub_disk;
@@ -156,11 +157,12 @@ grub_err_t grub_disk_read (grub_disk_t disk,
 			   grub_off_t offset,
 			   grub_size_t size,
 			   void *buf);
-grub_err_t grub_disk_read_direct (grub_disk_t disk,
-				  grub_disk_addr_t sector,
-				  grub_off_t offset,
-				  grub_size_t size,
-				  void *buf);
+grub_err_t grub_disk_read_ex (grub_disk_t disk,
+			      grub_disk_addr_t sector,
+			      grub_off_t offset,
+			      grub_size_t size,
+			      void *buf,
+			      int flags);
 grub_err_t grub_disk_write (grub_disk_t disk,
 			    grub_disk_addr_t sector,
 			    grub_off_t offset,

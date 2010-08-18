@@ -32,6 +32,8 @@ struct grub_mmap_malign_and_register_closure
 {
   grub_uint64_t align;
   grub_uint64_t size;
+  grub_uint64_t min;
+  grub_uint64_t max;
   grub_uint64_t highestlow;
 };
 
@@ -41,13 +43,18 @@ find_hook (grub_uint64_t start, grub_uint64_t rangesize,
 {
   struct grub_mmap_malign_and_register_closure *c = closure;
   grub_uint64_t end = start + rangesize;
+  grub_uint64_t addr;
   if (memtype != GRUB_MACHINE_MEMORY_AVAILABLE)
     return 0;
-  if (end > 0x100000)
-    end = 0x100000;
-  if (end > start + c->size
-      && c->highestlow < ((end - c->size) - ((end - c->size) & (c->align - 1))))
-    c->highestlow = (end - c->size)  - ((end - c->size) & (c->align - 1));
+  if (end > c->max)
+    end = c->max;
+  if (end < c->size)
+    return 0;
+  if (start < c->min)
+    start = c->min;
+  addr = (end - c->size) - ((end - c->size) & (c->align - 1));
+  if (addr >= start && c->highestlow < addr)
+    c->highestlow = addr;
   return 0;
 }
 
@@ -57,13 +64,23 @@ grub_mmap_malign_and_register (grub_uint64_t align, grub_uint64_t size,
 {
   void *ret;
 
-  if (flags & GRUB_MMAP_MALLOC_LOW)
+  if (flags & (GRUB_MMAP_MALLOC_LOW | GRUB_MMAP_MALLOC_HIGH))
     {
       struct grub_mmap_malign_and_register_closure c;
 
       c.align = align;
       c.size = size;
       c.highestlow = 0;
+      if (flags & GRUB_MMAP_MALLOC_LOW)
+	{
+	  c.min = 0;
+	  c.max = 0x100000;
+	}
+      else
+	{
+	  c.min = grub_mmap_high;
+	  c.max = 0x100000000ll;
+	}
       /* FIXME: use low-memory mm allocation once it's available. */
       grub_mmap_iterate (find_hook, &c);
       ret = UINT_TO_PTR (c.highestlow);

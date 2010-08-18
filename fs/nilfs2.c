@@ -618,11 +618,11 @@ grub_nilfs2_read_file (grub_fshelp_node_t node,
 					  unsigned offset,
 					  unsigned length,
 					  void *closure),
-		       void *closure,
+		       void *closure, int flags,
 		       int pos, grub_size_t len, char *buf)
 {
   return grub_fshelp_read_file (node->data->disk, node, read_hook, closure,
-				pos, len, buf, grub_nilfs2_read_block,
+				flags, pos, len, buf, grub_nilfs2_read_block,
 				grub_le_to_cpu64 (node->inode.i_size),
 				LOG2_NILFS2_BLOCK_SIZE (node->data));
 
@@ -794,7 +794,7 @@ grub_nilfs2_read_symlink (grub_fshelp_node_t node)
   if (!symlink)
     return 0;
 
-  grub_nilfs2_read_file (diro, 0, 0, 0,
+  grub_nilfs2_read_file (diro, 0, 0, 0, 0,
 			 grub_le_to_cpu64 (diro->inode.i_size), symlink);
   if (grub_errno)
     {
@@ -829,7 +829,7 @@ grub_nilfs2_iterate_dir (grub_fshelp_node_t dir,
     {
       struct grub_nilfs2_dir_entry dirent;
 
-      grub_nilfs2_read_file (diro, 0, 0, fpos,
+      grub_nilfs2_read_file (diro, 0, 0, 0, fpos,
 			     sizeof (struct grub_nilfs2_dir_entry),
 			     (char *) &dirent);
       if (grub_errno)
@@ -844,7 +844,7 @@ grub_nilfs2_iterate_dir (grub_fshelp_node_t dir,
 	  struct grub_fshelp_node *fdiro;
 	  enum grub_fshelp_filetype type = GRUB_FSHELP_UNKNOWN;
 
-	  grub_nilfs2_read_file (diro, 0, 0,
+	  grub_nilfs2_read_file (diro, 0, 0, 0,
 				 fpos + sizeof (struct grub_nilfs2_dir_entry),
 				 dirent.name_len, filename);
 	  if (grub_errno)
@@ -968,7 +968,7 @@ grub_nilfs2_read (grub_file_t file, char *buf, grub_size_t len)
   struct grub_nilfs2_data *data = (struct grub_nilfs2_data *) file->data;
 
   return grub_nilfs2_read_file (&data->diropen, file->read_hook, file->closure,
-				file->offset, len, buf);
+				file->flags, file->offset, len, buf);
 }
 
 struct grub_nilfs2_dir_closure

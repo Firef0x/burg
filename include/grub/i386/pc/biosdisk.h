@@ -121,8 +121,12 @@ int grub_biosdisk_get_diskinfo_standard (int drive,
 					 unsigned long *heads,
 					 unsigned long *sectors);
 int grub_biosdisk_get_num_floppies (void);
+void grub_biosdisk_reset (int drive);
 
 void grub_biosdisk_init (void);
 void grub_biosdisk_fini (void);
+
+extern struct grub_biosdisk_data *grub_biosdisk_geom;
+extern int grub_biosdisk_num;
 
 #endif /* ! GRUB_BIOSDISK_MACHINE_HEADER */

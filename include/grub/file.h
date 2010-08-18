@@ -46,6 +46,7 @@ struct grub_file
   void (*read_hook) (grub_disk_addr_t sector,
 		     unsigned offset, unsigned length, void *closure);
   void *closure;
+  int flags;
 };
 typedef struct grub_file *grub_file_t;
 
@@ -69,5 +70,9 @@ grub_file_tell (const grub_file_t file)
 {
   return file->offset;
 }
+
+void grub_blocklist_convert (grub_file_t file);
+grub_ssize_t grub_blocklist_write (grub_file_t file, const char *buf,
+				   grub_size_t len);
 
 #endif /* ! GRUB_FILE_HEADER */

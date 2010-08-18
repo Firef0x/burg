@@ -113,7 +113,12 @@ grub_uint64_t grub_mmap_get_post64 (void);
 grub_uint64_t grub_mmap_get_upper (void);
 grub_uint64_t grub_mmap_get_lower (void);
 
+#define GRUB_MMAP_HIGH_MAX	(128 * 1024 * 1024)
+
 #define GRUB_MMAP_MALLOC_LOW 1
+#define GRUB_MMAP_MALLOC_HIGH 2
+
+extern grub_size_t grub_mmap_high;
 
 #ifdef GRUB_MACHINE_PCBIOS
 grub_err_t grub_machine_mmap_register (grub_uint64_t start, grub_uint64_t size,

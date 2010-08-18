@@ -82,6 +82,7 @@ GRUB_EXPORT(grub_biosdisk_get_diskinfo_int13_extensions);
 GRUB_EXPORT(grub_biosdisk_get_cdinfo_int13_extensions);
 GRUB_EXPORT(grub_biosdisk_get_diskinfo_standard);
 GRUB_EXPORT(grub_biosdisk_get_num_floppies);
+GRUB_EXPORT(grub_biosdisk_reset);
 
 GRUB_EXPORT(grub_boot_drive);
 GRUB_EXPORT_END
@@ -570,9 +571,11 @@ FUNCTION(grub_chainloader_real_boot)
 
 	call	EXT_C(grub_dl_unload_all)
 
+#if 0
 	/* Turn off Gate A20 */
 	xorl	%eax, %eax
 	call	EXT_C(grub_gate_a20)
+#endif
 
 	/* set up to pass boot drive */
 	popl	%edx
@@ -918,6 +921,21 @@ FUNCTION(grub_biosdisk_get_num_floppies)
 	popl	%ebp
 	ret
 
+/*
+ * void grub_biosdisk_reset (int drive)
+ */
+FUNCTION(grub_biosdisk_reset)
+	pushl	%ebp
+	movb	%al, %dl
+
+	call	prot_to_real
+	.code16	
+	int	$0x13
+	REAL_TO_PROT
+	.code32
+
+	popl	%ebp
+	ret	
 
 /*
  *

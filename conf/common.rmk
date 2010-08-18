@@ -984,6 +984,12 @@ boot_mod_SOURCES = commands/boot.c lib/i386/pc/biosnum.c
 boot_mod_CFLAGS = $(COMMON_CFLAGS)
 boot_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
+# For dd.mod.
+pkglib_MODULES += dd.mod
+dd_mod_SOURCES = commands/dd.c
+dd_mod_CFLAGS = $(COMMON_CFLAGS)
+dd_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
 bin_UTILITIES += grub-mkpasswd-pbkdf2
 grub_mkpasswd_pbkdf2_SOURCES = gnulib/progname.c gnulib/getdelim.c gnulib/getline.c util/grub-mkpasswd-pbkdf2.c lib/crypto.c lib/libgcrypt-grub/cipher/sha512.c lib/pbkdf2.c util/misc.c util/mm.c kern/err.c
 grub_mkpasswd_pbkdf2_CFLAGS += -Wno-error -I$(srcdir)/lib/libgcrypt_wrap -DGRUB_MKPASSWD=1

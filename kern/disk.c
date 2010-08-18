@@ -32,7 +32,7 @@ GRUB_EXPORT(grub_disk_dev_iterate);
 GRUB_EXPORT(grub_disk_open);
 GRUB_EXPORT(grub_disk_close);
 GRUB_EXPORT(grub_disk_read);
-GRUB_EXPORT(grub_disk_read_direct);
+GRUB_EXPORT(grub_disk_read_ex);
 GRUB_EXPORT(grub_disk_write);
 
 GRUB_EXPORT(grub_disk_get_size);
@@ -448,7 +448,8 @@ grub_disk_read (grub_disk_t disk, grub_disk_addr_t sector,
       if (data)
 	{
 	  /* Just copy it!  */
-	  grub_memcpy (buf, data + pos + real_offset, len);
+	  if (buf)
+	    grub_memcpy (buf, data + pos + real_offset, len);
 	  grub_disk_cache_unlock (disk->dev->id, disk->id, start_sector);
 	}
       else
@@ -482,7 +483,8 @@ grub_disk_read (grub_disk_t disk, grub_disk_addr_t sector,
 		  goto finish;
 		}
 
-	      grub_memcpy (buf, tmp_buf + real_offset, size);
+	      if (buf)
+		grub_memcpy (buf, tmp_buf + real_offset, size);
 
 	      /* Call the read hook, if any.  */
 	      if (disk->read_hook)
@@ -508,7 +510,8 @@ grub_disk_read (grub_disk_t disk, grub_disk_addr_t sector,
 	    }
 
 	  /* Copy it and store it in the disk cache.  */
-	  grub_memcpy (buf, tmp_buf + pos + real_offset, len);
+	  if (buf)
+	    grub_memcpy (buf, tmp_buf + pos + real_offset, len);
 	  grub_disk_cache_store (disk->dev->id, disk->id,
 				 start_sector, tmp_buf);
 	}
@@ -536,7 +539,8 @@ grub_disk_read (grub_disk_t disk, grub_disk_addr_t sector,
 	}
 
       sector = start_sector + GRUB_DISK_CACHE_SIZE;
-      buf = (char *) buf + len;
+      if (buf)
+	buf = (char *) buf + len;
       size -= len;
       real_offset = 0;
     }
@@ -549,11 +553,13 @@ grub_disk_read (grub_disk_t disk, grub_disk_addr_t sector,
 }
 
 grub_err_t
-grub_disk_read_direct (grub_disk_t disk, grub_disk_addr_t sector,
-		       grub_off_t offset, grub_size_t size, void *buf)
+grub_disk_read_ex (grub_disk_t disk, grub_disk_addr_t sector,
+		   grub_off_t offset, grub_size_t size, void *buf, int flags)
 {
-  char tmp_buf[GRUB_DISK_SECTOR_SIZE];
   unsigned real_offset;
+
+  if (! flags)
+    return grub_disk_read (disk, sector, offset, size, buf);
 
   if (grub_disk_adjust_range (disk, &sector, &offset, size) != GRUB_ERR_NONE)
     return grub_errno;
@@ -561,6 +567,7 @@ grub_disk_read_direct (grub_disk_t disk, grub_disk_addr_t sector,
   real_offset = offset;
   while (size)
     {
+      char tmp_buf[GRUB_DISK_SECTOR_SIZE];
       grub_size_t len;
 
       if ((real_offset != 0) || (size < GRUB_DISK_SECTOR_SIZE))

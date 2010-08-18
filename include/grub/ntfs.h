@@ -137,6 +137,7 @@ struct grub_fshelp_node
   grub_uint64_t size;
   grub_uint32_t ino;
   int inode_read;
+  grub_uint32_t sector;
   struct grub_ntfs_attr attr;
 };
 

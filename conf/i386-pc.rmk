@@ -273,6 +273,12 @@ pkglib_MODULES += 915resolution.mod
 915resolution_mod_CFLAGS = $(COMMON_CFLAGS)
 915resolution_mod_LDFLAGS = $(COMMON_LDFLAGS)
 
+# For geom.mod.
+pkglib_MODULES += geom.mod
+geom_mod_SOURCES = commands/i386/pc/geometry.c
+geom_mod_CFLAGS = $(COMMON_CFLAGS)
+geom_mod_LDFLAGS = $(COMMON_LDFLAGS)
+
 ifeq ($(enable_efiemu), yes)
 
 efiemu32.o: efiemu/runtime/efiemu.c $(TARGET_OBJ2ELF)

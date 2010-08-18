@@ -1,0 +1,202 @@
+/*
+ *  BURG - Brand-new Universal loadeR from GRUB
+ *  Copyright 2009 Bean Lee - All Rights Reserved
+ *
+ *  BURG is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  BURG is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with BURG.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include <grub/dl.h>
+#include <grub/mm.h>
+#include <grub/file.h>
+#include <grub/extcmd.h>
+#include <grub/i18n.h>
+
+static const struct grub_arg_option options[] =
+  {
+    {"if", 'i', 0, N_("Specify input file."), "FILE", ARG_TYPE_STRING},
+    {"str", 's', 0, N_("Specify input string."), "STRING", ARG_TYPE_STRING},
+    {"of", 'o', 0, N_("Specify output file."), "FILE", ARG_TYPE_STRING},
+    {"bs", 'b', 0, N_("Specify block size."), "BYTES", ARG_TYPE_INT},
+    {"count", 'c', 0, N_("Number of blocks to copy."), "BLOCKS", ARG_TYPE_INT},
+    {"skip", 0x100, 0, N_("Skip N blocks at input."), "BLOCKS", ARG_TYPE_INT},
+    {"seek", 0x101, 0, N_("Skip N blocks at output."), "BLOCKS", ARG_TYPE_INT},
+    {0, 0, 0, 0, 0, 0}
+  };
+
+enum options
+  {
+    DD_IF,
+    DD_STR,
+    DD_OF,
+    DD_BS,
+    DD_COUNT,
+    DD_SKIP,
+    DD_SEEK,
+ };
+
+static grub_err_t
+grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
+	     char **args __attribute__ ((unused)))
+{
+  struct grub_arg_list *state = cmd->state;
+  char *input = 0;
+  char *output = 0;
+  char *str = 0;
+  grub_size_t bs = 1;
+  int copy_bs = 512;
+  grub_off_t skip = 0;
+  grub_off_t seek = 0;
+  grub_off_t in_size = 0;
+  int count = -1;
+  grub_file_t in;
+  grub_file_t out;
+  char *buf = 0;
+
+  if (state[DD_IF].set)
+    input = state[DD_IF].arg;
+
+  if (state[DD_STR].set)
+    str = state[DD_STR].arg;
+
+  if (state[DD_OF].set)
+    output = state[DD_OF].arg;
+
+  if (((! input) && (! str)) || (! output))
+    return grub_error (GRUB_ERR_BAD_ARGUMENT, "no input or output file");
+
+  if (state[DD_BS].set)
+    {
+      bs = grub_strtoul (state[DD_BS].arg, 0, 0);
+      if (bs == 0)
+	return grub_error (GRUB_ERR_BAD_ARGUMENT, "invalid block size");
+    }
+
+  if (state[DD_COUNT].set)
+    {
+      count = grub_strtoul (state[DD_COUNT].arg, 0, 0);
+      if (count == 0)
+	return grub_error (GRUB_ERR_BAD_ARGUMENT, "invalid count");
+    }
+
+  if (state[DD_SKIP].set)
+    skip = grub_strtoull (state[DD_SKIP].arg, 0, 0);
+
+  if (state[DD_SEEK].set)
+    seek = grub_strtoull (state[DD_SEEK].arg, 0, 0);
+
+  count *= bs;
+  skip *= bs;
+  seek *= bs;
+
+  if (input)
+    {
+      in = grub_file_open (input);
+      if (! in)
+	return grub_errno;
+      in_size = in->size;
+      in->flags = 1;
+    }
+  else
+    {
+      in = 0;
+      in_size = grub_strlen (str);
+    }
+
+  out = grub_file_open (output);
+  if (! out)
+    goto quit;
+  grub_blocklist_convert (out);
+
+  if ((skip >= in->size) || (seek >= out->size))
+    goto quit;
+
+  if (in)
+    in->offset = skip;
+  else
+    str += skip;
+  out->offset = seek;
+
+  if (count < 0)
+    count = in_size - skip;
+
+  if (skip + count > in_size)
+    count = in_size - skip;
+
+  if (copy_bs < (int) bs)
+    copy_bs = bs;
+
+  buf = grub_malloc (copy_bs);
+  if (! buf)
+    goto quit;
+
+  while (count > 0)
+    {
+      int s1, s2;
+
+      s1 = (copy_bs > count) ? count : copy_bs;
+
+      if (in)
+	{
+	  s1 = grub_file_read (in, buf, s1);
+	  if (grub_errno)
+	    break;
+	  if (s1 == -1)
+	    {
+	      grub_error (GRUB_ERR_BAD_ARGUMENT, "read fails");
+	      break;
+	    }
+	}
+      else
+	{
+	  grub_memcpy (buf, str, s1);
+	  str += s1;
+	}
+      s2 = grub_blocklist_write (out, buf, s1);
+      if (grub_errno)
+	break;
+      if (s2 == -1)
+	{
+	  grub_error (GRUB_ERR_BAD_ARGUMENT, "write fails");
+	  break;
+	}
+      if (s1 != s2)
+	break;
+      out->offset += s1;
+      count -= s1;
+    }
+
+ quit:
+  grub_free (buf);
+  grub_file_close (out);
+  if (in)
+    grub_file_close (in);
+  return grub_errno;
+}
+
+static grub_extcmd_t cmd;
+
+GRUB_MOD_INIT(dd)
+{
+  cmd =
+    grub_register_extcmd ("dd", grub_cmd_dd,
+			  GRUB_COMMAND_FLAG_BOTH,
+			  N_("[OPTIONS]"),
+			  N_("Copy data."),
+			  options);
+}
+
+GRUB_MOD_FINI(dd)
+{
+  grub_unregister_extcmd (cmd);
+}

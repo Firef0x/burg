@@ -54,7 +54,7 @@ grub_relocator16_boot (void *relocator, grub_uint32_t dest,
   char *trampoline = (char *) relocator + size;
 
   *((grub_uint32_t *) trampoline) = state.eip;
-  state.eip = dest + size + 4;
+  state.eip = dest + size + 8;
   grub_memcpy (p, relocator, size);
   return grub_relocator32_boot (p, dest, state);
 }

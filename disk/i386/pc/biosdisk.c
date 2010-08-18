@@ -25,15 +25,19 @@
 #include <grub/types.h>
 #include <grub/misc.h>
 #include <grub/err.h>
-#include <grub/term.h>
 #include <grub/fbfs.h>
+
+GRUB_EXPORT(grub_biosdisk_geom);
+GRUB_EXPORT(grub_biosdisk_num);
 
 static int cd_drive = -1;
 
+#define GRUB_BIOSDISK_MAX_SECTORS	0x7f
+
 #define DISK_NUM_INC	4
 
-static struct grub_biosdisk_data *grub_biosdisk_geom;
-static int grub_biosdisk_num;
+struct grub_biosdisk_data *grub_biosdisk_geom;
+int grub_biosdisk_num;
 
 static struct grub_biosdisk_data *
 get_drive_geom (int drive)
@@ -49,14 +53,17 @@ get_drive_geom (int drive)
     if (data->drive == drive)
       return data;
 
-  if ((drive != cd_drive) && ((drive >= 0x80) || (drive == grub_boot_drive)))
+  m = (struct fb_mbr *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR;
+  if (drive != cd_drive)
     {
       if (grub_biosdisk_rw_standard (0x02, drive, 0, 0, 1, 1,
 				     GRUB_MEMORY_MACHINE_SCRATCH_SEG) != 0)
 	return 0;
+      is_fb = ((m->fb_magic == FB_MAGIC_LONG) && (m->end_magic == 0xaa55));
     }
+  else
+    is_fb = 0;
 
-  m = (struct fb_mbr *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR;
   if ((grub_biosdisk_num & (DISK_NUM_INC - 1)) == 0)
     {
       grub_biosdisk_geom = grub_realloc (grub_biosdisk_geom,
@@ -64,8 +71,6 @@ get_drive_geom (int drive)
 					 sizeof (*data));
       if (! grub_biosdisk_geom)
 	return 0;
-
-      is_fb = ((m->fb_magic == FB_MAGIC_LONG) && (m->end_magic == 0xaa55));
     }
 
   data = &grub_biosdisk_geom[grub_biosdisk_num++];
@@ -110,13 +115,24 @@ get_drive_geom (int drive)
                 total_sectors = drp->cylinders * drp->heads * drp->sectors;
 	    }
 	}
+
+      data->sectors = 63;
+      data->heads = 255;
+      cylinders = 0;
+      grub_biosdisk_get_diskinfo_standard (drive, &cylinders,
+					   &data->heads, &data->sectors);
+    }
+  else
+    {
+      grub_uint16_t t;
+
+      t = *((grub_uint16_t *) (GRUB_MEMORY_MACHINE_SCRATCH_ADDR + 0x18));
+      data->sectors = ((t > 0) && (t <= 63)) ? t : 18;
+      t = *((grub_uint16_t *) (GRUB_MEMORY_MACHINE_SCRATCH_ADDR + 0x1a));
+      data->heads = ((t > 0) && (t <= 255)) ? t : 2;
+      cylinders = 1024;
     }
 
-  data->sectors = 63;
-  data->heads = 255;
-  cylinders = 0;
-  grub_biosdisk_get_diskinfo_standard (drive, &cylinders,
-				       &data->heads, &data->sectors);
   data->max_sectors = 63;
   if (is_fb)
     {
@@ -163,6 +179,10 @@ get_drive_geom (int drive)
 
       data->flags |= GRUB_BIOSDISK_FLAG_FB;
     }
+
+  if ((data->flags & GRUB_BIOSDISK_FLAG_LBA) &&
+      (data->max_sectors == 63))
+    data->max_sectors = GRUB_BIOSDISK_MAX_SECTORS;
 
  next:
   cylinders *= data->heads * data->sectors;
@@ -211,9 +231,9 @@ grub_biosdisk_call_hook (int (*hook) (const char *name, void *closure),
   if (hook (name, closure))
     return 1;
 
-  if ((data->flags & GRUB_BIOSDISK_FLAG_FB) && (drive == grub_boot_drive))
+  if (drive == grub_boot_drive)
     {
-      if (hook ("fb", closure))
+      if (hook ("boot", closure))
 	return 1;
     }
 
@@ -242,6 +262,8 @@ grub_biosdisk_iterate (int (*hook) (const char *name, void *closure),
 
   /* For floppy disks, we can get the number safely.  */
   num_floppies = grub_biosdisk_get_num_floppies ();
+  if ((grub_boot_drive == 0) && (num_floppies == 0))
+    num_floppies++;
   for (drive = 0; drive < num_floppies; drive++)
     if (grub_biosdisk_call_hook (hook, closure, drive))
       return 1;
@@ -255,7 +277,7 @@ grub_biosdisk_open (const char *name, grub_disk_t disk)
   int drive;
   struct grub_biosdisk_data *data;
 
-  drive = (! grub_strcmp (name, "fb")) ? grub_boot_drive :
+  drive = (! grub_strcmp (name, "boot")) ? grub_boot_drive :
     grub_biosdisk_get_drive (name);
   if (drive < 0)
     return grub_errno;
@@ -270,11 +292,6 @@ grub_biosdisk_open (const char *name, grub_disk_t disk)
   disk->data = data;
 
   return GRUB_ERR_NONE;
-}
-
-static void
-grub_biosdisk_close (grub_disk_t disk __attribute ((unused)))
-{
 }
 
 /* For readability.  */
@@ -295,7 +312,7 @@ grub_biosdisk_rw (int cmd, grub_disk_t disk,
       struct grub_biosdisk_dap *dap;
 
       dap = (struct grub_biosdisk_dap *) (GRUB_MEMORY_MACHINE_SCRATCH_ADDR
-					  + (data->sectors
+					  + (GRUB_BIOSDISK_MAX_SECTORS
 					     << GRUB_DISK_SECTOR_BITS));
       dap->length = sizeof (*dap);
       dap->reserved = 0;
@@ -306,9 +323,6 @@ grub_biosdisk_rw (int cmd, grub_disk_t disk,
       if (data->flags & GRUB_BIOSDISK_FLAG_CDROM)
         {
 	  int i;
-
-	  if (cmd)
-	    return grub_error (GRUB_ERR_WRITE_ERROR, "can\'t write to cdrom");
 
 	  dap->blocks = ALIGN_UP (dap->blocks, 4) >> 2;
 	  dap->block >>= 2;
@@ -321,12 +335,7 @@ grub_biosdisk_rw (int cmd, grub_disk_t disk,
 	    return grub_error (GRUB_ERR_READ_ERROR, "cdrom read error");
 	}
       else
-        if (grub_biosdisk_rw_int13_extensions (cmd + 0x42, data->drive, dap))
-	  {
-	    /* Fall back to the CHS mode.  */
-	    data->flags &= ~GRUB_BIOSDISK_FLAG_LBA;
-	    return grub_biosdisk_rw (cmd, disk, sector, size, segment);
-	  }
+	return grub_biosdisk_rw_int13_extensions (cmd + 0x42, data->drive, dap);
     }
   else
     {
@@ -346,39 +355,66 @@ grub_biosdisk_rw (int cmd, grub_disk_t disk,
       hoff = head % data->heads;
       coff = head / data->heads;
 
-      if (grub_biosdisk_rw_standard (cmd + 0x02, data->drive,
-				     coff, hoff, soff, size, segment))
-	{
-	  switch (cmd)
-	    {
-	    case GRUB_BIOSDISK_READ:
-	      return grub_error (GRUB_ERR_READ_ERROR, "%s read error", disk->name);
-	    case GRUB_BIOSDISK_WRITE:
-	      return grub_error (GRUB_ERR_WRITE_ERROR, "%s write error", disk->name);
-	    }
-	}
+      return grub_biosdisk_rw_standard (cmd + 0x02, data->drive,
+					coff, hoff, soff, size, segment);
     }
 
   return GRUB_ERR_NONE;
 }
 
-/* Return the number of sectors which can be read safely at a time.  */
 static grub_size_t
-get_safe_sectors (grub_disk_addr_t sector, grub_uint32_t sectors)
+grub_biosdisk_safe_rw (int cmd, grub_disk_t disk,
+		       grub_disk_addr_t sector, grub_size_t size,
+		       unsigned segment)
 {
-  grub_size_t size;
-  grub_uint32_t offset;
+  struct grub_biosdisk_data *data = disk->data;
+  grub_size_t len = size;
+  grub_size_t max = data->max_sectors;
+  grub_uint32_t chs_max;
 
-  /* OFFSET = SECTOR % SECTORS */
-  grub_divmod64 (sector, sectors, &offset);
+  grub_divmod64 (sector, data->sectors, &chs_max);
+  chs_max = data->sectors - chs_max;
+  while (1)
+    {
+      if (((data->flags & GRUB_BIOSDISK_FLAG_LBA) == 0) && (len > chs_max))
+	len = chs_max;
 
-  size = sectors - offset;
+      if (len > max)
+	len = max;
 
-  /* Limit the max to 0x7f because of Phoenix EDD.  */
-  if (size > 0x7f)
-    size = 0x7f;
+      if (! grub_biosdisk_rw (cmd, disk, sector, len, segment))
+	{
+	  data->max_sectors = max;
+	  return len;
+	}
 
-  return size;
+      if (grub_errno)
+	break;
+
+      if (len > 63)
+	max = 63;
+      else if (len > 7)
+	max = 7;
+      else if (len > 1)
+	max = 1;
+      else if (data->flags & GRUB_BIOSDISK_FLAG_LBA)
+	{
+	  /* Fall back to the CHS mode.  */
+	  data->flags &= ~GRUB_BIOSDISK_FLAG_LBA;
+	  max = data->max_sectors;
+	}
+      else
+	{
+	  if (cmd == GRUB_BIOSDISK_READ)
+	    grub_error (GRUB_ERR_READ_ERROR, "%s read error", disk->name);
+	  else
+	    grub_error (GRUB_ERR_WRITE_ERROR, "%s write error", disk->name);
+	  break;
+	}
+      grub_biosdisk_reset (data->drive);
+    }
+
+  return 0;
 }
 
 static grub_err_t
@@ -392,15 +428,7 @@ grub_biosdisk_read (grub_disk_t disk, grub_disk_addr_t sector,
       grub_size_t len;
       grub_size_t cdoff = 0;
 
-      if (data->flags & data->flags & GRUB_BIOSDISK_FLAG_LBA)
-	len = data->max_sectors;
-      else
-	{
-	  len = get_safe_sectors (sector, data->sectors);
-	  if (len > data->max_sectors)
-	    len = data->max_sectors;
-	}
-
+      len = size;
       if (data->flags & GRUB_BIOSDISK_FLAG_CDROM)
 	{
 	  cdoff = (sector & 3) << GRUB_DISK_SECTOR_BITS;
@@ -408,12 +436,13 @@ grub_biosdisk_read (grub_disk_t disk, grub_disk_addr_t sector,
 	  sector &= ~3;
 	}
 
+      len = grub_biosdisk_safe_rw (GRUB_BIOSDISK_READ, disk, sector, len,
+				   GRUB_MEMORY_MACHINE_SCRATCH_SEG);
+      if (! len)
+	break;
+
       if (len > size)
 	len = size;
-
-      if (grub_biosdisk_rw (GRUB_BIOSDISK_READ, disk, sector, len,
-			    GRUB_MEMORY_MACHINE_SCRATCH_SEG))
-	return grub_errno;
 
       grub_memcpy (buf, (void *) (GRUB_MEMORY_MACHINE_SCRATCH_ADDR + cdoff),
 		   len << GRUB_DISK_SECTOR_BITS);
@@ -437,29 +466,29 @@ grub_biosdisk_write (grub_disk_t disk, grub_disk_addr_t sector,
   while (size)
     {
       grub_size_t len;
+      unsigned seg;
 
-      if (data->flags & data->flags & GRUB_BIOSDISK_FLAG_LBA)
-	len = data->max_sectors;
-      else
-	{
-	  len = get_safe_sectors (sector, data->sectors);
-	  if (len > data->max_sectors)
-	    len = data->max_sectors;
-	}
-
-      if (len > size)
-	len = size;
+      len = (size > GRUB_BIOSDISK_MAX_SECTORS) ?
+	GRUB_BIOSDISK_MAX_SECTORS : size;
 
       grub_memcpy ((void *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR, buf,
 		   len << GRUB_DISK_SECTOR_BITS);
-
-      if (grub_biosdisk_rw (GRUB_BIOSDISK_WRITE, disk, sector, len,
-			    GRUB_MEMORY_MACHINE_SCRATCH_SEG))
-	return grub_errno;
-
       buf += len << GRUB_DISK_SECTOR_BITS;
-      sector += len;
       size -= len;
+
+      seg = GRUB_MEMORY_MACHINE_SCRATCH_SEG;
+      while (len)
+	{
+	  grub_size_t ret;
+
+	  ret = grub_biosdisk_safe_rw (GRUB_BIOSDISK_WRITE, disk, sector, len,
+				       seg);
+	  if (! ret)
+	    return grub_errno;
+	  len -= ret;
+	  sector += ret;
+	  seg += ret << (GRUB_DISK_SECTOR_BITS - 4);
+	}
     }
 
   return grub_errno;
@@ -471,7 +500,6 @@ static struct grub_disk_dev grub_biosdisk_dev =
     .id = GRUB_DISK_DEVICE_BIOSDISK_ID,
     .iterate = grub_biosdisk_iterate,
     .open = grub_biosdisk_open,
-    .close = grub_biosdisk_close,
     .read = grub_biosdisk_read,
     .write = grub_biosdisk_write,
     .next = 0
@@ -501,7 +529,8 @@ GRUB_MOD_INIT(biosdisk)
   cdrp->media_type = 0xFF;
   if ((! grub_biosdisk_get_cdinfo_int13_extensions (grub_boot_drive, cdrp)) &&
       ((cdrp->media_type & GRUB_BIOSDISK_CDTYPE_MASK)
-       == GRUB_BIOSDISK_CDTYPE_NO_EMUL))
+       == GRUB_BIOSDISK_CDTYPE_NO_EMUL) &&
+      (cdrp->drive_no >= 0x80))
     cd_drive = cdrp->drive_no;
 
   grub_disk_dev_register (&grub_biosdisk_dev);

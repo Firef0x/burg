@@ -83,6 +83,7 @@ grub_cmd_linux (grub_command_t cmd __attribute__ ((unused)),
   file = grub_file_open (argv[0]);
   if (! file)
     goto fail;
+  file->flags = 1;
 
   if ((grub_size_t) grub_file_size (file) > grub_os_area_size)
     {
@@ -348,20 +349,21 @@ grub_cmd_initrd (grub_command_t cmd __attribute__ ((unused)),
   if (linux_mem_size != 0 && linux_mem_size < addr_max)
     addr_max = linux_mem_size;
 
+  grub_uint64_t uppermem = grub_mmap_get_upper () + 0x100000;
+  if (addr_max > uppermem)
+    addr_max = uppermem;
+
   /* Linux 2.3.xx has a bug in the memory range check, so avoid
      the last page.
      Linux 2.2.xx has a bug in the memory range check, which is
      worse than that of Linux 2.3.xx, so avoid the last 64kb.  */
   addr_max -= 0x10000;
-
-  if (addr_max > grub_os_area_addr + grub_os_area_size)
-    addr_max = grub_os_area_addr + grub_os_area_size;
-
-  addr_min = (grub_addr_t) grub_linux_tmp_addr + GRUB_LINUX_CL_END_OFFSET;
+  addr_min = grub_mmap_high;
 
   file = grub_file_open (argv[0]);
   if (!file)
     goto fail;
+  grub_blocklist_convert (file);
 
   size = grub_file_size (file);
 

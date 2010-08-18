@@ -809,10 +809,11 @@ grub_iso9660_read (grub_file_t file, char *buf, grub_size_t len)
 
   /* XXX: The file is stored in as a single extent.  */
   data->disk->read_hook = file->read_hook;
-  grub_disk_read (data->disk,
-		  data->first_sector << GRUB_ISO9660_LOG2_BLKSZ,
-		  file->offset,
-		  len, buf);
+  data->disk->closure = file->closure;
+  grub_disk_read_ex (data->disk,
+		     data->first_sector << GRUB_ISO9660_LOG2_BLKSZ,
+		     file->offset,
+		     len, buf, file->flags);
   data->disk->read_hook = NULL;
 
   if (grub_errno)

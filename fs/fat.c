@@ -347,7 +347,7 @@ grub_fat_read_data (grub_disk_t disk, struct grub_fat_data *data,
 		    void (*read_hook) (grub_disk_addr_t sector,
 				       unsigned offset, unsigned length,
 				       void *closure),
-		    void *closure,
+		    void *closure, int flags,
 		    grub_off_t offset, grub_size_t len, char *buf)
 {
   grub_size_t size;
@@ -453,7 +453,7 @@ grub_fat_read_data (grub_disk_t disk, struct grub_fat_data *data,
 
       disk->read_hook = read_hook;
       disk->closure = closure;
-      grub_disk_read_direct (disk, sector, offset, size, buf);
+      grub_disk_read_ex (disk, sector, offset, size, buf, flags);
       disk->read_hook = 0;
       if (grub_errno)
 	return -1;
@@ -504,7 +504,7 @@ grub_fat_iterate_dir (grub_disk_t disk, struct grub_fat_data *data,
       offset += sizeof (dir);
 
       /* Read a directory entry.  */
-      if ((grub_fat_read_data (disk, data, 0, 0,
+      if ((grub_fat_read_data (disk, data, 0, 0, 0,
 			       offset, sizeof (dir), (char *) &dir)
 	   != sizeof (dir) || dir.name[0] == 0))
 	break;
@@ -795,7 +795,7 @@ static grub_ssize_t
 grub_fat_read (grub_file_t file, char *buf, grub_size_t len)
 {
   return grub_fat_read_data (file->device->disk, file->data, file->read_hook,
-			     file->closure,
+			     file->closure, file->flags,
 			     file->offset, len, buf);
 }
 

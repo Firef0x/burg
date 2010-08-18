@@ -266,7 +266,7 @@ grub_fshelp_read_file (grub_disk_t disk, grub_fshelp_node_t node,
 					  unsigned offset,
 					  unsigned length,
 					  void *closure),
-		       void *closure,
+		       void *closure, int flags,
 		       grub_off_t pos, grub_size_t len, char *buf,
 		       grub_disk_addr_t (*get_block) (grub_fshelp_node_t node,
 						      grub_disk_addr_t block),
@@ -320,8 +320,7 @@ grub_fshelp_read_file (grub_disk_t disk, grub_fshelp_node_t node,
 	  disk->read_hook = read_hook;
 	  disk->closure = closure;
 
-	  grub_disk_read_direct (disk, blknr, skipfirst,
-				 blockend, buf);
+	  grub_disk_read_ex (disk, blknr, skipfirst, blockend, buf, flags);
 	  disk->read_hook = 0;
 	  if (grub_errno)
 	    return -1;

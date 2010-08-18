@@ -471,7 +471,7 @@ grub_udf_read_file (grub_fshelp_node_t node,
 		    void (*read_hook) (grub_disk_addr_t sector,
 				       unsigned offset, unsigned length,
 				       void *closure),
-		    void *closure,
+		    void *closure, int flags,
 		    int pos, grub_size_t len, char *buf)
 {
   switch (U16 (node->fe.icbtag.flags) & GRUB_UDF_ICBTAG_FLAG_AD_MASK)
@@ -497,7 +497,7 @@ grub_udf_read_file (grub_fshelp_node_t node,
     }
 
   return  grub_fshelp_read_file (node->data->disk, node, read_hook, closure,
-                                 pos, len, buf, grub_udf_read_block,
+				 flags, pos, len, buf, grub_udf_read_block,
                                  U64 (node->fe.file_size),
                                  GRUB_UDF_LOG2_BLKSZ);
 }
@@ -721,7 +721,7 @@ grub_udf_iterate_dir (grub_fshelp_node_t dir,
 
   while (offset < U64 (dir->fe.file_size))
     {
-      if (grub_udf_read_file (dir, 0, 0, offset, sizeof (dirent),
+      if (grub_udf_read_file (dir, 0, 0, 0, offset, sizeof (dirent),
 			      (char *) &dirent) != sizeof (dirent))
 	return 0;
 
@@ -756,7 +756,7 @@ grub_udf_iterate_dir (grub_fshelp_node_t dir,
 	  type = ((dirent.characteristics & GRUB_UDF_FID_CHAR_DIRECTORY) ?
 		  (GRUB_FSHELP_DIR) : (GRUB_FSHELP_REG));
 
-	  if ((grub_udf_read_file (dir, 0, 0, offset,
+	  if ((grub_udf_read_file (dir, 0, 0, 0, offset,
 				   dirent.file_ident_length,
 				   (char *) raw))
 	      != dirent.file_ident_length)
@@ -896,7 +896,7 @@ grub_udf_read (grub_file_t file, char *buf, grub_size_t len)
   struct grub_fshelp_node *node = (struct grub_fshelp_node *) file->data;
 
   return grub_udf_read_file (node, file->read_hook, file->closure,
-			     file->offset, len, buf);
+			     file->flags, file->offset, len, buf);
 }
 
 static grub_err_t

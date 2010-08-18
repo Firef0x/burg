@@ -73,8 +73,8 @@ PREFIX (boot) (void *relocator, grub_uint32_t dest,
   size = *(grub_size_t *) playground;
 
   grub_dprintf ("relocator",
-		"Relocator: source: %p, destination: 0x%x, size: 0x%lx\n",
-		relocator, (unsigned) dest, (unsigned long) size);
+  		"Relocator: source: %p, destination: 0x%x, size: 0x%lx\n",
+  		relocator, (unsigned) dest, (unsigned long) size);
 
   /* Very unlikely condition: Relocator may risk overwrite itself.
      Just move it a bit up.  */

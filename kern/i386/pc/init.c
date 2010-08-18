@@ -39,6 +39,7 @@ GRUB_EXPORT(grub_get_mmap_entry);
 GRUB_EXPORT(grub_reboot);
 GRUB_EXPORT(grub_halt);
 GRUB_EXPORT(grub_stop_floppy);
+GRUB_EXPORT(grub_mmap_high);
 
 struct mem_region
 {
@@ -53,6 +54,8 @@ static int num_regions;
 
 grub_addr_t grub_os_area_addr;
 grub_size_t grub_os_area_size;
+
+grub_size_t grub_mmap_high;
 
 static char *
 make_install_device (void)
@@ -209,10 +212,17 @@ grub_machine_init (void)
   for (i = 0; i < num_regions; i++)
     if (mem_regions[i].addr == 0x100000)
       {
-	grub_size_t quarter = mem_regions[i].size >> 2;
+	grub_size_t high, quarter;
 
+	high = (mem_regions[i].addr + mem_regions[i].size) >> 1;
+	if (high > GRUB_MMAP_HIGH_MAX)
+	  high = GRUB_MMAP_HIGH_MAX;
+	grub_mmap_high = high;
+
+	high -= mem_regions[i].addr;
+	quarter = high >> 1;
 	grub_os_area_addr = mem_regions[i].addr;
-	grub_os_area_size = mem_regions[i].size - quarter;
+	grub_os_area_size = high - quarter;
 	grub_mm_init_region ((void *) (grub_os_area_addr + grub_os_area_size),
 			     quarter);
       }

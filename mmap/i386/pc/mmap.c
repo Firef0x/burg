@@ -29,18 +29,15 @@ static void *hooktarget = 0;
 
 extern grub_uint8_t grub_machine_mmaphook_start;
 extern grub_uint8_t grub_machine_mmaphook_end;
-extern grub_uint8_t grub_machine_mmaphook_int12;
 extern grub_uint8_t grub_machine_mmaphook_int15;
 
-static grub_uint16_t grub_machine_mmaphook_int12offset = 0;
-static grub_uint16_t grub_machine_mmaphook_int12segment = 0;
 extern grub_uint16_t grub_machine_mmaphook_int15offset;
 extern grub_uint16_t grub_machine_mmaphook_int15segment;
 
 extern grub_uint16_t grub_machine_mmaphook_mmap_num;
-extern grub_uint16_t grub_machine_mmaphook_kblow;
 extern grub_uint16_t grub_machine_mmaphook_kbin16mb;
 extern grub_uint16_t grub_machine_mmaphook_64kbin4gb;
+extern grub_uint16_t grub_machine_mmaphook_int1588mem;
 
 struct grub_e820_mmap_entry
 {
@@ -78,20 +75,38 @@ preboot (int noreturn __attribute__ ((unused)))
 				    - &grub_machine_mmaphook_start));
 
   grub_mmap_iterate (fill_hook, &hookmmapcur);
-  grub_machine_mmaphook_mmap_num = hookmmapcur - hookmmap;
+  grub_machine_mmaphook_mmap_num = (char *) hookmmapcur - (char *) hookmmap;
 
-  grub_machine_mmaphook_kblow = grub_mmap_get_lower () >> 10;
-  grub_machine_mmaphook_kbin16mb
-    = min (grub_mmap_get_upper (),0x3f00000ULL) >> 10;
-  grub_machine_mmaphook_64kbin4gb
-    = min (grub_mmap_get_post64 (), 0xfc000000ULL) >> 16;
+  grub_uint64_t uppermem = grub_mmap_get_upper ();
+  grub_uint64_t lowmem = 0xf00000ULL;
+  grub_uint64_t highmem;
+
+  if (uppermem > lowmem)
+    {
+      highmem = uppermem - lowmem;
+    }
+  else
+    {
+      lowmem = uppermem;
+      highmem = 0;
+    }
+
+  uppermem >>= 10;
+  if (uppermem > 0xffff)
+    uppermem = 0xffff;
+
+  highmem >>= 16;
+  if (highmem > 0xffff)
+    highmem = 0xffff;
+
+  grub_machine_mmaphook_kbin16mb = lowmem >> 10;
+  grub_machine_mmaphook_64kbin4gb = highmem;
+  grub_machine_mmaphook_int1588mem = uppermem;
 
   /* Correct BDA. */
   *((grub_uint16_t *) 0x413) = grub_mmap_get_lower () >> 10;
 
   /* Save old interrupt handlers. */
-  grub_machine_mmaphook_int12offset = *((grub_uint16_t *) 0x48);
-  grub_machine_mmaphook_int12segment = *((grub_uint16_t *) 0x4a);
   grub_machine_mmaphook_int15offset = *((grub_uint16_t *) 0x54);
   grub_machine_mmaphook_int15segment = *((grub_uint16_t *) 0x56);
 
@@ -101,10 +116,7 @@ preboot (int noreturn __attribute__ ((unused)))
   grub_memcpy (hooktarget, &grub_machine_mmaphook_start,
 	       &grub_machine_mmaphook_end - &grub_machine_mmaphook_start);
 
-  *((grub_uint16_t *) 0x4a) = PTR_TO_UINT32 (hooktarget) >> 4;
   *((grub_uint16_t *) 0x56) = PTR_TO_UINT32 (hooktarget) >> 4;
-  *((grub_uint16_t *) 0x48) = &grub_machine_mmaphook_int12
-    - &grub_machine_mmaphook_start;
   *((grub_uint16_t *) 0x54) = &grub_machine_mmaphook_int15
     - &grub_machine_mmaphook_start;
 
@@ -115,8 +127,6 @@ static grub_err_t
 preboot_rest (void)
 {
   /* Restore old interrupt handlers. */
-  *((grub_uint16_t *) 0x48) = grub_machine_mmaphook_int12offset;
-  *((grub_uint16_t *) 0x4a) = grub_machine_mmaphook_int12segment;
   *((grub_uint16_t *) 0x54) = grub_machine_mmaphook_int15offset;
   *((grub_uint16_t *) 0x56) = grub_machine_mmaphook_int15segment;
 

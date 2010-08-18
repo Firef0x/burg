@@ -30,6 +30,7 @@ struct grub_loopback
 {
   char *devname;
   char *filename;
+  grub_file_t file;
   int has_partitions;
   struct grub_loopback *next;
 };
@@ -63,18 +64,11 @@ delete_loopback (const char *name)
   /* Remove the device from the list.  */
   *prev = dev->next;
 
+  grub_file_close (dev->file);
   grub_free (dev->devname);
-  grub_free (dev->filename);
   grub_free (dev);
 
   return 0;
-}
-
-static char *
-get_full_name (char *name)
-{
-  return (name[0] == '(') ? grub_strdup (name) :
-    grub_xasprintf ("(%s)%s", grub_env_get ("root"), name);
 }
 
 /* The command to add and remove loopback devices.  */
@@ -98,9 +92,7 @@ grub_cmd_loopback (grub_extcmd_t cmd, int argc, char **args)
   file = grub_file_open (args[1]);
   if (! file)
     return grub_errno;
-
-  /* Close the file, the only reason for opening it is validation.  */
-  grub_file_close (file);
+  grub_blocklist_convert (file);
 
   /* First try to replace the old device.  */
   for (newdev = loopback_list; newdev; newdev = newdev->next)
@@ -109,12 +101,8 @@ grub_cmd_loopback (grub_extcmd_t cmd, int argc, char **args)
 
   if (newdev)
     {
-      char *newname = get_full_name (args[1]);
-      if (! newname)
-	return grub_errno;
-
-      grub_free (newdev->filename);
-      newdev->filename = newname;
+      grub_file_close (newdev->file);
+      newdev->file = file;
 
       /* Set has_partitions when `--partitions' was used.  */
       newdev->has_partitions = state[1].set;
@@ -125,22 +113,13 @@ grub_cmd_loopback (grub_extcmd_t cmd, int argc, char **args)
   /* Unable to replace it, make a new entry.  */
   newdev = grub_malloc (sizeof (struct grub_loopback));
   if (! newdev)
-    return grub_errno;
+    goto fail;
 
   newdev->devname = grub_strdup (args[0]);
   if (! newdev->devname)
-    {
-      grub_free (newdev);
-      return grub_errno;
-    }
+    goto fail;
 
-  newdev->filename = get_full_name (args[1]);
-  if (! newdev->filename)
-    {
-      grub_free (newdev->devname);
-      grub_free (newdev);
-      return grub_errno;
-    }
+  newdev->file = file;
 
   /* Set has_partitions when `--partitions' was used.  */
   newdev->has_partitions = state[1].set;
@@ -150,6 +129,11 @@ grub_cmd_loopback (grub_extcmd_t cmd, int argc, char **args)
   loopback_list = newdev;
 
   return 0;
+
+ fail:
+  grub_free (newdev);
+  grub_file_close (file);
+  return grub_errno;
 }
 
 
@@ -179,9 +163,7 @@ grub_loopback_open (const char *name, grub_disk_t disk)
   if (! dev)
     return grub_error (GRUB_ERR_UNKNOWN_DEVICE, "can't open device");
 
-  file = grub_file_open (dev->filename);
-  if (! file)
-    return grub_errno;
+  file = dev->file;
 
   /* Use the filesize for the disk size, round up to a complete sector.  */
   disk->total_sectors = ((file->size + GRUB_DISK_SECTOR_SIZE - 1)
@@ -192,14 +174,6 @@ grub_loopback_open (const char *name, grub_disk_t disk)
   disk->data = file;
 
   return 0;
-}
-
-static void
-grub_loopback_close (grub_disk_t disk)
-{
-  grub_file_t file = (grub_file_t) disk->data;
-
-  grub_file_close (file);
 }
 
 static grub_err_t
@@ -229,12 +203,16 @@ grub_loopback_read (grub_disk_t disk, grub_disk_addr_t sector,
 }
 
 static grub_err_t
-grub_loopback_write (grub_disk_t disk __attribute ((unused)),
-		     grub_disk_addr_t sector __attribute ((unused)),
-		     grub_size_t size __attribute ((unused)),
-		     const char *buf __attribute ((unused)))
+grub_loopback_write (grub_disk_t disk, grub_disk_addr_t sector,
+		     grub_size_t size, const char *buf)
 {
-  return GRUB_ERR_NOT_IMPLEMENTED_YET;
+  grub_file_t file = (grub_file_t) disk->data;
+
+  grub_file_seek (file, sector << GRUB_DISK_SECTOR_BITS);
+  return (grub_blocklist_write (file, buf,
+				size << GRUB_DISK_SECTOR_BITS) >= 0) ?
+    grub_errno :
+    grub_error (GRUB_ERR_NOT_IMPLEMENTED_YET, "write operation not supported");
 }
 
 static struct grub_disk_dev grub_loopback_dev =
@@ -243,7 +221,6 @@ static struct grub_disk_dev grub_loopback_dev =
     .id = GRUB_DISK_DEVICE_LOOPBACK_ID,
     .iterate = grub_loopback_iterate,
     .open = grub_loopback_open,
-    .close = grub_loopback_close,
     .read = grub_loopback_read,
     .write = grub_loopback_write,
     .next = 0

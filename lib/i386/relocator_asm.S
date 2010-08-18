@@ -104,7 +104,6 @@ RELOCATOR_VARIABLE(size)
 	add	$0x3, RCX
 	shr	$2, RCX
 
-
 #ifdef BACKWARD
 	/* Backward movsl is implicitly off-by-four.  compensate that.  */
 	sub	$4,	RSI
@@ -159,11 +158,13 @@ LOCAL(cont1):
 	andl	$(~GRUB_MEMORY_CPU_CR0_PAGING_ON), %eax
 	movl	%eax, %cr0
 
+#if 0
 	/* Disable amd64. */
 	movl	$GRUB_MEMORY_CPU_AMD64_MSR, %ecx
 	rdmsr
 	andl	$(~GRUB_MEMORY_CPU_AMD64_MSR_ON), %eax
 	wrmsr
+#endif	
 
 	/* Turn off PAE. */
 	movl	%cr4, %eax
@@ -204,7 +205,6 @@ RELOCATOR_VARIABLE (edx)
 	/* Cleared direction flag is of no problem with any current
 	   payload and makes this implementation easier.  */
 	cld
-
 	.byte	0xea
 RELOCATOR_VARIABLE (eip)
 	.long	0

@@ -37,9 +37,9 @@ LOCAL(start):
 	movl	%eax, (LOCAL(gdtdesc) - LOCAL(start) + 2)(%ebx)
 	lgdt	(LOCAL(gdtdesc) - LOCAL(start))(%ebx)
 	leal	(LOCAL(tmpcseg) - LOCAL(start))(%ebx), %eax
-	movl	%eax, (LOCAL(tmpcseg_var) - LOCAL(start))(%ebx)
-	leal	(LOCAL(realcseg) - LOCAL(start))(%ebx), %eax
-	movl	%eax, (LOCAL(realcseg_var) - LOCAL(start))(%ebx)
+	movw	%ax, (LOCAL(tmpcseg_var) - LOCAL(start))(%ebx)
+	shrl	$16, %eax
+	movb	%al, (LOCAL(gdt_code_base) - LOCAL(start))(%ebx)
 	movl	(LOCAL(csip_saved) - LOCAL(start))(%ebx), %eax
 	movl	%eax, (LOCAL(csip) - LOCAL(start))(%ebx)
 
@@ -69,19 +69,10 @@ LOCAL(tmpcseg):
 	andl 	$(~GRUB_MEMORY_CPU_CR0_PE_ON), %eax
 	movl	%eax, %cr0
 
-	/* flush prefetch queue, reload %cs */
-	/* DATA32 ljmp  $0, $realcseg  */
-	.byte	0x66, 0xea
-LOCAL(realcseg_var):
-	.long	0
-	.short	0
-
-LOCAL(realcseg):
 	/* we are in real mode now
 	 * set up the real mode segment registers : DS, SS, ES
 	 */
-	/* zero %eax */
-	xorl	%eax, %eax
+	xorw	%ax, %ax
 
 	movw	%ax, %ds
 	movw	%ax, %es
@@ -92,7 +83,6 @@ LOCAL(realcseg):
 	popl	%eax
 
 	/* restore interrupts */
-	sti
 	cld
 
 	/* return on new stack! */
@@ -128,14 +118,15 @@ LOCAL(gdt):
 	 * type = 16 bit code execute/read only/conforming, DPL = 0
 	 */
 	.word	0xFFFF, 0
-	.byte	0, 0x9E, 0xF, 0
+LOCAL(gdt_code_base):
+	.byte	0, 0x9E, 0x0, 0
 
 	/* -- 16 bit real mode DS --
 	 * base = 0x00000000, limit 0xFFFFF (1 B Granularity), present
 	 * type = 16 bit data read/write, DPL = 0
 	 */
 	.word	0xFFFF, 0
-	.byte	0, 0x92, 0xF, 0
+	.byte	0, 0x92, 0x0, 0
 
 LOCAL(gdtdesc):
 	.word	0x27			/* limit */

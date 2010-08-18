@@ -81,7 +81,6 @@ grub_cmd_blocklist (grub_command_t cmd __attribute__ ((unused)),
 		    int argc, char **args)
 {
   grub_file_t file;
-  char buf[GRUB_DISK_SECTOR_SIZE];
   struct grub_cmd_blocklist_closure c;
 
   c.start_sector = 0;
@@ -95,6 +94,7 @@ grub_cmd_blocklist (grub_command_t cmd __attribute__ ((unused)),
   file = grub_file_open (args[0]);
   if (! file)
     return grub_errno;
+  file->flags = 1;
 
   if (! file->device->disk)
     return grub_error (GRUB_ERR_BAD_DEVICE,
@@ -105,8 +105,7 @@ grub_cmd_blocklist (grub_command_t cmd __attribute__ ((unused)),
   file->read_hook = read_blocklist;
   file->closure = &c;
 
-  while (grub_file_read (file, buf, sizeof (buf)) > 0)
-    ;
+  grub_file_read (file, 0, file->size);
 
   if (c.num_sectors > 0)
     print_blocklist (c.start_sector, c.num_sectors, 0, 0, &c);

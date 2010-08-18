@@ -327,11 +327,11 @@ grub_xfs_read_file (grub_fshelp_node_t node,
 		    void (*read_hook) (grub_disk_addr_t sector,
 				       unsigned offset, unsigned length,
 				       void *closure),
-		    void *closure,
+		    void *closure, int flags,
 		    int pos, grub_size_t len, char *buf)
 {
   return grub_fshelp_read_file (node->data->disk, node, read_hook, closure,
-				pos, len, buf, grub_xfs_read_block,
+				flags, pos, len, buf, grub_xfs_read_block,
 				grub_be_to_cpu64 (node->inode.size),
 				node->data->sblock.log2_bsize
 				- GRUB_DISK_SECTOR_BITS);
@@ -357,7 +357,7 @@ grub_xfs_read_symlink (grub_fshelp_node_t node)
 	if (!symlink)
 	  return 0;
 
-	numread = grub_xfs_read_file (node, 0, 0, 0, size, symlink);
+	numread = grub_xfs_read_file (node, 0, 0, 0, 0, size, symlink);
 	if (numread != size)
 	  {
 	    grub_free (symlink);
@@ -526,7 +526,7 @@ grub_xfs_iterate_dir (grub_fshelp_node_t dir,
 	    struct grub_xfs_dirblock_tail *tail;
 	    tail = (struct grub_xfs_dirblock_tail *) &dirblock[tail_start];
 
-	    numread = grub_xfs_read_file (dir, 0, 0,
+	    numread = grub_xfs_read_file (dir, 0, 0, 0,
 					  blk << dirblk_log2,
 					  dirblk_size, dirblock);
 	    if (numread != dirblk_size)
@@ -759,7 +759,7 @@ grub_xfs_read (grub_file_t file, char *buf, grub_size_t len)
     (struct grub_xfs_data *) file->data;
 
   return grub_xfs_read_file (&data->diropen, file->read_hook, file->closure,
-			      file->offset, len, buf);
+			     file->flags, file->offset, len, buf);
 }
 
 

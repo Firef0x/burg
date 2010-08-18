@@ -162,7 +162,7 @@ grub_fbfs_open (struct grub_file *file, const char *name)
   p = (struct fbm_file *) data->fb_list;
   while (p->size)
     {
-      if (! grub_strcmp (name, p->name))
+      if (! grub_strcasecmp (name, p->name))
 	{
 	  file->data = data;
 	  data->ptr = p;
@@ -195,8 +195,8 @@ grub_fbfs_read (grub_file_t file, char *buf, grub_size_t len)
     {
       grub_err_t err;
 
-      err = grub_disk_read_direct (disk, p->data_start - data->ofs,
-				   file->offset, len, buf);
+      err = grub_disk_read_ex (disk, p->data_start - data->ofs,
+			       file->offset, len, buf, file->flags);
       disk->read_hook = 0;
       return (err) ? -1 : (grub_ssize_t) len;
     }
@@ -217,7 +217,8 @@ grub_fbfs_read (grub_file_t file, char *buf, grub_size_t len)
 	  break;
 	}
       sector++;
-      buf += n;
+      if (buf)
+	buf += n;
       len -= n;
       ofs = 0;
     }

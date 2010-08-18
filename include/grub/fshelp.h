@@ -74,7 +74,7 @@ grub_ssize_t grub_fshelp_read_file (grub_disk_t disk, grub_fshelp_node_t node,
 				     unsigned offset,
 				     unsigned length,
 				     void *closure),
-				    void *closure,
+				    void *closure, int flags,
 				    grub_off_t pos, grub_size_t len, char *buf,
 				    grub_disk_addr_t (*get_block)
 				    (grub_fshelp_node_t node,

@@ -151,11 +151,11 @@ grub_affs_read_file (grub_fshelp_node_t node,
 		     void (*read_hook) (grub_disk_addr_t sector,
 					unsigned offset, unsigned length,
 					void *closure),
-		     void *closure,
+		     void *closure, int flags,
 		     int pos, grub_size_t len, char *buf)
 {
   return grub_fshelp_read_file (node->data->disk, node, read_hook, closure,
-				pos, len, buf, grub_affs_read_block,
+				flags, pos, len, buf, grub_affs_read_block,
 				node->size, 0);
 }
 
@@ -461,7 +461,8 @@ grub_affs_read (grub_file_t file, char *buf, grub_size_t len)
   struct grub_affs_data *data =
     (struct grub_affs_data *) file->data;
 
-  int size = grub_affs_read_file (&data->diropen, file->read_hook, file->closure,
+  int size = grub_affs_read_file (&data->diropen, file->read_hook,
+				  file->closure, file->flags,
 				  file->offset, len, buf);
 
   return size;

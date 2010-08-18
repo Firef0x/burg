@@ -24,23 +24,15 @@
 LOCAL (segstart):
 VARIABLE(grub_machine_mmaphook_start)
 	.code16
-VARIABLE(grub_machine_mmaphook_int12)
-	push %ds
-	push %cs
-	pop %ds
-	movw DS (LOCAL (kblow)), %ax
-	pop %ds
-	iret
-
 VARIABLE(grub_machine_mmaphook_int15)
-	pushf
 	cmpw $0xe801, %ax
 	jz LOCAL (e801)
+	cmpw $0xe881, %ax
+	jz LOCAL (e881)	
 	cmpw $0xe820, %ax
 	jz LOCAL (e820)
 	cmpb $0x88, %ah
 	jz LOCAL (h88)
-	popf
 	/* ljmp */
 	.byte	0xea
 VARIABLE (grub_machine_mmaphook_int15offset)
@@ -48,8 +40,13 @@ VARIABLE (grub_machine_mmaphook_int15offset)
 VARIABLE (grub_machine_mmaphook_int15segment)
 	.word	0
 
+LOCAL (e881):
+	xorl %eax, %eax
+	xorl %ebx, %ebx
+	xorl %ecx, %ecx
+	xorl %edx, %edx
+	
 LOCAL (e801):
-	popf
 	push %ds
 	push %cs
 	pop %ds
@@ -57,22 +54,28 @@ LOCAL (e801):
 	movw DS (LOCAL (m64kbin4gb)), %bx
 	movw %ax, %cx
 	movw %bx, %dx
-	pop %ds
+
+done:
 	clc
+fail:
+	popw	%ds
+	pushw	%bp
+	movw	%sp, %bp
+	pushfw
+	andb	$0xfe, 6(%bp)	
+	popfw
+	adcb	$0, 6(%bp)
+	popw	%bp
 	iret
 
 LOCAL (h88):
-	popf
 	push %ds
 	push %cs
 	pop %ds
-	movw DS (LOCAL (kbin16mb)), %ax
-	pop %ds
-	clc
-	iret
+	movw DS (LOCAL (int1588mem)), %ax
+	jmp done
 
 LOCAL (e820):
-	popf
 	push %ds
 	push %cs
 	pop %ds
@@ -82,38 +85,32 @@ LOCAL (e820):
 	jae LOCAL (errexit)
 	cmp $0x534d4150, %edx
 	jne LOCAL (errexit)
+	pushl %edx
+	movl $20, %ecx
+	pushw %cx
 	push %si
 	push %di
-	movw $20, %cx
 	movw $(DS(LOCAL (mmaphook_mmap))), %si
-	mov %bx, %ax
-	imul $20, %ax
-	add %ax, %si
+	add %bx, %si
+	cld
 	rep movsb
 	pop %di
 	pop %si
-	movl $20, %ecx
-	inc %bx
+	popw %cx
+	addw %cx, %bx
 	cmpw DS(LOCAL (mmap_num)), %bx
 	jb LOCAL (noclean)
-	xor %bx, %bx
+	xor %ebx, %ebx
 LOCAL (noclean):
-	mov $0x534d4150, %eax
-	pop %ds
-	clc
-	iret
+	pop %eax
+	jmp done
 LOCAL (errexit):
-	mov $0x534d4150, %eax
-	pop %ds
+	mov $0x86, %ah
 	stc
-	xor %bx, %bx
-	iret
-
+	jmp fail
+	
 VARIABLE(grub_machine_mmaphook_mmap_num)
 LOCAL (mmap_num):
-	.word 0
-VARIABLE(grub_machine_mmaphook_kblow)
-LOCAL (kblow):
 	.word 0
 VARIABLE (grub_machine_mmaphook_kbin16mb)
 LOCAL (kbin16mb):
@@ -121,6 +118,9 @@ LOCAL (kbin16mb):
 VARIABLE (grub_machine_mmaphook_64kbin4gb)
 LOCAL (m64kbin4gb):
 	.word 0
+VARIABLE (grub_machine_mmaphook_int1588mem)
+LOCAL (int1588mem):
+	.word 0	
 LOCAL (mmaphook_mmap):
 	/* Memory map is placed just after the interrupt handlers. */
 VARIABLE(grub_machine_mmaphook_end)
