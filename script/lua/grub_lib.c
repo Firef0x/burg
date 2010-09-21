@@ -28,6 +28,7 @@
 #include <grub/file.h>
 #include <grub/menu.h>
 #include <grub/device.h>
+#include <grub/term.h>
 
 static int
 save_errno (lua_State *state)
@@ -66,13 +67,13 @@ grub_lua_run (lua_State *state)
 
   s = luaL_checkstring (state, 1);
   if ((! grub_parser_split_cmdline (s, 0, 0, &n, &args))
-      && (n >= 0))
+      && (n > 0))
     {
       grub_command_t cmd;
 
       cmd = grub_command_find (args[0]);
       if (cmd)
-	(cmd->func) (cmd, n, &args[1]);
+	(cmd->func) (cmd, n - 1, &args[1]);
       else
 	grub_error (GRUB_ERR_FILE_NOT_FOUND, "command not found");
 
@@ -237,13 +238,18 @@ grub_lua_file_open (lua_State *state)
 {
   grub_file_t file;
   const char *name;
+  const char *flag;
 
   name = luaL_checkstring (state, 1);
+  flag = (lua_gettop (state) > 1) ? luaL_checkstring (state, 2) : 0;
   file = grub_file_open (name);
   save_errno (state);
 
   if (! file)
     return 0;
+
+  if (grub_strchr (flag, 'w'))
+    grub_blocklist_convert (file);
 
   lua_pushlightuserdata (state, file);
   return 1;
@@ -308,6 +314,26 @@ grub_lua_file_read (lua_State *state)
 
   save_errno (state);
   luaL_pushresult (&b);
+  return 1;
+}
+
+static int
+grub_lua_file_write (lua_State *state)
+{
+  grub_file_t file;
+  grub_ssize_t ret;
+  grub_size_t len;
+  const char *buf;
+
+  luaL_checktype (state, 1, LUA_TLIGHTUSERDATA);
+  file = lua_touserdata (state, 1);
+  buf = lua_tolstring (state, 2, &len);
+  ret = grub_blocklist_write (file, buf, len);
+  if (ret > 0)
+    file->offset += ret;
+
+  save_errno (state);
+  lua_pushinteger (state, ret);
   return 1;
 }
 
@@ -421,6 +447,243 @@ grub_lua_add_menu (lua_State *state)
   return push_result (state);
 }
 
+static int
+grub_lua_read_byte (lua_State *state)
+{
+  grub_addr_t addr;
+
+  addr = luaL_checkinteger (state, 1);
+  lua_pushinteger (state, *((grub_uint8_t *) addr));
+  return 1;
+}
+
+static int
+grub_lua_read_word (lua_State *state)
+{
+  grub_addr_t addr;
+
+  addr = luaL_checkinteger (state, 1);
+  lua_pushinteger (state, *((grub_uint16_t *) addr));
+  return 1;
+}
+
+static int
+grub_lua_read_dword (lua_State *state)
+{
+  grub_addr_t addr;
+
+  addr = luaL_checkinteger (state, 1);
+  lua_pushinteger (state, *((grub_uint32_t *) addr));
+  return 1;
+}
+
+static int
+grub_lua_write_byte (lua_State *state)
+{
+  grub_addr_t addr;
+
+  addr = luaL_checkinteger (state, 1);
+  *((grub_uint8_t *) addr) = luaL_checkinteger (state, 2);
+  return 1;
+}
+
+static int
+grub_lua_write_word (lua_State *state)
+{
+  grub_addr_t addr;
+
+  addr = luaL_checkinteger (state, 1);
+  *((grub_uint16_t *) addr) = luaL_checkinteger (state, 2);
+  return 1;
+}
+
+static int
+grub_lua_write_dword (lua_State *state)
+{
+  grub_addr_t addr;
+
+  addr = luaL_checkinteger (state, 1);
+  *((grub_uint32_t *) addr) = luaL_checkinteger (state, 2);
+  return 1;
+}
+
+static int
+grub_lua_getkey (lua_State *state)
+{
+  lua_pushinteger (state, grub_getkey ());
+  return 1;
+}
+
+static int
+grub_lua_checkkey (lua_State *state)
+{
+  lua_pushboolean (state, grub_checkkey () >= 0);
+  return 1;
+}
+
+static int
+grub_lua_getkeystatus (lua_State *state)
+{
+  lua_pushinteger (state, grub_getkeystatus ());
+  return 1;
+}
+
+static int
+grub_lua_cls (lua_State *state __attribute__ ((unused)))
+{
+  grub_cls ();
+  return 0;
+}
+
+static int
+grub_lua_setcolorstate (lua_State *state)
+{
+  grub_setcolorstate (luaL_checkinteger (state, 1));
+  return 0;
+}
+
+static int
+grub_lua_refresh (lua_State *state __attribute__ ((unused)))
+{
+  grub_refresh ();
+  return 0;
+}
+
+static int
+grub_lua_name2key (lua_State *state)
+{
+  const char *s;
+
+  s = luaL_checkstring (state, 1);
+  lua_pushinteger (state, grub_menu_name2key (s));
+  return 1;
+}
+
+static int
+grub_lua_key2name (lua_State *state)
+{
+  int key;
+
+  key = luaL_checkinteger (state, 1);
+  lua_pushstring (state, grub_menu_key2name (GRUB_TERM_ASCII_CHAR (key)));
+  return 1;
+}
+
+static int
+grub_lua_enum_term (lua_State *state)
+{
+  struct grub_term_output *term;
+
+  luaL_checktype (state, 1, LUA_TFUNCTION);
+  FOR_ACTIVE_TERM_OUTPUTS(term)
+  {
+    lua_pushvalue (state, 1);
+    lua_pushlightuserdata (state, term);
+    lua_pushstring (state, term->name);
+    lua_call (state, 2, 0);
+    lua_pop (state, 1);
+  }
+
+  return 0;
+}
+
+static int
+grub_lua_term_width (lua_State *state)
+{
+  struct grub_term_output *term;
+
+  luaL_checktype (state, 1, LUA_TLIGHTUSERDATA);
+  term = lua_touserdata (state, 1);
+  lua_pushinteger (state, grub_term_width (term));
+  return 1;
+}
+
+static int
+grub_lua_term_height (lua_State *state)
+{
+  struct grub_term_output *term;
+
+  luaL_checktype (state, 1, LUA_TLIGHTUSERDATA);
+  term = lua_touserdata (state, 1);
+  lua_pushinteger (state, grub_term_height (term));
+  return 1;
+}
+
+static int
+grub_lua_term_getxy (lua_State *state)
+{
+  struct grub_term_output *term;
+  grub_uint16_t xy;
+
+  luaL_checktype (state, 1, LUA_TLIGHTUSERDATA);
+  term = lua_touserdata (state, 1);
+
+  xy = grub_term_getxy (term);
+  lua_pushinteger (state, xy >> 8);
+  lua_pushinteger (state, xy & 0xff);
+  return 2;
+}
+
+static int
+grub_lua_term_gotoxy (lua_State *state)
+{
+  struct grub_term_output *term;
+
+  luaL_checktype (state, 1, LUA_TLIGHTUSERDATA);
+  term = lua_touserdata (state, 1);
+  grub_term_gotoxy (term, luaL_checkinteger (state, 2),
+		    luaL_checkinteger (state, 3));
+  return 0;
+}
+
+static int
+grub_lua_term_setcolorstate (lua_State *state)
+{
+  struct grub_term_output *term;
+
+  luaL_checktype (state, 1, LUA_TLIGHTUSERDATA);
+  term = lua_touserdata (state, 1);
+  grub_term_setcolorstate (term, luaL_checkinteger (state, 2));
+  return 0;
+}
+
+static int
+grub_lua_term_setcolor (lua_State *state)
+{
+  struct grub_term_output *term;
+
+  luaL_checktype (state, 1, LUA_TLIGHTUSERDATA);
+  term = lua_touserdata (state, 1);
+  grub_term_setcolor (term, luaL_checkinteger (state, 2),
+		      luaL_checkinteger (state, 3));
+  return 0;
+}
+
+static int
+grub_lua_term_setcursor (lua_State *state)
+{
+  struct grub_term_output *term;
+
+  luaL_checktype (state, 1, LUA_TLIGHTUSERDATA);
+  term = lua_touserdata (state, 1);
+  grub_term_setcursor (term, lua_toboolean (state, 2));
+  return 0;
+}
+
+static int
+grub_lua_term_getcolor (lua_State *state)
+{
+  struct grub_term_output *term;
+  grub_uint8_t normal_color, highlight_color;
+
+  luaL_checktype (state, 1, LUA_TLIGHTUSERDATA);
+  term = lua_touserdata (state, 1);
+  grub_term_getcolor (term, &normal_color, &highlight_color);
+  lua_pushinteger (state, normal_color);
+  lua_pushinteger (state, highlight_color);
+  return 2;
+}
+
 luaL_Reg grub_lua_lib[] =
   {
     {"run", grub_lua_run},
@@ -432,11 +695,35 @@ luaL_Reg grub_lua_lib[] =
     {"file_close", grub_lua_file_close},
     {"file_seek", grub_lua_file_seek},
     {"file_read", grub_lua_file_read},
+    {"file_write", grub_lua_file_write},
     {"file_getline", grub_lua_file_getline},
     {"file_getsize", grub_lua_file_getsize},
     {"file_getpos", grub_lua_file_getpos},
     {"file_eof", grub_lua_file_eof},
     {"file_exist", grub_lua_file_exist},
     {"add_menu", grub_lua_add_menu},
+    {"read_byte", grub_lua_read_byte},
+    {"read_word", grub_lua_read_word},
+    {"read_dword", grub_lua_read_dword},
+    {"write_byte", grub_lua_write_byte},
+    {"write_word", grub_lua_write_word},
+    {"write_dword", grub_lua_write_dword},
+    {"getkey", grub_lua_getkey},
+    {"checkkey", grub_lua_checkkey},
+    {"getkeystatus", grub_lua_getkeystatus},
+    {"cls", grub_lua_cls},
+    {"setcolorstate", grub_lua_setcolorstate},
+    {"refresh", grub_lua_refresh},
+    {"name2key", grub_lua_name2key},
+    {"key2name", grub_lua_key2name},
+    {"enum_term", grub_lua_enum_term},
+    {"term_width", grub_lua_term_width},
+    {"term_height", grub_lua_term_height},
+    {"term_getxy", grub_lua_term_getxy},
+    {"term_gotoxy", grub_lua_term_gotoxy},
+    {"term_setcolorstate", grub_lua_term_setcolorstate},
+    {"term_setcolor", grub_lua_term_setcolor},
+    {"term_setcursor", grub_lua_term_setcursor},
+    {"term_getcolor", grub_lua_term_getcolor},
     {0, 0}
   };

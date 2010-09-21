@@ -30,7 +30,5 @@ grub_menu_parse_bitmap (const char *str, grub_uint32_t def_fill,
 long grub_menu_parse_size (const char *str, int parent_size, int horizontal);
 char *grub_menu_next_field (char *name, char c);
 void grub_menu_restore_field (char *name, char c);
-const char *grub_menu_key2name (int key);
-int grub_menu_name2key (const char *name);
 
 #endif

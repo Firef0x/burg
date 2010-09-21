@@ -27,6 +27,7 @@ GRUB_EXPORT(grub_dialog_create);
 GRUB_EXPORT(grub_dialog_set_parm);
 GRUB_EXPORT(grub_dialog_get_parm);
 GRUB_EXPORT(grub_dialog_popup);
+GRUB_EXPORT(grub_dialog_update_screen);
 GRUB_EXPORT(grub_dialog_free);
 GRUB_EXPORT(grub_dialog_message);
 GRUB_EXPORT(grub_dialog_password);
@@ -144,8 +145,8 @@ grub_dialog_get_parm (grub_uitree_t node, char *parm, char *name)
   return result;
 }
 
-static void
-update_screen (grub_uitree_t node)
+void
+grub_dialog_update_screen (grub_uitree_t node)
 {
   grub_uitree_t root, child;
   grub_widget_t widget;
@@ -191,7 +192,7 @@ grub_dialog_popup (grub_uitree_t node)
   r = grub_widget_input (node, 1);
   grub_widget_current_node = save;
   if (! grub_widget_refresh)
-    update_screen (node);
+    grub_dialog_update_screen (node);
   grub_widget_free (node);
 
   return r;

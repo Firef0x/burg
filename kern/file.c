@@ -23,12 +23,18 @@
 #include <grub/mm.h>
 #include <grub/fs.h>
 #include <grub/device.h>
+#include <grub/term.h>
 
 GRUB_EXPORT(grub_file_get_device_name);
 GRUB_EXPORT(grub_file_open);
 GRUB_EXPORT(grub_file_read);
 GRUB_EXPORT(grub_file_seek);
 GRUB_EXPORT(grub_file_close);
+
+GRUB_EXPORT(grub_file_pb_init);
+GRUB_EXPORT(grub_file_pb_fini);
+GRUB_EXPORT(grub_file_pb_show);
+GRUB_EXPORT(grub_file_pb_read);
 
 /* Get the device part of the filename NAME. It is enclosed by parentheses.  */
 char *
@@ -170,3 +176,66 @@ grub_file_seek (grub_file_t file, grub_off_t offset)
   file->offset = offset;
   return old;
 }
+
+static void
+grub_file_pb_show_default (int num __attribute__((unused)),
+			   int total __attribute__((unused)))
+{
+  grub_printf (".");
+  grub_refresh ();
+}
+
+static void
+grub_file_pb_fini_default (void)
+{
+  grub_printf ("\n");
+}
+
+void (*grub_file_pb_init) (void);
+void (*grub_file_pb_fini) (void) = grub_file_pb_fini_default;
+void (*grub_file_pb_show) (int num, int total) = grub_file_pb_show_default;
+
+grub_ssize_t
+grub_file_pb_read (grub_file_t file, void *b, grub_size_t len, int total)
+{
+  grub_ssize_t ret;
+  grub_size_t bsize;
+  int num;
+  char *buf = b;
+
+  if ((len < GRUB_FILE_PB_MIN_SIZE) || (total == 0))
+    return grub_file_read (file, buf, len);
+
+  ret = 0;
+  if (grub_file_pb_init)
+    grub_file_pb_init ();
+
+  bsize = ((len / total) + 511) & (~511);
+  num = 0;
+  while (len > 0)
+    {
+      grub_size_t n;
+      grub_ssize_t r;
+
+      grub_file_pb_show (num, total);
+
+      n = (len > bsize) ? bsize : len;
+      r = grub_file_read (file, buf, n);
+      if (r <= 0)
+	{
+	  if (ret == 0)
+	    ret = -1;
+	  break;
+	}
+
+      buf += r;
+      len -= r;
+      ret += r;
+      num++;
+    }
+
+  if (grub_file_pb_fini)
+    grub_file_pb_fini ();
+  return ret;
+}
+

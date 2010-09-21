@@ -611,6 +611,71 @@ add_user_menu (grub_uitree_t node, grub_menu_t menu, int default_num,
   return index;
 }
 
+static grub_uitree_t gfx_pb_node;
+
+static void
+gfx_pb_init (void)
+{
+  grub_uitree_t root, node;
+
+  root = get_screen ();
+  if (! root)
+    return;
+
+  gfx_pb_node = grub_dialog_create ("file_pb", 1, 0, 0, 0);
+  if (! gfx_pb_node)
+    return;
+
+  node = gfx_pb_node;
+  grub_tree_add_child (GRUB_AS_TREE (root), GRUB_AS_TREE (node), -1);
+
+  grub_widget_create (node);
+  grub_widget_init (node);
+  node->flags |= GRUB_WIDGET_FLAG_FIXED_XY;
+  grub_widget_draw (node);
+}
+
+static void
+gfx_pb_fini (void)
+{
+  if (gfx_pb_node)
+    {
+      grub_dialog_update_screen (gfx_pb_node);
+      grub_dialog_free (gfx_pb_node, 0, 0);
+      gfx_pb_node = 0;
+    }
+}
+
+static void
+gfx_pb_show (int num, int total)
+{
+  if (gfx_pb_node)
+    {
+      grub_uitree_t child;
+      grub_menu_region_update_list_t head;
+
+      num = total - num;
+      head = 0;
+      child = gfx_pb_node;
+      while (child)
+	{
+	  grub_widget_t widget;
+
+	  widget = child->data;
+	  if ((widget) && (widget->class->set_timeout))
+	    {
+	      widget->class->set_timeout (widget, total, num);
+	      widget->class->draw (widget, &head, 0, 0,
+				   widget->width, widget->height);
+	    }
+
+	  child = grub_tree_next_node (GRUB_AS_TREE (gfx_pb_node),
+				       GRUB_AS_TREE (child));
+	}
+      grub_menu_region_apply_update (head);
+    }
+}
+
 static grub_err_t
 show_menu (grub_menu_t menu, int nested)
 {
@@ -636,6 +701,13 @@ show_menu (grub_menu_t menu, int nested)
   if (! nested)
     {
       grub_term_output_t term, gfxmenu_term;
+      void (*pb_init) (void) = grub_file_pb_init;
+      void (*pb_fini) (void) = grub_file_pb_fini;
+      void (*pb_show) (int, int) = grub_file_pb_show;
+
+      grub_file_pb_init = gfx_pb_init;
+      grub_file_pb_fini = gfx_pb_fini;
+      grub_file_pb_show = gfx_pb_show;
 
       if (! grub_menu_region_get_current ())
 	{
@@ -741,6 +813,10 @@ show_menu (grub_menu_t menu, int nested)
       grub_list_push (GRUB_AS_LIST_P (&grub_term_outputs_disabled),
 		      GRUB_AS_LIST (gfxmenu_term));
       grub_term_outputs = grub_menu_region_text_term;
+
+      grub_file_pb_init = pb_init;
+      grub_file_pb_fini = pb_fini;
+      grub_file_pb_show = pb_show;
     }
   else
     {

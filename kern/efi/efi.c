@@ -249,6 +249,7 @@ grub_get_rtc (void)
 	  * GRUB_TICKS_PER_SECOND / 1000);
 }
 
+#if 0
 /* Search the mods section from the PE32/PE32+ image. This code uses
    a PE32 header, but should work with PE32+ as well.  */
 grub_addr_t
@@ -290,6 +291,13 @@ grub_arch_modules_addr (void)
     return 0;
 
   return (grub_addr_t) info;
+}
+#endif
+
+char *
+grub_arch_menu_addr (void)
+{
+  return 0;
 }
 
 char *

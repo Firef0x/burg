@@ -131,7 +131,12 @@ grub_load_config_hook (struct grub_module_header *header)
 static inline void
 grub_load_config (void)
 {
-  grub_module_iterate (grub_load_config_hook);
+  char *p = grub_arch_menu_addr ();
+
+  if (p)
+    grub_parser_execute (p);
+  else
+    grub_module_iterate (grub_load_config_hook);
 }
 
 /* Write hook for the environment variables of root. Remove surrounding

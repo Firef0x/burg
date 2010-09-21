@@ -257,6 +257,18 @@ LOCAL (codestart):
 	leal	(%edi, %ecx), %ebx
 	call	_LzmaDecodeA
 	/* _LzmaDecodeA clears DF, so no need to run cld */
+
+	lodsl
+	cmpl	$GRUB_KERNEL_MACHINE_MENU_MAGIC, %eax
+	jnz	2f
+1:
+	lodsb
+	stosb
+	orb	%al, %al
+	jnz	1b
+2:
+	movb	$0, (%edi)
+
 	popl	%ecx
 	popl	%edi
 	popl	%esi
@@ -929,13 +941,13 @@ FUNCTION(grub_biosdisk_reset)
 	movb	%al, %dl
 
 	call	prot_to_real
-	.code16	
+	.code16
 	int	$0x13
 	REAL_TO_PROT
 	.code32
 
 	popl	%ebp
-	ret	
+	ret
 
 /*
  *
@@ -1600,6 +1612,7 @@ FUNCTION(grub_vbe_bios_get_controller_info)
 FUNCTION(grub_vbe_bios_get_mode_info)
 	pushl   %ebp
 	pushl   %edi
+	pushl	%esi
 
 	movl	%eax, %ecx	/* Store mode number to %ecx.  */
 
@@ -1610,15 +1623,11 @@ FUNCTION(grub_vbe_bios_get_mode_info)
 	call    prot_to_real
 	.code16
 
-	pushw   %es
-
 	movw    %dx, %es	/* *mode_info is now on %es:%di.  */
 	movw    $0x4f01, %ax
 	int     $0x10
 
 	movw    %ax, %dx        /* real_to_prot destroys %eax.  */
-
-	popw    %es
 
 	REAL_TO_PROT
 	.code32
@@ -1626,6 +1635,7 @@ FUNCTION(grub_vbe_bios_get_mode_info)
 	movl    %edx, %eax
 	andl    $0x0FFFF, %eax  /* Return value in %eax.  */
 
+	pop	%esi
 	popl    %edi
 	popl    %ebp
 	ret

@@ -198,6 +198,27 @@ real_code_2:
 	movl	%ss:(DATA_ADDR + GRUB_KERNEL_MACHINE_COMPRESSED_SIZE), %ecx
 	addl	$(GRUB_KERNEL_MACHINE_RAW_SIZE - 0x200), %ecx
 
+	pushl	%esi
+	addl	%ecx, %esi
+	movl	%esi, %eax
+	shrl	$4, %eax
+	movw	%ax, %ds
+	andw	$0xf, %si
+
+	cmpl	$GRUB_KERNEL_MACHINE_MENU_MAGIC, (%si)
+	jnz	1f
+	cld
+3:
+	lodsb
+	incl	%ecx
+	orb	%al, %al
+	jnz	3b
+
+1:
+	popl	%esi
+	pushw	%es
+	popw	%ds
+
 2:
 	call	LOCAL(move_memory)
 

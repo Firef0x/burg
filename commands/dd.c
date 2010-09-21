@@ -26,6 +26,7 @@ static const struct grub_arg_option options[] =
   {
     {"if", 'i', 0, N_("Specify input file."), "FILE", ARG_TYPE_STRING},
     {"str", 's', 0, N_("Specify input string."), "STRING", ARG_TYPE_STRING},
+    {"hex", 'x', 0, N_("Specify input hex string."), "HEX", ARG_TYPE_STRING},
     {"of", 'o', 0, N_("Specify output file."), "FILE", ARG_TYPE_STRING},
     {"bs", 'b', 0, N_("Specify block size."), "BYTES", ARG_TYPE_INT},
     {"count", 'c', 0, N_("Number of blocks to copy."), "BLOCKS", ARG_TYPE_INT},
@@ -38,6 +39,7 @@ enum options
   {
     DD_IF,
     DD_STR,
+    DD_HEX,
     DD_OF,
     DD_BS,
     DD_COUNT,
@@ -53,6 +55,7 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
   char *input = 0;
   char *output = 0;
   char *str = 0;
+  char *hexstr = 0;
   grub_size_t bs = 1;
   int copy_bs = 512;
   grub_off_t skip = 0;
@@ -67,7 +70,48 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
     input = state[DD_IF].arg;
 
   if (state[DD_STR].set)
-    str = state[DD_STR].arg;
+    {
+      str = state[DD_STR].arg;
+      in_size = grub_strlen (str);
+    }
+
+  if (state[DD_HEX].set)
+    {
+      int i, size;
+
+      str = state[DD_HEX].arg;
+      size = grub_strlen (str) / 2;
+      if (size == 0)
+	return grub_error (GRUB_ERR_BAD_ARGUMENT, "invalid hex string");
+
+      hexstr = grub_zalloc (size);
+      if (! hexstr)
+	return grub_errno;
+
+      for (i = 0; i < size * 2; i++)
+	{
+	  int c;
+
+	  if ((str[i] >= '0') && (str[i] <= '9'))
+	    c = str[i] - '0';
+	  else if ((str[i] >= 'A') && (str[i] <= 'F'))
+	    c = str[i] - 'A' + 10;
+	  else if ((str[i] >= 'a') && (str[i] <= 'f'))
+	    c = str[i] - 'a' + 10;
+	  else
+	    {
+	      grub_free (hexstr);
+	      return grub_error (GRUB_ERR_BAD_ARGUMENT, "invalid hex string");
+	    }
+
+	  if ((i & 1) == 0)
+	    c <<= 4;
+	  hexstr[i >> 1] |= c;
+	}
+
+      str = hexstr;
+      in_size = size;
+    }
 
   if (state[DD_OF].set)
     output = state[DD_OF].arg;
@@ -110,7 +154,6 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
   else
     {
       in = 0;
-      in_size = grub_strlen (str);
     }
 
   out = grub_file_open (output);
@@ -178,6 +221,7 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
 
  quit:
   grub_free (buf);
+  grub_free (hexstr);
   grub_file_close (out);
   if (in)
     grub_file_close (in);

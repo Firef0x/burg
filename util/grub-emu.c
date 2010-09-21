@@ -49,8 +49,8 @@ static char *prefix = NULL;
 struct grub_module_info grub_modinfo;
 char grub_code_start[0];
 
-grub_addr_t
-grub_arch_modules_addr (void)
+char *
+grub_arch_menu_addr (void)
 {
   return 0;
 }

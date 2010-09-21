@@ -75,4 +75,12 @@ void grub_blocklist_convert (grub_file_t file);
 grub_ssize_t grub_blocklist_write (grub_file_t file, const char *buf,
 				   grub_size_t len);
 
+#define GRUB_FILE_PB_MIN_SIZE	(1 << 20)
+
+extern void (*grub_file_pb_init) (void);
+extern void (*grub_file_pb_fini) (void);
+extern void (*grub_file_pb_show) (int num, int total);
+grub_ssize_t grub_file_pb_read (grub_file_t file, void *buf, grub_size_t len,
+				int total);
+
 #endif /* ! GRUB_FILE_HEADER */

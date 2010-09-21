@@ -43,6 +43,8 @@
 /* The size of the first region which won't be compressed.  */
 #define GRUB_KERNEL_MACHINE_RAW_SIZE		(GRUB_KERNEL_MACHINE_DATA_END + 0x5F0)
 
+#define GRUB_KERNEL_MACHINE_MENU_MAGIC		0x454d5542
+
 /* Enable LZMA compression */
 #define ENABLE_LZMA	1
 

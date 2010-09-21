@@ -59,7 +59,7 @@ struct grub_module_info
   grub_uint32_t size;
 } __attribute__((packed));
 
-extern grub_addr_t grub_arch_modules_addr (void);
+extern char * grub_arch_menu_addr (void);
 
 extern void grub_module_iterate (int (*hook) (struct grub_module_header *));
 

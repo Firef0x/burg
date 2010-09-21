@@ -249,10 +249,12 @@ grub_machine_fini (void)
   grub_stop_floppy ();
 }
 
-/* Return the end of the core image.  */
-grub_addr_t
-grub_arch_modules_addr (void)
+char *
+grub_arch_menu_addr (void)
 {
-  return GRUB_MEMORY_MACHINE_DECOMPRESSION_ADDR
-    + (grub_kernel_image_size - GRUB_KERNEL_MACHINE_RAW_SIZE);
+  char *p =
+    (char *) (GRUB_MEMORY_MACHINE_DECOMPRESSION_ADDR + grub_kernel_image_size
+	      + grub_total_module_size - GRUB_KERNEL_MACHINE_RAW_SIZE);
+
+  return (*p == 0) ? 0 : p;
 }

@@ -1140,7 +1140,10 @@ check_timeout (grub_uitree_t root, int *key)
   if (! p)
     return 0;
 
-  total = grub_strtoul (p, 0, 0);
+  total = grub_strtol (p, 0, 0);
+  if (total < 0)
+    return 0;
+
   has_key = (grub_checkkey () >= 0);
   if ((has_key) || (! total))
     {
