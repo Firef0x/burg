@@ -34,6 +34,7 @@ VARIABLE(grub_machine_mmaphook_int15)
 	cmpb $0x88, %ah
 	jz LOCAL (h88)
 	/* ljmp */
+LOCAL (chain_old_int15):
 	.byte	0xea
 VARIABLE (grub_machine_mmaphook_int15offset)
 	.word	0
@@ -76,15 +77,15 @@ LOCAL (h88):
 	jmp done
 
 LOCAL (e820):
+	cmp $0x534d4150, %edx
+	jnz LOCAL (chain_old_int15)	
 	push %ds
 	push %cs
 	pop %ds
-	cmpw $20, %cx
+	cmpl $20, %ecx
 	jb LOCAL (errexit)
-	cmpw DS (LOCAL (mmap_num)), %bx
+	cmpl DS (LOCAL (mmap_num)), %ebx
 	jae LOCAL (errexit)
-	cmp $0x534d4150, %edx
-	jne LOCAL (errexit)
 	pushl %edx
 	movl $20, %ecx
 	pushw %cx

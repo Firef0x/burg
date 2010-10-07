@@ -63,6 +63,9 @@ make_install_device (void)
   /* XXX: This should be enough.  */
   char dev[100], *ptr = dev;
 
+  grub_snprintf (dev, sizeof (dev), "%d", grub_boot_drive);
+  grub_env_set ("boot_drive", dev);
+
   if (grub_prefix[0] != '(')
     {
       /* No hardcoded root partition - make it from the boot drive and the

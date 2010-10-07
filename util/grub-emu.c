@@ -48,11 +48,12 @@ static jmp_buf main_env;
 static char *prefix = NULL;
 struct grub_module_info grub_modinfo;
 char grub_code_start[0];
+char *init_config;
 
 char *
 grub_arch_menu_addr (void)
 {
-  return 0;
+  return init_config;
 }
 
 #if GRUB_NO_MODULES
@@ -118,6 +119,7 @@ static struct option options[] =
     {"directory", required_argument, 0, 'd'},
     {"hold", optional_argument, 0, 'H'},
     {"disk", optional_argument, 0, 'D'},
+    {"config", required_argument, 0, 'c'},
     {"help", no_argument, 0, 'h'},
     {"version", no_argument, 0, 'V'},
     {"verbose", no_argument, 0, 'v'},
@@ -142,6 +144,7 @@ usage (int status)
       "  -v, --verbose             print verbose messages\n"
       "  -H, --hold[=SECONDS]      wait until a debugger will attach\n"
       "  -D, --disk                allow to access physical disk\n"
+      "  -c, --config=FILE         set init config script\n"
       "  -h, --help                display this message and exit\n"
       "  -V, --version             print version information and exit\n"
       "\n"
@@ -171,7 +174,7 @@ main (int argc, char *argv[])
 
   set_program_name (argv[0]);
 
-  while ((opt = getopt_long (argc, argv, "r:d:m:vH:DhV", options, 0)) != -1)
+  while ((opt = getopt_long (argc, argv, "r:d:m:vH:Dc:hV", options, 0)) != -1)
     switch (opt)
       {
       case 'r':
@@ -192,6 +195,16 @@ main (int argc, char *argv[])
       case 'D':
 	disk = 1;
 	break;
+      case 'c':
+	{
+	  size_t size;
+
+	  size = grub_util_get_image_size (optarg);
+	  init_config = xmalloc (size + 1);
+	  grub_util_load_image (optarg, init_config);
+	  init_config[size] = 0;
+	  break;
+	}	
       case 'h':
         return usage (0);
       case 'V':

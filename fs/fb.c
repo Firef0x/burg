@@ -22,10 +22,6 @@
 #include <grub/disk.h>
 #include <grub/file.h>
 #include <grub/misc.h>
-#include <grub/machine/boot.h>
-#include <grub/machine/kernel.h>
-#include <grub/machine/memory.h>
-#include <grub/machine/biosdisk.h>
 #include <grub/fbfs.h>
 
 struct grub_fb_data

@@ -32,6 +32,7 @@ static const struct grub_arg_option options[] =
     {"count", 'c', 0, N_("Number of blocks to copy."), "BLOCKS", ARG_TYPE_INT},
     {"skip", 0x100, 0, N_("Skip N blocks at input."), "BLOCKS", ARG_TYPE_INT},
     {"seek", 0x101, 0, N_("Skip N blocks at output."), "BLOCKS", ARG_TYPE_INT},
+    {"verify", 'v', 0, N_("Skip N blocks at output."), 0, 0},
     {0, 0, 0, 0, 0, 0}
   };
 
@@ -45,6 +46,7 @@ enum options
     DD_COUNT,
     DD_SKIP,
     DD_SEEK,
+    DD_VERIFY,
  };
 
 static grub_err_t
@@ -65,6 +67,8 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
   grub_file_t in;
   grub_file_t out;
   char *buf = 0;
+  char *buf2 = 0;
+  int verify = (state[DD_VERIFY].set);
 
   if (state[DD_IF].set)
     input = state[DD_IF].arg;
@@ -159,10 +163,14 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
   out = grub_file_open (output);
   if (! out)
     goto quit;
-  grub_blocklist_convert (out);
+  if (! verify)
+    grub_blocklist_convert (out);
 
   if ((skip >= in->size) || (seek >= out->size))
-    goto quit;
+    {
+      if (verify)
+	goto verify_fail;
+    }
 
   if (in)
     in->offset = skip;
@@ -174,7 +182,11 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
     count = in_size - skip;
 
   if (skip + count > in_size)
-    count = in_size - skip;
+    {
+      if (verify)
+	goto verify_fail;
+      count = in_size - skip;
+    }
 
   if (copy_bs < (int) bs)
     copy_bs = bs;
@@ -182,6 +194,13 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
   buf = grub_malloc (copy_bs);
   if (! buf)
     goto quit;
+
+  if (verify)
+    {
+      buf2 = grub_malloc (copy_bs);
+      if (! buf2)
+	goto quit;
+    }
 
   while (count > 0)
     {
@@ -205,7 +224,18 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
 	  grub_memcpy (buf, str, s1);
 	  str += s1;
 	}
-      s2 = grub_blocklist_write (out, buf, s1);
+
+      if (verify)
+	{
+	  s2 = grub_file_read (out, buf2, s1);
+	  if ((s2 != s1) || (grub_memcmp (buf, buf2, s1)))
+	    goto verify_fail;
+	}
+      else
+	{
+	  s2 = grub_blocklist_write (out, buf, s1);
+	  out->offset += s2;
+	}
       if (grub_errno)
 	break;
       if (s2 == -1)
@@ -215,17 +245,22 @@ grub_cmd_dd (grub_extcmd_t cmd, int argc __attribute__ ((unused)),
 	}
       if (s1 != s2)
 	break;
-      out->offset += s1;
       count -= s1;
     }
 
  quit:
   grub_free (buf);
+  grub_free (buf2);
   grub_free (hexstr);
-  grub_file_close (out);
+  if (out)
+    grub_file_close (out);
   if (in)
     grub_file_close (in);
   return grub_errno;
+
+ verify_fail:
+  grub_error (GRUB_ERR_BAD_ARGUMENT, "verify fails");
+  goto quit;
 }
 
 static grub_extcmd_t cmd;
