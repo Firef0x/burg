@@ -110,14 +110,15 @@ void
 grub_puts_terminal (const char *str, struct grub_term_output *term)
 {
   grub_uint32_t code;
-  grub_ssize_t ret;
+//  grub_ssize_t ret;
   const grub_uint8_t *ptr = (const grub_uint8_t *) str;
   const grub_uint8_t *end;
   end = (const grub_uint8_t *) (str + grub_strlen (str));
 
   while (*ptr)
     {
-      ret = grub_utf8_to_ucs4 (&code, 1, ptr, end - ptr, &ptr);
+//      ret = grub_utf8_to_ucs4 (&code, 1, ptr, end - ptr, &ptr);
+      grub_utf8_to_ucs4 (&code, 1, ptr, end - ptr, &ptr);
       grub_putcode (code, term);
     }
 }

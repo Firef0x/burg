@@ -739,7 +739,7 @@ show_menu (grub_menu_t menu, int nested)
 
       while (1)
 	{
-	  grub_err_t r = 0;
+//	  grub_err_t r = 0;
 	  grub_uitree_t node;
 
 	  node = grub_uitree_find_id (root, "__menu__");
@@ -763,7 +763,9 @@ show_menu (grub_menu_t menu, int nested)
 	  if (grub_widget_create (root) == GRUB_ERR_NONE)
 	    {
 	      grub_widget_init (root);
-	      r = grub_widget_input (root, 0);
+//	      r = grub_widget_input (root, 0);
+				grub_widget_input (root, 0);
+
 	    }
 	  grub_widget_free (root);
 	  if (grub_widget_refresh)

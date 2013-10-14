@@ -104,7 +104,8 @@ isxdigit (int c)
 static inline int
 abs (int c)
 {
-  return (c >= 0) ? : -c;
+//  return (c >= 0) ? : -c;
+  return (c >= 0) ? c : -c;
 }
 
 int strcspn (const char *s1, const char *s2);

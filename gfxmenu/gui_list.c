@@ -556,7 +556,7 @@ grub_gui_list_new (void)
   list_impl_t self;
   grub_font_t default_font;
   grub_gui_color_t default_fg_color;
-  grub_gui_color_t default_bg_color;
+//  grub_gui_color_t default_bg_color;
 
   self = grub_zalloc (sizeof (*self));
   if (! self)
@@ -569,7 +569,7 @@ grub_gui_list_new (void)
 
   default_font = grub_font_get ("Unknown Regular 16");
   default_fg_color = grub_gui_color_rgb (0, 0, 0);
-  default_bg_color = grub_gui_color_rgb (255, 255, 255);
+//  default_bg_color = grub_gui_color_rgb (255, 255, 255);
 
   self->icon_width = 32;
   self->icon_height = 32;

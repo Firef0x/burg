@@ -1057,8 +1057,9 @@ grub_xnu_scan_dir_for_kexts_hook (const char *filename,
 
 /* Load all loadable kexts placed under DIRNAME and matching OSBUNDLEREQUIRED */
 grub_err_t
-grub_xnu_scan_dir_for_kexts (char *dirname, char *osbundlerequired,
-			     int maxrecursion)
+//grub_xnu_scan_dir_for_kexts (char *dirname, char *osbundlerequired, int maxrecursion)
+grub_xnu_scan_dir_for_kexts (char *dirname, char *osbundlerequired __attribute__((unused)), int maxrecursion __attribute__((unused)))
+
 {
   grub_device_t dev;
   char *device_name;
@@ -1072,7 +1073,7 @@ grub_xnu_scan_dir_for_kexts (char *dirname, char *osbundlerequired,
   dev = grub_device_open (device_name);
   if (dev)
     {
-      struct grub_xnu_scan_dir_for_kexts_closure c;
+//      struct grub_xnu_scan_dir_for_kexts_closure c;
 
       fs = grub_fs_probe (dev);
       path = grub_strchr (dirname, ')');
@@ -1081,9 +1082,9 @@ grub_xnu_scan_dir_for_kexts (char *dirname, char *osbundlerequired,
       else
 	path++;
 
-      c.dirname = dirname;
-      c.osbundlerequired = osbundlerequired;
-      c.maxrecursion = maxrecursion;
+//      c.dirname = dirname;
+//      c.osbundlerequired = osbundlerequired;
+//      c.maxrecursion = maxrecursion;
       if (fs)
 	(fs->dir) (dev, path, grub_xnu_scan_dir_for_kexts_hook, 0);
       grub_device_close (dev);
