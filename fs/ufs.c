@@ -601,7 +601,7 @@ grub_ufs_dir (grub_device_t device, const char *path,
 	      void *closure)
 {
   struct grub_ufs_data *data;
-  struct grub_ufs_sblock *sblock;
+//  struct grub_ufs_sblock *sblock;
   unsigned int pos = 0;
 
   data = grub_ufs_mount (device->disk);
@@ -612,7 +612,7 @@ grub_ufs_dir (grub_device_t device, const char *path,
   if (grub_errno)
     return grub_errno;
 
-  sblock = &data->sblock;
+//  sblock = &data->sblock;
 
   if (!path || path[0] != '/')
     {

@@ -468,7 +468,7 @@ grub_minix_dir (grub_device_t device, const char *path,
 		void *closure)
 {
   struct grub_minix_data *data = 0;
-  struct grub_minix_sblock *sblock;
+//  struct grub_minix_sblock *sblock;
   unsigned int pos = 0;
 
   data = grub_minix_mount (device->disk);
@@ -479,7 +479,7 @@ grub_minix_dir (grub_device_t device, const char *path,
   if (grub_errno)
     goto fail;
 
-  sblock = &data->sblock;
+//  sblock = &data->sblock;
 
   grub_minix_find_file (data, path);
   if (grub_errno)

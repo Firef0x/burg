@@ -39,12 +39,12 @@ grub_cmd_hexdump (grub_extcmd_t cmd, int argc, char **args)
   char buf[GRUB_DISK_SECTOR_SIZE * 4];
   grub_ssize_t size, length;
   grub_disk_addr_t skip;
-  int namelen;
+//  int namelen;
 
   if (argc != 1)
     return grub_error (GRUB_ERR_BAD_ARGUMENT, "file name required");
 
-  namelen = grub_strlen (args[0]);
+//  namelen = grub_strlen (args[0]);
   skip = (state[0].set) ? grub_strtoull (state[0].arg, 0, 0) : 0;
   length = (state[1].set) ? grub_strtoul (state[1].arg, 0, 0) : 256;
 
