@@ -33,7 +33,7 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
-#include <ftsynth.h>
+#include FT_SYNTHESIS_H
 
 void
 grub_putchar (int c)

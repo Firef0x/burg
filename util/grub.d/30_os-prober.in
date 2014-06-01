@@ -121,19 +121,20 @@ for OS in ${OSPROBED} ; do
     OSLABEL="$s"
   fi
 
-  echo "Found ${LONGNAME} on ${DEVICE}" >&2
+  gettext_printf "Found %s on %s\n" "${LONGNAME}" "${DEVICE}" >&2
 
   case ${BOOT} in
     chain)
-
+	  # TRANSLATORS: it refers on the OS residing on device %s
+	  onstr="$(gettext_printf "(on %s)" "${DEVICE}")"
       cat << EOF
-menuentry "${LONGNAME} (on ${DEVICE})" --class ${OSLABEL} --class os ${AUTH_NORMAL}{
+menuentry '$(echo "${LONGNAME} ${onstr}" | grub_quote)' --class ${OSLABEL} --class os ${AUTH_NORMAL}{
 EOF
-      save_default_entry | sed -e "s/^/\t/"
-      prepare_grub_to_access_device ${DEVICE} | sed -e "s/^/\t/"
+      save_default_entry | grub_add_tab
+      prepare_grub_to_access_device ${DEVICE} | grub_add_tab
 
       case ${LONGNAME} in
-	Windows\ Vista*|Windows\ 7*)
+	Windows\ Vista*|Windows\ 7*|Windows\ Server\ 2008*)
 	;;
 	*)
 	  cat << EOF

@@ -58,15 +58,25 @@ linux_entry ()
 {
   os="$1"
   version="$2"
-  recovery="$3"
+  type="$3"
   args="$4"
-  if ${recovery} ; then
-    title="$(gettext_quoted "%s, with Linux %s (recovery mode)")"
+
+  if [ x${type} != xsimple ]; then
+    case ${type} in
+		recovery)
+			title="$(gettext_printf "%s, with Linux %s (recovery mode)" "${os}" "${version}")" ;;
+		fallback)
+			title="$(gettext_printf "%s, with Linux %s (fallback)" "${os}" "${version}")" ;;
+		*)
+			title="$(gettext_printf "%s, with Linux %s" "${os}" "${version}")" ;;
+	esac
   else
-    title="$(gettext_quoted "%s, with Linux %s")"
+	title="$(gettext_printf "%s, with Linux %s" "${os}" "${version}")"
   fi
-  printf "menuentry '${title}' ${CLASS} --group group_main ${auth_option}{\n" "${os}" "${version}"
-  save_default_entry | sed -e "s/^/\t/"
+  echo "menuentry '$(echo ${title} | grub_quote)' ${CLASS} --group group_main ${auth_option}{\n"
+  if [ x${type} != xrecovery ] ; then
+	  save_default_entry | grub_add_tab
+  fi
 
   # Use ELILO's generic "efifb" when it's known to be available.
   # FIXME: We need an interface to select vesafb in case efifb can't be used.
@@ -92,8 +102,10 @@ EOF
 	linux${GRUB_LINUX16}	${rel_dirname}/${basename} root=${linux_root_device_thisversion} rw ${args}
 EOF
   if test -n "${initrd}" ; then
+	# TRANSLATORS: ramdisk isn't identifier. Should be translated.
+	message="$(gettext_printf "Loading initial ramdisk ...")"
     cat << EOF
-	echo	'$(gettext_quoted "Loading initial ramdisk ...")'
+	echo	'$(echo "${message}" | grub_quote)'
 	initrd${GRUB_LINUX16}	${rel_dirname}/${initrd}
 EOF
   fi
@@ -109,11 +121,11 @@ prepare_boot_cache=
 
 while [ "x$list" != "x" ] ; do
   linux=`version_find_latest $list`
-  echo "Found linux image: $linux" >&2
+  gettext_printf "Found linux image: %s\n" "$linux" >&2
   basename=`basename $linux`
   dirname=`dirname $linux`
   rel_dirname=`make_system_path_relative_to_its_root $dirname`
-  version=`find ${libdir}/modules -name version -exec cat {} \;`
+  version=`file $linux | awk '{match($0,/version [0-9a-zA-Z.-]*/);print substr($0,RSTART+8,RLENGTH-8);}'`
   echo $basename | grep -q 'vmlinu[xz]26' && initname=kernel || initname=initramfs
   base_init=`echo $basename | sed -e "s,vmlinu[xz],$initname,g"`
   alt_version="${base_init}-fallback"
@@ -127,20 +139,20 @@ while [ "x$list" != "x" ] ; do
     fi
   done
   if test -n "${initrd}" ; then
-    echo "Found initrd image: ${dirname}/${initrd}" >&2
+    gettext_printf "Found initrd image: %s\n" "${dirname}/${initrd}" >&2
   else
     # "UUID=" magic is parsed by initrds.  Since there's no initrd, it can't work here.
     linux_root_device_thisversion=${GRUB_DEVICE}
   fi
 
-  linux_entry "${OS}" "${version}" false \
+  linux_entry "${OS}" "${version}" simple \
       "${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT} init=/usr/lib/systemd/systemd"
   initrd="${alt_version}.img"
-  version=`find ${libdir}/modules -name version -exec cat {} \;`
-  linux_entry "${OS}" "${version} Fallback" false \
+  version=`file $linux | awk '{match($0,/version [0-9a-zA-Z.-]*/);print substr($0,RSTART+8,RLENGTH-8);}'`
+  linux_entry "${OS}" "${version}" fallback \
       "${GRUB_CMDLINE_LINUX} ${GRUB_CMDLINE_LINUX_DEFAULT} init=/usr/lib/systemd/systemd"
   if [ "x${GRUB_DISABLE_LINUX_RECOVERY}" != "xtrue" ]; then
-    linux_entry "${OS}" "${version}" true \
+    linux_entry "${OS}" "${version}" recovery \
 	"systemd.unit=rescue init=/usr/lib/systemd/systemd ${GRUB_CMDLINE_LINUX}"
   fi
 

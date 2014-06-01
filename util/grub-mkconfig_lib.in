@@ -181,8 +181,23 @@ version_find_latest ()
   echo "$a"
 }
 
+# One layer of quotation is eaten by "" and the second by sed; so this turns
+# ' into \'.
+grub_quote () {
+  sed "s/'/'\\\\''/g"
+}
+
 gettext_quoted () {
-  $gettext "$@" | sed "s/'/'\\\\''/g"
+  $gettext "$@" | grub_quote
+}
+
+# Run the first argument through gettext, and then pass that and all
+# remaining arguments to printf.  This is a useful abbreviation and tends to
+# be easier to type.
+gettext_printf () {
+  gettext_printf_format="$1"
+  shift
+  printf "$(gettext "$gettext_printf_format")" "$@"
 }
 
 get_auth_option ()
@@ -207,4 +222,10 @@ get_auth_option ()
       AUTH_RESCUE="--users \"${b}\" "
     fi
   fi
+}
+
+grub_tab="	"
+
+grub_add_tab () {
+  sed -e "s/^/$grub_tab/"
 }
