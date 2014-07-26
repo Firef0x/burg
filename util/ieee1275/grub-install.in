@@ -34,7 +34,7 @@ target_cpu=@target_cpu@
 platform=@platform@
 pkglibdir=${libdir}/`echo ${PACKAGE_TARNAME}/${target_cpu}-${platform} | sed ${transform}`
 
-grub_mkimage=${bindir}/`echo burg-mkelfimage | sed ${transform}`
+grub_mkimage=${bindir}/`echo burg-mkimage | sed ${transform}`
 grub_mkdevicemap=${sbindir}/`echo burg-mkdevicemap | sed ${transform}`
 grub_probe=${sbindir}/`echo burg-probe | sed ${transform}`
 grub_editenv=${bindir}/`echo burg-editenv | sed ${transform}`
@@ -189,7 +189,7 @@ devabstraction_module=`$grub_probe --target=abstraction --device-map=${device_ma
 modules="$modules $fs_module $partmap_module $devabstraction_module"
 
 # Now perform the installation.
-"$grub_mkimage" --directory=${pkglibdir} --output=${grubdir}/burg $modules || exit 1
+"$grub_mkimage" -O ${target_cpu}-ieee1275 --directory=${pkglibdir} --output=${grubdir}/burg $modules || exit 1
 
 if test $update_nvram = yes; then
     set $ofpathname dummy
