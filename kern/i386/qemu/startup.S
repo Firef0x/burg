@@ -28,7 +28,7 @@ grub_code_start:
 _start:
 	jmp	codestart
 
-	. = _start + GRUB_KERNEL_MACHINE_CORE_ENTRY_ADDR
+	. = _start + GRUB_KERNEL_I386_QEMU_CORE_ENTRY_ADDR
 VARIABLE(grub_core_entry_addr)
 	.long	0
 VARIABLE(grub_kernel_image_size)

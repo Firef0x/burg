@@ -51,13 +51,32 @@ struct grub_module_object
 /* "gmim" (GRUB Module Info Magic).  */
 #define GRUB_MODULE_MAGIC 0x676d696d
 
-struct grub_module_info
+struct grub_module_info32
 {
   /* Magic number so we know we have modules present.  */
   grub_uint32_t magic;
+  /* The offset of the modules.  */
+  grub_uint32_t offset;
   /* The size of all modules plus this header.  */
   grub_uint32_t size;
 } __attribute__((packed));
+
+struct grub_module_info64
+{
+  /* Magic number so we know we have modules present.  */
+  grub_uint32_t magic;
+  grub_uint32_t padding;
+  /* The offset of the modules.  */
+  grub_uint64_t offset;
+  /* The size of all modules plus this header.  */
+  grub_uint64_t size;
+} __attribute__((packed));
+
+#if GRUB_TARGET_SIZEOF_VOID_P == 8
+#define grub_module_info grub_module_info64
+#else
+#define grub_module_info grub_module_info32
+#endif
 
 extern char * grub_arch_menu_addr (void);
 
@@ -79,6 +98,10 @@ void grub_machine_set_prefix (void);
 
 /* Register all the exported symbols. This is automatically generated.  */
 void grub_register_exported_symbols (void);
+
+#if ! defined (ASM_FILE) && !defined (GRUB_MACHINE_EMU)
+extern char grub_prefix[];
+#endif
 
 /* These symbols are inserted by grub-mkimage.  */
 extern struct grub_module_info grub_modinfo;

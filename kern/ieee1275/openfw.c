@@ -21,7 +21,6 @@
 #include <grub/err.h>
 #include <grub/misc.h>
 #include <grub/mm.h>
-#include <grub/machine/kernel.h>
 #include <grub/ieee1275/ieee1275.h>
 
 GRUB_EXPORT(grub_devalias_iterate);
