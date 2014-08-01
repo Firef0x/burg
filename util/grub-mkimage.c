@@ -393,6 +393,12 @@ struct grub_ieee1275_note
 
 #define grub_target_to_host(val) grub_target_to_host_real(image_target, (val))
 
+int
+grub_strcmp (const char *s1, const char *s2)
+{
+ return strcmp (s1, s2);
+}
+
 #include <grub/lib/LzmaEnc.h>
 
 static void *SzAlloc(void *p, size_t size) { p = p; return xmalloc(size); }
@@ -559,7 +565,7 @@ generate_image (const char *dir, char *prefix, FILE *out, char *mods[],
 
       header = (struct grub_module_header *) (kernel_img + offset);
       memset (header, 0, sizeof (struct grub_module_header));
-      header->type = grub_host_to_target32 (OBJ_TYPE_ELF);
+      header->type = grub_host_to_target32 (OBJ_TYPE_OBJECT);
       header->size = grub_host_to_target32 (mod_size + sizeof (*header));
       offset += sizeof (*header);
       memset (kernel_img + offset + orig_size, 0, mod_size - orig_size);
