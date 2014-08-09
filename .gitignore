@@ -15,6 +15,7 @@
 /configure
 conf/*.mk
 conf/gcry.rmk
+.cproject
 /*.d
 /DISTLIST
 docs/*.info
@@ -64,9 +65,7 @@ lib/libgcrypt-grub
 /*.pf2
 po/*.mo
 po/grub.pot
-packages/archlinux/burg-bios-*.tar*
-packages/archlinux/src
-packages/archlinux/pkg
+.project
 /stamp-h
 /stamp-h1
 /stamp-h.in
