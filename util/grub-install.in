@@ -34,6 +34,8 @@ font=@datadir@/@PACKAGE_TARNAME@/ascii.pf2
 pkglibdir=${libdir}/`echo ${PACKAGE_TARNAME}/${target_cpu}-${platform} | sed ${transform}`
 localedir=@datadir@/locale
 
+self=`basename $0`
+
 grub_setup=${sbindir}/`echo burg-setup | sed ${transform}`
 grub_mkimage=${bindir}/`echo burg-mkimage | sed ${transform}`
 grub_mkdevicemap=${sbindir}/`echo burg-mkdevicemap | sed ${transform}`
@@ -61,7 +63,7 @@ fi
 # Print the usage.
 usage () {
     cat <<EOF
-Usage: burg-install [OPTION] install_device
+Usage: $self [OPTION] install_device
 Install GRUB on your drive.
 
   -h, --help              print this message and exit
@@ -92,10 +94,10 @@ fi
 
 INSTALL_DEVICE can be a BURG device name or a system device filename.
 
-burg-install copies BURG images into /boot/burg (or /burg on NetBSD and
+$self copies BURG images into /boot/burg (or /burg on NetBSD and
 OpenBSD), and uses burg-setup to install grub into the boot sector.
 
-If the --root-directory option is used, then burg-install will copy
+If the --root-directory option is used, then $self will copy
 images into the operating system installation rooted at that directory.
 
 Report bugs to <bean123ch@gmail.com>.
@@ -109,7 +111,7 @@ for option in "$@"; do
 	usage
 	exit 0 ;;
     -v | --version)
-	echo "burg-install (${PACKAGE_NAME} ${PACKAGE_VERSION})"
+	echo "$self (${PACKAGE_NAME} ${PACKAGE_VERSION})"
 	exit 0 ;;
     --modules=*)
 	modules=`echo "$option" | sed 's/--modules=//'` ;;
@@ -345,7 +347,7 @@ else
     prefix_drive=`$grub_probe --target=drive --device ${grub_device}` || exit 1
 fi
 
-case "${target_cpu}-${platform}"
+case "${target_cpu}-${platform}" in
     i386-pc) mkimage_target=i386-pc ;;
     sparc64-ieee1275) mkimage_target=sparc64-ieee1275-raw ;;
     mips-yeeloong) mkimage_target=mipsel-yeeloong-elf ;;
