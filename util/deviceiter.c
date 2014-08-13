@@ -755,7 +755,7 @@ grub_util_iterate_devices (int (*hook) (const char *, int, void *),
 	    name = xasprintf ("/dev/mapper/%s", node_name);
 	    if (check_device (name))
 	      {
-		if (hook (name, 0))
+		if (hook (name, 0, closure))
 		  {
 		    free (name);
 		    while (seen)

@@ -556,7 +556,7 @@ Make a bootable image of GRUB.\n\
   -v, --verbose           print verbose messages\n\
 \n\
 Report bugs to <%s>.\n\
-"), program_name, GRUB_LIBDIR, DEFAULT_DIRECTORY, PACKAGE_BUGREPORT);
+"), program_name, GRUB_PKGLIBROOTDIR, DEFAULT_DIRECTORY, PACKAGE_BUGREPORT);
 
   exit (status);
 }
@@ -640,7 +640,7 @@ main (int argc, char *argv[])
   if (! fp)
     grub_util_error ("cannot open %s", output);
 
-  generate_image (dir ? : GRUB_LIBDIR, prefix ? : DEFAULT_DIRECTORY, fp,
+  generate_image (dir ? : GRUB_PKGLIBROOTDIR, prefix ? : DEFAULT_DIRECTORY, fp,
 		  argv + optind, memdisk, config);
 
   fclose (fp);
