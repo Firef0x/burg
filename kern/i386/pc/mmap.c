@@ -20,6 +20,7 @@
 #include <grub/machine/memory.h>
 #include <grub/err.h>
 #include <grub/types.h>
+#include <grub/misc.h>
 
 GRUB_EXPORT(grub_machine_mmap_iterate);
 
@@ -30,6 +31,8 @@ grub_machine_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
   grub_uint32_t cont;
   struct grub_machine_mmap_entry *entry
     = (struct grub_machine_mmap_entry *) GRUB_MEMORY_MACHINE_SCRATCH_ADDR;
+
+  grub_memset (entry, 0, sizeof (entry));
 
   /* Check if grub_get_mmap_entry works.  */
   cont = grub_get_mmap_entry (entry, 0);
@@ -45,6 +48,8 @@ grub_machine_mmap_iterate (int (*hook) (grub_uint64_t, grub_uint64_t,
 
 	if (! cont)
 	  break;
+
+	grub_memset (entry, 0, sizeof (entry));
 
 	cont = grub_get_mmap_entry (entry, cont);
       }

@@ -1,3 +1,60 @@
+2010-05-21  Vladimir Serbinenko  <phcoder@gmail.com>
+
+	* kern/i386/pc/mmap.c (grub_machine_mmap_iterate): Zero-fill entry
+	before calling BIOS.
+
+2010-05-21  Vladimir Serbinenko  <phcoder@gmail.com>
+
+	* include/grub/i18n.h: Always enable grub_gettext.
+
+2010-05-21  Vladimir Serbinenko  <phcoder@gmail.com>
+
+	* kern/i386/pc/init.c (make_install_device): Fix a leftover usage of old
+	partition naming style.
+
+2010-05-21  Colin Watson  <cjwatson@ubuntu.com>
+
+	* util/grub-mkconfig.in: Fix handling of -o so that it works when
+	not the first option.
+
+2010-05-20  Colin Watson  <cjwatson@ubuntu.com>
+
+	* util/grub-mkrelpath.c (usage): Remove excess apostrophe.
+
+2010-05-20  Colin Watson  <cjwatson@ubuntu.com>
+
+	* util/misc.c: Move inclusion of <limits.h> to ...
+	* kern/emu/misc.c: ... here.  Needed for canonicalize_file_name.
+
+2010-05-20  Grégoire Sutre  <gregoire.sutre@gmail.com>
+
+	* kern/emu/hostdisk.c (grub_util_biosdisk_get_grub_dev) [__NetBSD__]:
+	Fix merge error in NetBSD code.
+	(find_partition_start) [__NetBSD__]: Likewise.
+
+2010-05-19  BVK Chaitanya  <bvk.groups@gmail.com>
+
+	Fix grub-mkrescue usage unit testing.
+
+	* tests/util/grub-shell.in: Use --grub-mkimage with grub-mkrescue.
+
+2010-05-18  Christian Franke  <franke@computer.org>
+
+	* util/grub.d/10_windows.in: Use path names instead of
+	drive letters to prevent warning from Cygwin 1.7.
+	Add drivemap command to menuentry if needed.
+
+2010-05-18  Justus Winter  <4winter@informatik.uni-hamburg.de>
+
+	* util/grub.d/10_hurd.in: Include all gnumach* kernels, not only
+	gnumach and gnumach.gz.
+
+2010-05-18  Vladimir Serbinenko  <phcoder@gmail.com>
+
+	* include/grub/i18n.h (gettext): Inline instead of using #define.
+	(grub_gettext): Likewise.
+	(_): Likewise.
+
 2010-05-18  Vladimir Serbinenko  <phcoder@gmail.com>
 
 	* Makefile.in (CPPFLAGS): Replace -DGRUB_LIBDIR with

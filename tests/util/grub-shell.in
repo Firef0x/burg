@@ -124,7 +124,8 @@ halt
 EOF
 
 isofile=`mktemp`
-burg-mkrescue --output=${isofile} --override-directory=${builddir} \
+burg-mkrescue --burg-mkimage=${builddir}/burg-mkimage --output=${isofile} \
+  --override-directory=${builddir} \
   /boot/burg/burg.cfg=${cfgfile} /boot/burg/testcase.cfg=${source} \
   >/dev/null 2>&1
 
