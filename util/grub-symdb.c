@@ -818,7 +818,7 @@ Manage the symbol database of GRUB.\n\
   -v, --verbose           print verbose messages\n\
 \n\
 Report bugs to <%s>.\n\
-"), program_name, GRUB_LIBDIR, PACKAGE_BUGREPORT);
+"), program_name, GRUB_PKGLIBROOTDIR, PACKAGE_BUGREPORT);
 
   exit (status);
 }
@@ -873,7 +873,7 @@ main (int argc, char *argv[])
     }
 
   if (! dir)
-    dir = xstrdup (GRUB_LIBDIR);
+    dir = xstrdup (GRUB_PKGLIBROOTDIR);
 
   path = grub_util_get_path (dir, "modsym.lst");
 
