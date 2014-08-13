@@ -1,3 +1,23 @@
+2010-05-18  Vladimir Serbinenko  <phcoder@gmail.com>
+
+	* Makefile.in (CPPFLAGS): Replace -DGRUB_LIBDIR with
+	-DGRUB_PKGLIBROOTDIR= and prepend @PACKAGE_TARNAME@. All users updated.
+	* util/grub-mkimage.c (image_targets): Add i386-multiboot.
+	(main): Add a slash after pkglibdirroot.
+
+2010-05-18  Vladimir Serbinenko  <phcoder@gmail.com>
+
+	* util/grub-install.in: Add missing "in" keyword.
+
+2010-05-18  Vladimir Serbinenko  <phcoder@gmail.com>
+
+	* util/grub-mkrescue.in: Remove -O i386-pc duplication.
+	Reported by: Seth Goldberg.
+
+2010-05-18  Vladimir Serbinenko  <phcoder@gmail.com>
+
+	* po/POTFILES: Rename util/grub-mkrawimage.c to util/grub-mkimage.c.
+
 2010-05-18  Colin Watson  <cjwatson@ubuntu.com>
 
 	* configure.ac: Check for Linux device-mapper support.
