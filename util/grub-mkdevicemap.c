@@ -31,12 +31,31 @@
 
 #include <grub/util/misc.h>
 #include <grub/util/deviceiter.h>
+#include <grub/env.h>
 #include <grub/i18n.h>
 
 #define _GNU_SOURCE	1
 #include <getopt.h>
 
 #include "progname.h"
+
+void
+grub_putchar (int c)
+{
+  putchar (c);
+}
+
+int
+grub_getkey (void)
+{
+  return -1;
+}
+
+void
+grub_refresh (void)
+{
+  fflush (stdout);
+}
 
 struct make_device_map_closure
 {
@@ -166,6 +185,9 @@ main (int argc, char *argv[])
 	    break;
 	  }
     }
+
+  if (verbosity > 1)
+    grub_env_set ("debug", "all");
 
   make_device_map (dev_map ? : DEFAULT_DEVICE_MAP, floppy_disks);
 
